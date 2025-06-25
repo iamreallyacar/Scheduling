@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using System.Security.Claims;
 using Login_and_Registration_Backend_.NET_.Services;
 using Login_and_Registration_Backend_.NET_.Models;
+using AuthService = Login_and_Registration_Backend_.NET_.Services.IAuthenticationService;
 
 namespace Login_and_Registration_Backend_.NET_.Controllers
 {
@@ -13,13 +14,21 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
+        private readonly AuthService _authenticationService;
         private readonly IUserService _userService;
         private readonly IConfiguration _configuration;
+        private readonly ILogger<AuthController> _logger;
 
-        public AuthController(IUserService userService, IConfiguration configuration)
+        public AuthController(
+            AuthService authenticationService,
+            IUserService userService, 
+            IConfiguration configuration,
+            ILogger<AuthController> logger)
         {
+            _authenticationService = authenticationService;
             _userService = userService;
             _configuration = configuration;
+            _logger = logger;
         }
 
         private string GetFrontendUrl()
@@ -30,65 +39,50 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
-            try
+            _logger.LogDebug("Registration attempt for username: {Username}", request.Username);
+            
+            var result = await _authenticationService.RegisterAsync(request);
+            
+            if (result.Success)
             {
-                // Check if user already exists
-                var existingUserByUsername = await _userService.GetUserByUsernameAsync(request.Username);
-                var existingUserByEmail = await _userService.GetUserByEmailAsync(request.Email);
-
-                if (existingUserByUsername != null || existingUserByEmail != null)
-                {
-                    return BadRequest(new { message = "Username or email already exists" });
-                }
-
-                // Register user using Identity
-                var result = await _userService.RegisterUserAsync(request);
-                
-                if (result.Succeeded)
-                {
-                    return Ok(new { message = "User registered successfully" });
-                }
-
-                return BadRequest(new { 
-                    message = "Registration failed", 
-                    errors = result.Errors.Select(e => e.Description) 
+                _logger.LogInformation("User registered successfully: {Username}", request.Username);
+                return Ok(new { 
+                    message = "User registered successfully",
+                    user = result.User,
+                    token = result.Token
                 });
             }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = "Registration error: " + ex.Message });
-            }
+
+            _logger.LogWarning("Registration failed for username: {Username}. Error: {Error}", 
+                request.Username, result.ErrorMessage);
+            
+            return BadRequest(new { 
+                message = result.ErrorMessage,
+                errors = result.Errors
+            });
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
-            try
+            _logger.LogDebug("Login attempt for username: {Username}", request.Username);
+            
+            var result = await _authenticationService.AuthenticateAsync(request);
+            
+            if (result.Success)
             {
-                var (success, user) = await _userService.ValidateUserAsync(request);
-                
-                if (!success || user == null)
+                _logger.LogInformation("User logged in successfully: {Username}", request.Username);
+                return Ok(new
                 {
-                    return Unauthorized(new { message = "Invalid username or password" });
-                }
-
-                var token = _userService.GenerateJwtToken(user);
-
-				return Ok(new
-				{
-					User = new UserDto
-					{
-						Id = user.Id,
-						Username = user.UserName ?? string.Empty,
-						Email = user.Email ?? string.Empty
-					},
-					Token = token
-				});
+                    user = result.User,
+                    token = result.Token
+                });
             }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+
+            _logger.LogWarning("Login failed for username: {Username}. Error: {Error}", 
+                request.Username, result.ErrorMessage);
+            
+            return Unauthorized(new { message = result.ErrorMessage });
         }
 
         [HttpGet("test")]
@@ -135,7 +129,9 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
         public IActionResult GoogleLogin(string? returnUrl = null)
         {
             var redirectUrl = $"{Request.Scheme}://{Request.Host}/api/auth/oauth-success";
-			var properties = new AuthenticationProperties { RedirectUri = redirectUrl };
+            var properties = new AuthenticationProperties { RedirectUri = redirectUrl };
+            
+            _logger.LogDebug("Initiating Google OAuth login");
             return Challenge(properties, GoogleDefaults.AuthenticationScheme);
         }
 
@@ -144,113 +140,65 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
         public async Task<IActionResult> OAuthSuccess()
         {
             try
-            {                var authenticateResult = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            {
+                var authenticateResult = await HttpContext.AuthenticateAsync("OAuth");
+                
                 if (!authenticateResult.Succeeded || authenticateResult.Principal == null)
                 {
+                    _logger.LogWarning("OAuth authentication failed");
                     return Redirect($"{GetFrontendUrl()}/oauth-success?error=OAuth%20authentication%20failed");
                 }
 
                 var email = authenticateResult.Principal.FindFirst(ClaimTypes.Email)?.Value;
                 var name = authenticateResult.Principal.FindFirst(ClaimTypes.Name)?.Value;
+                var picture = authenticateResult.Principal.FindFirst("picture")?.Value;
+                var googleId = authenticateResult.Principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 
-                if (string.IsNullOrEmpty(email))
+                if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(googleId))
                 {
-                    return Redirect($"{GetFrontendUrl()}/oauth-success?error=No%20email%20returned%20from%20Google");
-                }// Find or create user
-                var user = await _userService.GetUserByEmailAsync(email);
-                if (user == null)
-                {
-                    // Generate a unique username by sanitizing the display name
-                    var baseUsername = SanitizeUsername(name ?? email.Split('@')[0]);
-                    var username = baseUsername;
-                    var counter = 1;
-                    
-                    // Check if username exists and make it unique
-                    while (await _userService.GetUserByUsernameAsync(username) != null)
-                    {
-                        username = $"{baseUsername}{counter}";
-                        counter++;
-                    }
-                    
-                    var registerRequest = new RegisterRequest
-                    {
-                        Username = username,
-                        Email = email,
-                        Password = GenerateSecurePassword() // Generate a password that meets requirements
-                    };var result = await _userService.RegisterUserAsync(registerRequest);                    if (!result.Succeeded)
-                    {
-                        var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-                        return Redirect($"{GetFrontendUrl()}/oauth-success?error=Failed%20to%20create%20user:%20{Uri.EscapeDataString(errors)}");
-                    }
-
-                    user = await _userService.GetUserByEmailAsync(email);
+                    _logger.LogWarning("OAuth success but missing required claims");
+                    return Redirect($"{GetFrontendUrl()}/oauth-success?error=No%20email%20or%20ID%20returned%20from%20Google");
                 }
 
-                if (user == null)
+                var oauthInfo = new OAuthUserInfo
                 {
-                    return Redirect($"{GetFrontendUrl()}/oauth-success?error=User%20creation%20failed");
+                    Email = email,
+                    Name = name,
+                    Picture = picture,
+                    Provider = "Google",
+                    ProviderId = googleId
+                };
+
+                var result = await _authenticationService.HandleOAuthUserAsync(oauthInfo);
+                
+                if (result.Success)
+                {
+                    _logger.LogInformation("OAuth authentication successful for user: {Email}", email);
+                    return Redirect($"{GetFrontendUrl()}/oauth-success?token={result.Token}");
                 }
 
-                var token = _userService.GenerateJwtToken(user);
-                return Redirect($"{GetFrontendUrl()}/oauth-success?token={token}");
+                _logger.LogError("OAuth user handling failed: {Error}", result.ErrorMessage);
+                return Redirect($"{GetFrontendUrl()}/oauth-success?error={Uri.EscapeDataString(result.ErrorMessage ?? "Authentication failed")}");
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error during OAuth success handling");
                 return Redirect($"{GetFrontendUrl()}/oauth-success?error={Uri.EscapeDataString(ex.Message)}");
             }
         }
 
-        private static string GenerateSecurePassword()
+        [HttpPost("logout")]
+        [Authorize]
+        public IActionResult Logout()
         {
-            // Generate a password that meets Identity requirements:
-            // - At least 8 characters
-            // - Contains digit, lowercase, uppercase
-            var random = new Random();
-            var chars = "abcdefghijklmnopqrstuvwxyz";
-            var upperChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-            var digits = "0123456789";
-            var special = "!@#$%^&*";
-            
-            var password = new char[12]; // 12 character password
-            password[0] = chars[random.Next(chars.Length)];           // lowercase
-            password[1] = upperChars[random.Next(upperChars.Length)]; // uppercase
-            password[2] = digits[random.Next(digits.Length)];         // digit
-            password[3] = special[random.Next(special.Length)];       // special
-            
-            // Fill the rest with random characters from all sets
-            var allChars = chars + upperChars + digits + special;
-            for (int i = 4; i < password.Length; i++)
+            var token = Request.Headers["Authorization"].ToString()?.Replace("Bearer ", "");
+            if (!string.IsNullOrEmpty(token))
             {
-                password[i] = allChars[random.Next(allChars.Length)];
+                _authenticationService.RevokeToken(token);
+                _logger.LogDebug("User logged out and token revoked");
             }
             
-            // Shuffle the password
-            for (int i = password.Length - 1; i > 0; i--)
-            {
-                int j = random.Next(i + 1);
-                (password[i], password[j]) = (password[j], password[i]);
-            }
-            
-            return new string(password);
-        }
-
-        private static string SanitizeUsername(string input)
-        {
-            if (string.IsNullOrWhiteSpace(input))
-                return "user";
-            
-            // Remove invalid characters and keep only letters and digits
-            var sanitized = new string(input.Where(c => char.IsLetterOrDigit(c)).ToArray());
-            
-            // Ensure the username is not empty and has reasonable length
-            if (string.IsNullOrEmpty(sanitized))
-                return "user";
-            
-            // Limit length to prevent overly long usernames
-            if (sanitized.Length > 20)
-                sanitized = sanitized.Substring(0, 20);
-            
-            return sanitized;
+            return Ok(new { message = "Logged out successfully" });
         }
     }
 }

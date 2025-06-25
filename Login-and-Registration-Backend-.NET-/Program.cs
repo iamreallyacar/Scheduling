@@ -1,17 +1,35 @@
 using System.Text;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.Google;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Login_and_Registration_Backend_.NET_.Services;
 using Login_and_Registration_Backend_.NET_.Data;
 using Login_and_Registration_Backend_.NET_.Models;
+using Login_and_Registration_Backend_.NET_.Configuration;
+using Login_and_Registration_Backend_.NET_.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.WebHost.UseUrls("http://localhost:5000");
+// Get environment and validate configuration
+var environment = builder.Environment.EnvironmentName;
+var logger = LoggerFactory.Create(config => config.AddConsole()).CreateLogger("Startup");
+
+logger.LogInformation("Application starting in {Environment} environment", environment);
+
+// Validate all required configuration using the helper
+try
+{
+    ConfigurationHelper.ValidateConfiguration(builder.Configuration, environment);
+    logger.LogInformation("Configuration validation passed");
+}
+catch (InvalidOperationException ex)
+{
+    logger.LogError("Configuration validation failed: {Error}", ex.Message);
+    throw;
+}
+
+// Log configuration status (without revealing secrets)
+logger.LogInformation("JWT Issuer: {JwtIssuer}", builder.Configuration["Jwt:Issuer"]);
+logger.LogInformation("Frontend URL: {FrontendUrl}", builder.Configuration["AppSettings:FrontendUrl"]);
 
 // Entity Framework and Database Configuration
 if (builder.Environment.IsEnvironment("Testing"))
@@ -20,13 +38,18 @@ if (builder.Environment.IsEnvironment("Testing"))
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseInMemoryDatabase("TestingDatabase")
     );
+    logger.LogInformation("Using In-Memory database for testing");
 }
 else
 {
-    // Use SQLite for development and production
+    // Use environment-specific database configuration
+    var connectionString = ConfigurationHelper.GetConnectionString(builder.Configuration, environment);
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"))
+        options.UseSqlite(connectionString)
     );
+    
+    logger.LogInformation("Using SQLite database: {DatabaseFile}", 
+        connectionString.Replace("Data Source=", "").Replace(";", ""));
 }
 
 // Identity services
@@ -51,74 +74,56 @@ builder.Services.AddOpenApi();
 // Add CORS policy
 builder.Services.AddCors(options =>
 {
-	// Allow both HTTP and HTTPS for local frontend
+	// Use environment-specific allowed origins with validation
 	options.AddPolicy("AllowFrontend", policy =>
 	{
-		var frontendUrl = builder.Configuration["AppSettings:FrontendUrl"] ?? "http://localhost:5173";
-		policy
-			.WithOrigins(
-				frontendUrl,
-				frontendUrl.Replace("http://", "https://")
-			)
-			.AllowAnyHeader()
-			.AllowAnyMethod()
-			.AllowCredentials();
+		try
+		{
+			var allowedOrigins = ConfigurationHelper.GetAllowedOrigins(builder.Configuration, environment);
+			
+			if (allowedOrigins.Length == 0)
+			{
+				logger.LogWarning("No valid CORS origins configured. API will reject all cross-origin requests.");
+			}
+			else
+			{
+				policy
+					.WithOrigins(allowedOrigins)
+					.AllowAnyHeader()
+					.AllowAnyMethod()
+					.AllowCredentials();
+				
+				logger.LogInformation("CORS configured for {Count} origins: {Origins}", 
+					allowedOrigins.Length, string.Join(", ", allowedOrigins));
+			}
+		}
+		catch (Exception ex)
+		{
+			logger.LogError(ex, "Failed to configure CORS origins");
+			throw;
+		}
 	});
 });
 
-// Add Authentication
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
-{
-    options.LoginPath = "/api/auth/google-login";
-    options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
-    options.SlidingExpiration = true;
-})
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidAudience = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key is not configured"))
-        )
-    };
-})
-.AddGoogle(options =>
-{
-	options.ClientId = builder.Configuration["Authentication:Google:ClientId"] ?? throw new InvalidOperationException("Google ClientId is not configured");
-	options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"] ?? throw new InvalidOperationException("Google ClientSecret is not configured");
-	options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-});
+// Add Authentication with improved configuration
+builder.Services.AddCustomAuthentication(builder.Configuration);
+
+// Add Authorization with custom policies
+builder.Services.AddCustomAuthorization();
 
 builder.Services.AddControllers();
 
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<Login_and_Registration_Backend_.NET_.Services.IAuthenticationService, Login_and_Registration_Backend_.NET_.Services.AuthenticationService>();
+builder.Services.AddScoped<IDatabaseSeedingService, DatabaseSeedingService>();
 
 var app = builder.Build();
 
-// Ensure database is created (skip in testing environment)
+// Initialize database and seed data (skip in testing environment)
 if (!app.Environment.IsEnvironment("Testing"))
 {
-    using (var scope = app.Services.CreateScope())
-    {
-        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        context.Database.EnsureCreated();
-        
-        // Seed tire production machines if they don't exist
-        SeedTireProductionData(context);
-    }
+    await app.Services.InitializeDatabaseAsync();
 }
 
 // Configure the HTTP request pipeline.
@@ -134,77 +139,6 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
-
-// Data seeding method for tire production
-static void SeedTireProductionData(ApplicationDbContext context)
-{
-    // Seed Machines if they don't exist
-    if (!context.Machines.Any())
-    {        var tireMachines = new[]
-        {
-            new Machine
-            {
-                Name = "Tire Molding Press 1",
-                Type = "Molding Press",
-                Status = "idle",
-                Utilization = 0,
-                IsActive = true,
-                LastMaintenance = DateTime.Now.AddDays(-30),
-                NextMaintenance = DateTime.Now.AddDays(30),
-                Notes = "Primary tire molding press for passenger car tires"
-            },
-            new Machine
-            {
-                Name = "Tire Molding Press 2",
-                Type = "Molding Press", 
-                Status = "idle",
-                Utilization = 0,
-                IsActive = true,
-                LastMaintenance = DateTime.Now.AddDays(-25),
-                NextMaintenance = DateTime.Now.AddDays(35),
-                Notes = "Secondary tire molding press for high-performance tires"
-            },
-            new Machine
-            {
-                Name = "Tire Building Machine 1",
-                Type = "Building Machine",
-                Status = "idle",
-                Utilization = 0,
-                IsActive = true,
-                LastMaintenance = DateTime.Now.AddDays(-20),
-                NextMaintenance = DateTime.Now.AddDays(40),
-                Notes = "Automated tire building for consistent quality"
-            },
-            new Machine
-            {
-                Name = "Tread Extrusion Line 1",
-                Type = "Extrusion Line",
-                Status = "idle",
-                Utilization = 0,
-                IsActive = true,
-                LastMaintenance = DateTime.Now.AddDays(-15),
-                NextMaintenance = DateTime.Now.AddDays(45),
-                Notes = "High-capacity tread extrusion for various tire sizes"
-            },
-            new Machine
-            {
-                Name = "Quality Control Station",
-                Type = "QC Station",
-                Status = "idle",
-                Utilization = 0,
-                IsActive = true,
-                LastMaintenance = DateTime.Now.AddDays(-10),
-                NextMaintenance = DateTime.Now.AddDays(50),
-                Notes = "Final quality inspection and testing station"
-            }
-        };
-
-        context.Machines.AddRange(tireMachines);
-        context.SaveChanges();
-        
-        Console.WriteLine("Seeded tire production machines successfully!");
-    }
-}
 
 // Make the implicit Program class public so it can be referenced by tests
 public partial class Program { }
