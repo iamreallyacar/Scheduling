@@ -1,10 +1,9 @@
 import axios from 'axios';
-
-const API_BASE_URL = 'http://localhost:5000/api';
+import { config } from '../config';
 
 // Create axios instance with default config
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: config.apiBaseUrl,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -158,7 +157,7 @@ class ApiService {
   }
 
   getGoogleLoginUrl(): string {
-    return `${API_BASE_URL}/auth/google-login`;
+    return `${config.apiBaseUrl}/auth/google-login`;
   }
 
   // Production Orders methods

@@ -36,8 +36,8 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
                 ProductName = o.ProductName,
                 Quantity = o.Quantity,
                 DueDate = o.DueDate,
-                Priority = o.Priority,
-                Status = o.Status,
+                Priority = o.Priority.ToString(),
+                Status = o.Status.ToString(),
                 Progress = o.Progress,
                 EstimatedHours = o.EstimatedHours,
                 AssignedMachine = o.AssignedMachine,
@@ -55,7 +55,7 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
                     MachineId = j.MachineId,
                     MachineName = j.Machine.Name,
                     Duration = j.Duration,
-                    Status = j.Status,
+                    Status = j.Status.ToString(),
                     ScheduledStartTime = j.ScheduledStartTime,
                     ScheduledEndTime = j.ScheduledEndTime,
                     ActualStartTime = j.ActualStartTime,
@@ -90,8 +90,8 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
                 ProductName = order.ProductName,
                 Quantity = order.Quantity,
                 DueDate = order.DueDate,
-                Priority = order.Priority,
-                Status = order.Status,
+                Priority = order.Priority.ToString(),
+                Status = order.Status.ToString(),
                 Progress = order.Progress,
                 EstimatedHours = order.EstimatedHours,
                 AssignedMachine = order.AssignedMachine,
@@ -101,6 +101,7 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
                 CompletedDate = order.CompletedDate,
                 CreatedBy = order.CreatedBy,
                 DaysUntilDue = (int)(order.DueDate - DateTime.Now).TotalDays,
+                IsOverdue = order.IsOverdue,
                 ProductionJobs = order.ProductionJobs.Select(j => new ProductionJobDto
                 {
                     Id = j.Id,
@@ -109,7 +110,7 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
                     MachineId = j.MachineId,
                     MachineName = j.Machine.Name,
                     Duration = j.Duration,
-                    Status = j.Status,
+                    Status = j.Status.ToString(),
                     ScheduledStartTime = j.ScheduledStartTime,
                     ScheduledEndTime = j.ScheduledEndTime,
                     ActualStartTime = j.ActualStartTime,
@@ -149,8 +150,8 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
                 ProductName = request.ProductName,
                 Quantity = request.Quantity,
                 DueDate = request.DueDate,
-                Priority = request.Priority,
-                Status = "pending",
+                Priority = Enum.Parse<Priority>(request.Priority),
+                Status = OrderStatus.Pending,
                 Progress = 0,
                 EstimatedHours = request.EstimatedHours,
                 Notes = request.Notes,
@@ -174,8 +175,8 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
                 ProductName = order.ProductName,
                 Quantity = order.Quantity,
                 DueDate = order.DueDate,
-                Priority = order.Priority,
-                Status = order.Status,
+                Priority = order.Priority.ToString(),
+                Status = order.Status.ToString(),
                 Progress = order.Progress,
                 EstimatedHours = order.EstimatedHours,
                 AssignedMachine = order.AssignedMachine,
@@ -215,17 +216,17 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
                 order.DueDate = request.DueDate.Value;
             
             if (!string.IsNullOrEmpty(request.Priority))
-                order.Priority = request.Priority;
+                order.Priority = Enum.Parse<Priority>(request.Priority);
             
             if (!string.IsNullOrEmpty(request.Status))
             {
-                order.Status = request.Status;
+                order.Status = Enum.Parse<OrderStatus>(request.Status);
                 
                 // Update dates based on status change
-                if (request.Status == "in-progress" && order.StartDate == null)
+                if (request.Status == "InProgress" && order.StartDate == null)
                     order.StartDate = DateTime.UtcNow;
                 
-                if (request.Status == "completed" && order.CompletedDate == null)
+                if (request.Status == "Completed" && order.CompletedDate == null)
                 {
                     order.CompletedDate = DateTime.UtcNow;
                     order.Progress = 100;
@@ -279,17 +280,17 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
         public async Task<ActionResult<object>> GetStatistics()
         {
             var totalOrders = await _context.ProductionOrders.CountAsync();
-            var activeOrders = await _context.ProductionOrders.CountAsync(o => o.Status == "in-progress");
-            var completedOrders = await _context.ProductionOrders.CountAsync(o => o.Status == "completed");
-            var pendingOrders = await _context.ProductionOrders.CountAsync(o => o.Status == "pending");
-            var delayedOrders = await _context.ProductionOrders.CountAsync(o => o.Status == "delayed");
+            var activeOrders = await _context.ProductionOrders.CountAsync(o => o.Status == OrderStatus.InProgress);
+            var completedOrders = await _context.ProductionOrders.CountAsync(o => o.Status == OrderStatus.Completed);
+            var pendingOrders = await _context.ProductionOrders.CountAsync(o => o.Status == OrderStatus.Pending);
+            var delayedOrders = await _context.ProductionOrders.CountAsync(o => o.Status == OrderStatus.Delayed);
             var completedToday = await _context.ProductionOrders.CountAsync(o => 
-                o.Status == "completed" && o.CompletedDate.HasValue && 
+                o.Status == OrderStatus.Completed && o.CompletedDate.HasValue && 
                 o.CompletedDate.Value.Date == DateTime.UtcNow.Date);
 
             // Calculate average efficiency (could be more sophisticated)
             var inProgressOrders = await _context.ProductionOrders
-                .Where(o => o.Status == "in-progress")
+                .Where(o => o.Status == OrderStatus.InProgress)
                 .ToListAsync();
             
             var efficiency = inProgressOrders.Any() 

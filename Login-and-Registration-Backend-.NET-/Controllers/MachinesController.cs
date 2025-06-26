@@ -22,7 +22,7 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
         public async Task<ActionResult<IEnumerable<MachineDto>>> GetMachines()
         {
             var machines = await _context.Machines
-                .Include(m => m.ProductionJobs.Where(j => j.Status == "in-progress"))
+                .Include(m => m.ProductionJobs.Where(j => j.Status == JobStatus.InProgress))
                 .ThenInclude(j => j.ProductionOrder)
                 .Where(m => m.IsActive)
                 .ToListAsync();
@@ -32,7 +32,7 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
                 Id = m.Id,
                 Name = m.Name,
                 Type = m.Type,
-                Status = m.Status,
+                Status = m.Status.ToString(),
                 Utilization = m.Utilization,
                 LastMaintenance = m.LastMaintenance,
                 NextMaintenance = m.NextMaintenance,
@@ -48,7 +48,7 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
         public async Task<ActionResult<MachineDto>> GetMachine(int id)
         {
             var machine = await _context.Machines
-                .Include(m => m.ProductionJobs.Where(j => j.Status == "in-progress"))
+                .Include(m => m.ProductionJobs.Where(j => j.Status == JobStatus.InProgress))
                 .ThenInclude(j => j.ProductionOrder)
                 .FirstOrDefaultAsync(m => m.Id == id && m.IsActive);
 
@@ -62,7 +62,7 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
                 Id = machine.Id,
                 Name = machine.Name,
                 Type = machine.Type,
-                Status = machine.Status,
+                Status = machine.Status.ToString(),
                 Utilization = machine.Utilization,
                 LastMaintenance = machine.LastMaintenance,
                 NextMaintenance = machine.NextMaintenance,
@@ -83,7 +83,7 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
                 return NotFound();
             }
 
-            machine.Status = request.Status;
+            machine.Status = Enum.Parse<MachineStatus>(request.Status);
             machine.Utilization = request.Utilization;
 
             if (!string.IsNullOrEmpty(request.Notes))
@@ -101,10 +101,10 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
             var machines = await _context.Machines.Where(m => m.IsActive).ToListAsync();
             
             var totalMachines = machines.Count;
-            var runningMachines = machines.Count(m => m.Status == "running");
-            var idleMachines = machines.Count(m => m.Status == "idle");
-            var maintenanceMachines = machines.Count(m => m.Status == "maintenance");
-            var errorMachines = machines.Count(m => m.Status == "error");
+            var runningMachines = machines.Count(m => m.Status == MachineStatus.Running);
+            var idleMachines = machines.Count(m => m.Status == MachineStatus.Idle);
+            var maintenanceMachines = machines.Count(m => m.Status == MachineStatus.Maintenance);
+            var errorMachines = machines.Count(m => m.Status == MachineStatus.Error);
             var averageUtilization = machines.Any() ? machines.Average(m => m.Utilization) : 0;
 
             return Ok(new

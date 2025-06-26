@@ -102,7 +102,7 @@ namespace Login_and_Registration_Backend_.NET_.Services
                     {
                         Name = "Tire Molding Press 1",
                         Type = "Molding Press",
-                        Status = "idle",
+                        Status = MachineStatus.Idle,
                         Utilization = 0,
                         IsActive = true,
                         LastMaintenance = DateTime.UtcNow.AddDays(-30),
@@ -113,7 +113,7 @@ namespace Login_and_Registration_Backend_.NET_.Services
                     {
                         Name = "Tire Molding Press 2",
                         Type = "Molding Press",
-                        Status = "idle",
+                        Status = MachineStatus.Idle,
                         Utilization = 0,
                         IsActive = true,
                         LastMaintenance = DateTime.UtcNow.AddDays(-25),
@@ -124,7 +124,7 @@ namespace Login_and_Registration_Backend_.NET_.Services
                     {
                         Name = "Tire Building Machine 1",
                         Type = "Building Machine",
-                        Status = "idle",
+                        Status = MachineStatus.Idle,
                         Utilization = 0,
                         IsActive = true,
                         LastMaintenance = DateTime.UtcNow.AddDays(-20),
@@ -135,7 +135,7 @@ namespace Login_and_Registration_Backend_.NET_.Services
                     {
                         Name = "Tread Extrusion Line 1",
                         Type = "Extrusion Line",
-                        Status = "idle",
+                        Status = MachineStatus.Idle,
                         Utilization = 0,
                         IsActive = true,
                         LastMaintenance = DateTime.UtcNow.AddDays(-15),
@@ -146,7 +146,7 @@ namespace Login_and_Registration_Backend_.NET_.Services
                     {
                         Name = "Quality Control Station",
                         Type = "QC Station",
-                        Status = "idle",
+                        Status = MachineStatus.Idle,
                         Utilization = 0,
                         IsActive = true,
                         LastMaintenance = DateTime.UtcNow.AddDays(-10),
@@ -190,9 +190,9 @@ namespace Login_and_Registration_Backend_.NET_.Services
                         CustomerName = "AutoCorp Manufacturing",
                         ProductName = "Premium All-Season Tire 205/55R16",
                         Quantity = 1000,
-                        Priority = "high",
+                        Priority = Priority.High,
                         EstimatedHours = 48.50m,
-                        Status = "pending",
+                        Status = OrderStatus.Pending,
                         DueDate = DateTime.UtcNow.AddDays(7),
                         CreatedDate = DateTime.UtcNow,
                         Notes = "High-priority order for major automotive manufacturer"
@@ -203,9 +203,9 @@ namespace Login_and_Registration_Backend_.NET_.Services
                         CustomerName = "WinterTech Industries",
                         ProductName = "Performance Winter Tire 225/45R17",
                         Quantity = 750,
-                        Priority = "medium",
+                        Priority = Priority.Medium,
                         EstimatedHours = 36.25m,
-                        Status = "pending",
+                        Status = OrderStatus.Pending,
                         DueDate = DateTime.UtcNow.AddDays(14),
                         CreatedDate = DateTime.UtcNow,
                         Notes = "Winter tire production for seasonal demand"
@@ -216,9 +216,9 @@ namespace Login_and_Registration_Backend_.NET_.Services
                         CustomerName = "TruckFleet Solutions",
                         ProductName = "Commercial Truck Tire 275/70R22.5",
                         Quantity = 500,
-                        Priority = "low",
+                        Priority = Priority.Low,
                         EstimatedHours = 72.00m,
-                        Status = "pending",
+                        Status = OrderStatus.Pending,
                         DueDate = DateTime.UtcNow.AddDays(21),
                         CreatedDate = DateTime.UtcNow,
                         Notes = "Heavy-duty commercial tire production"

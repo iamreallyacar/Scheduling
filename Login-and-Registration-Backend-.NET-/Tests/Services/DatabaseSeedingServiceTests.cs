@@ -43,7 +43,7 @@ namespace Login_and_Registration_Backend_.NET_.Tests.Services
             Assert.All(machines, machine =>
             {
                 Assert.True(machine.IsActive);
-                Assert.Equal("idle", machine.Status);
+                Assert.Equal(MachineStatus.Idle, machine.Status);
                 Assert.Equal(0, machine.Utilization);
                 Assert.True(machine.LastMaintenance < DateTime.UtcNow);
                 Assert.True(machine.NextMaintenance > DateTime.UtcNow);
@@ -59,7 +59,7 @@ namespace Login_and_Registration_Backend_.NET_.Tests.Services
             var service = new DatabaseSeedingService(context, logger.Object);
 
             // Add an existing machine
-            context.Machines.Add(new Machine { Name = "Existing Machine", Type = "Test", Status = "idle" });
+            context.Machines.Add(new Machine { Name = "Existing Machine", Type = "Test", Status = MachineStatus.Idle });
             await context.SaveChangesAsync();
 
             // Act
@@ -95,7 +95,7 @@ namespace Login_and_Registration_Backend_.NET_.Tests.Services
                 Assert.NotEmpty(order.CustomerName);
                 Assert.NotEmpty(order.ProductName);
                 Assert.True(order.Quantity > 0);
-                Assert.Equal("pending", order.Status);
+                Assert.Equal(OrderStatus.Pending, order.Status);
                 Assert.True(order.EstimatedHours > 0);
                 Assert.True(order.DueDate > DateTime.UtcNow);
             });

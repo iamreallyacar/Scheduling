@@ -28,11 +28,11 @@ namespace Login_and_Registration_Backend_.NET_.Models
         
         [Required]
         [StringLength(20)]
-        public string Priority { get; set; } = "medium"; // high, medium, low
+        public Priority Priority { get; set; } = Priority.Medium;
         
         [Required]
         [StringLength(20)]
-        public string Status { get; set; } = "pending"; // pending, in-progress, completed, delayed, cancelled
+        public OrderStatus Status { get; set; } = OrderStatus.Pending;
         
         [Range(0, 100)]
         public int Progress { get; set; } = 0;
@@ -47,12 +47,23 @@ namespace Login_and_Registration_Backend_.NET_.Models
         
         public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
         
+        public DateTime? UpdatedDate { get; set; }
+        
+        public DateTime? DeletedDate { get; set; }
+        
+        public bool IsDeleted { get; set; } = false;
+        
         public DateTime? StartDate { get; set; }
         
         public DateTime? CompletedDate { get; set; }
         
         [StringLength(50)]
         public string? CreatedBy { get; set; }
+        
+        // Domain validation properties
+        public bool IsOverdue => DueDate < DateTime.UtcNow && Status != OrderStatus.Completed;
+        
+        public int DaysUntilDue => (int)(DueDate - DateTime.UtcNow).TotalDays;
         
         // Navigation properties
         public virtual ICollection<ProductionJob> ProductionJobs { get; set; } = new List<ProductionJob>();
@@ -77,7 +88,7 @@ namespace Login_and_Registration_Backend_.NET_.Models
         
         [Required]
         [StringLength(20)]
-        public string Status { get; set; } = "scheduled"; // scheduled, in-progress, completed, delayed
+        public JobStatus Status { get; set; } = JobStatus.Scheduled;
         
         public DateTime? ScheduledStartTime { get; set; }
         
@@ -94,6 +105,15 @@ namespace Login_and_Registration_Backend_.NET_.Models
         public string? Notes { get; set; }
         
         public int SortOrder { get; set; } = 0;
+        
+        // Audit fields
+        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+        
+        public DateTime? UpdatedDate { get; set; }
+        
+        public DateTime? DeletedDate { get; set; }
+        
+        public bool IsDeleted { get; set; } = false;
         
         // Navigation properties
         [ForeignKey("ProductionOrderId")]
@@ -118,7 +138,7 @@ namespace Login_and_Registration_Backend_.NET_.Models
         
         [Required]
         [StringLength(20)]
-        public string Status { get; set; } = "idle"; // running, idle, maintenance, error
+        public MachineStatus Status { get; set; } = MachineStatus.Idle;
         
         [Range(0, 100)]
         public int Utilization { get; set; } = 0;
@@ -131,6 +151,15 @@ namespace Login_and_Registration_Backend_.NET_.Models
         public string? Notes { get; set; }
         
         public bool IsActive { get; set; } = true;
+        
+        // Audit fields
+        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+        
+        public DateTime? UpdatedDate { get; set; }
+        
+        public DateTime? DeletedDate { get; set; }
+        
+        public bool IsDeleted { get; set; } = false;
         
         // Navigation properties
         public virtual ICollection<ProductionJob> ProductionJobs { get; set; } = new List<ProductionJob>();
@@ -156,7 +185,7 @@ namespace Login_and_Registration_Backend_.NET_.Models
         
         [Required]
         [StringLength(20)]
-        public string Priority { get; set; } = "medium";
+        public string Priority { get; set; } = "Medium";
         
         public decimal EstimatedHours { get; set; }
         
@@ -214,6 +243,7 @@ namespace Login_and_Registration_Backend_.NET_.Models
         public DateTime? CompletedDate { get; set; }
         public string? CreatedBy { get; set; }
         public int DaysUntilDue { get; set; }
+        public bool IsOverdue { get; set; }
         public List<ProductionJobDto> ProductionJobs { get; set; } = new List<ProductionJobDto>();
     }
 
