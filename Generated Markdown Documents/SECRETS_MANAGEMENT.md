@@ -3,6 +3,7 @@
 ## Overview
 
 This application uses a layered configuration approach:
+
 - **Base Configuration**: `appsettings.json` (committed, no secrets)
 - **Environment-Specific**: `appsettings.{Environment}.json` (committed, placeholders only)
 - **Secrets**: User Secrets (development) / Environment Variables (production/staging)
@@ -12,12 +13,14 @@ This application uses a layered configuration approach:
 ### Using User Secrets (Recommended for Development)
 
 1. **Initialize user secrets** (already done):
+
    ```bash
    cd Login-and-Registration-Backend-.NET-
    dotnet user-secrets init
    ```
 
 2. **Set required secrets**:
+
    ```bash
    # JWT Secret Key (generate a new one for your project)
    dotnet user-secrets set "Jwt:Key" "your-super-secure-jwt-key-at-least-32-characters-long"
@@ -28,11 +31,13 @@ This application uses a layered configuration approach:
    ```
 
 3. **View current secrets**:
+
    ```bash
    dotnet user-secrets list
    ```
 
 4. **Remove a secret**:
+
    ```bash
    dotnet user-secrets remove "Jwt:Key"
    ```
@@ -90,7 +95,9 @@ APPSETTINGS__FRONTENDURL=https://your-production-domain.com
 ```
 
 # Frontend URL
-APPSETTINGS__FRONTENDURL=https://your-production-domain.com
+
+APPSETTINGS__FRONTENDURL=<https://your-production-domain.com>
+
 ```
 
 ### Using Azure Key Vault (Recommended for Production)
@@ -101,6 +108,7 @@ APPSETTINGS__FRONTENDURL=https://your-production-domain.com
    ```
 
 2. **Update Program.cs** to use Key Vault:
+
    ```csharp
    if (builder.Environment.IsProduction())
    {

@@ -46,6 +46,9 @@ public static class ConfigurationHelper
 
         // Validate CORS origins
         ValidateCorsConfiguration(configuration, environment);
+        
+        // Validate JWT configuration
+        ValidateJwtConfiguration(configuration, environment);
     }
 
     /// <summary>
@@ -259,5 +262,70 @@ public static class ConfigurationHelper
             "Production" => LogLevel.Warning,
             _ => LogLevel.Information
         };
+    }
+
+    /// <summary>
+    /// Validates JWT configuration settings
+    /// </summary>
+    private static void ValidateJwtConfiguration(IConfiguration configuration, string environment)
+    {
+        var jwtKey = configuration["Jwt:Key"];
+        var jwtIssuer = configuration["Jwt:Issuer"];
+        var jwtAudience = configuration["Jwt:Audience"];
+        var expirationMinutes = configuration.GetValue<int>("Jwt:ExpirationInMinutes", 60);
+
+        if (!string.IsNullOrWhiteSpace(jwtKey))
+        {
+            // JWT key should be at least 256 bits (32 bytes) for HS256
+            if (jwtKey.Length < 32)
+            {
+                throw new InvalidOperationException(
+                    $"JWT Key is too short. Minimum length is 32 characters for security. " +
+                    "Current length: {jwtKey.Length}. See SECRETS_MANAGEMENT.md for key generation.");
+            }
+
+            // Warn if using weak or common keys in production
+            if (environment == "Production")
+            {
+                var weakKeys = new[] { "your-secret-key", "your-256-bit-secret", "supersecretkey", "default", "secret" };
+                if (weakKeys.Any(weak => jwtKey.Contains(weak, StringComparison.OrdinalIgnoreCase)))
+                {
+                    throw new InvalidOperationException(
+                        "JWT Key appears to use a weak or default value. " +
+                        "Use a cryptographically secure random key in production.");
+                }
+            }
+        }
+
+        // Validate expiration settings
+        if (expirationMinutes <= 0)
+        {
+            throw new InvalidOperationException("JWT ExpirationInMinutes must be greater than 0.");
+        }
+
+        if (environment == "Production" && expirationMinutes > 1440) // More than 24 hours
+        {
+            throw new InvalidOperationException(
+                "JWT ExpirationInMinutes should not exceed 24 hours (1440 minutes) in production for security.");
+        }
+
+        // Validate issuer and audience format
+        if (!string.IsNullOrWhiteSpace(jwtIssuer) && !Uri.IsWellFormedUriString(jwtIssuer, UriKind.RelativeOrAbsolute))
+        {
+            // Allow simple string issuers, but warn about best practices
+            if (environment == "Production" && !jwtIssuer.Contains("."))
+            {
+                // This is just a warning, not an error
+                Console.WriteLine($"Warning: JWT Issuer '{jwtIssuer}' should typically be a URI in production.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks if a string is a valid URI
+    /// </summary>
+    private static bool IsValidUri(string uriString)
+    {
+        return Uri.TryCreate(uriString, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps;
     }
 }

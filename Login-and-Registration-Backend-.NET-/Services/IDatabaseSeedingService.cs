@@ -15,6 +15,14 @@ namespace Login_and_Registration_Backend_.NET_.Services
         Task SeedDatabaseAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Seeds the database with environment-specific data
+        /// </summary>
+        /// <param name="environment">The environment name (Development, Staging, Production)</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Task representing the async operation</returns>
+        Task SeedForEnvironmentAsync(string environment, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Seeds tire production machines if they don't exist
         /// </summary>
         /// <param name="cancellationToken">Cancellation token</param>
@@ -27,6 +35,13 @@ namespace Login_and_Registration_Backend_.NET_.Services
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Task representing the async operation</returns>
         Task SeedProductionOrdersAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Cleans all seed data from the database
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Task representing the async operation</returns>
+        Task CleanSeedDataAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Applies pending migrations to the database

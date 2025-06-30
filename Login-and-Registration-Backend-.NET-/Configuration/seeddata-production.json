@@ -1,0 +1,108 @@
+{
+  "SeedConfiguration": {
+    "SeedRelationships": true,
+    "EnableCleanup": false,
+    "Machines": [
+      {
+        "Name": "Production Molding Press 1",
+        "Type": "Molding Press",
+        "Status": "idle",
+        "Utilization": 0,
+        "IsActive": true,
+        "LastMaintenanceDaysAgo": 30,
+        "NextMaintenanceDaysAhead": 30,
+        "Notes": "Primary production molding press"
+      },
+      {
+        "Name": "Production Molding Press 2",
+        "Type": "Molding Press",
+        "Status": "idle",
+        "Utilization": 0,
+        "IsActive": true,
+        "LastMaintenanceDaysAgo": 25,
+        "NextMaintenanceDaysAhead": 35,
+        "Notes": "Secondary production molding press"
+      },
+      {
+        "Name": "Production Building Machine 1",
+        "Type": "Building Machine",
+        "Status": "idle",
+        "Utilization": 0,
+        "IsActive": true,
+        "LastMaintenanceDaysAgo": 20,
+        "NextMaintenanceDaysAhead": 40,
+        "Notes": "Production building machine"
+      },
+      {
+        "Name": "Production Extrusion Line 1",
+        "Type": "Extrusion Line",
+        "Status": "idle",
+        "Utilization": 0,
+        "IsActive": true,
+        "LastMaintenanceDaysAgo": 15,
+        "NextMaintenanceDaysAhead": 45,
+        "Notes": "Production extrusion line"
+      },
+      {
+        "Name": "Production QC Station 1",
+        "Type": "QC Station",
+        "Status": "idle",
+        "Utilization": 0,
+        "IsActive": true,
+        "LastMaintenanceDaysAgo": 10,
+        "NextMaintenanceDaysAhead": 50,
+        "Notes": "Quality control station"
+      }
+    ],
+    "Orders": [
+      {
+        "OrderNumber": "PROD-2025-001",
+        "CustomerName": "AutoCorp Manufacturing",
+        "ProductName": "Premium All-Season Tire 205/55R16",
+        "Quantity": 1000,
+        "Priority": "High",
+        "EstimatedHours": 48.5,
+        "Status": "Pending",
+        "DueDateDaysAhead": 7,
+        "Notes": "High-priority production order",
+        "CreatedBy": "production"
+      },
+      {
+        "OrderNumber": "PROD-2025-002",
+        "CustomerName": "WinterTech Industries",
+        "ProductName": "Performance Winter Tire 225/45R17",
+        "Quantity": 750,
+        "Priority": "Medium",
+        "EstimatedHours": 36.25,
+        "Status": "Pending",
+        "DueDateDaysAhead": 14,
+        "Notes": "Winter tire production",
+        "CreatedBy": "production"
+      }
+    ],
+    "Jobs": [
+      {
+        "JobName": "Molding - Premium All-Season",
+        "OrderNumber": "PROD-2025-001",
+        "MachineName": "Production Molding Press 1",
+        "Duration": 24.0,
+        "Status": "Scheduled",
+        "ScheduledStartDaysAhead": 2,
+        "Operator": "Production Team A",
+        "Notes": "Premium tire molding",
+        "SortOrder": 1
+      },
+      {
+        "JobName": "Building - Premium All-Season",
+        "OrderNumber": "PROD-2025-001",
+        "MachineName": "Production Building Machine 1",
+        "Duration": 20.0,
+        "Status": "Scheduled",
+        "ScheduledStartDaysAhead": 3,
+        "Operator": "Production Team B",
+        "Notes": "Premium tire building",
+        "SortOrder": 2
+      }
+    ]
+  }
+}

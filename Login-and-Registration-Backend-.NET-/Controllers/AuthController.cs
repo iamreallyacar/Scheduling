@@ -103,8 +103,8 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
                     return Unauthorized(new { message = "Invalid token" });
                 }
 
-                var user = await _userService.GetUserByIdAsync(userIdClaim.Value);
-                if (user == null)
+                var userResult = await _userService.GetUserByIdAsync(userIdClaim.Value);
+                if (!userResult.IsSuccess || userResult.Data == null)
                 {
                     return NotFound(new { message = "User not found" });
                 }
@@ -113,9 +113,9 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
                 {
                     user = new UserDto
                     {
-                        Id = user.Id,
-                        Username = user.UserName ?? string.Empty,
-                        Email = user.Email ?? string.Empty
+                        Id = userResult.Data.Id,
+                        Username = userResult.Data.UserName ?? string.Empty,
+                        Email = userResult.Data.Email ?? string.Empty
                     }
                 });
             }

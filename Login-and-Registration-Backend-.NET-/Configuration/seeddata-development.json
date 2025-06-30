@@ -1,0 +1,88 @@
+{
+  "SeedConfiguration": {
+    "SeedRelationships": true,
+    "EnableCleanup": true,
+    "Machines": [
+      {
+        "Name": "Development Molding Press 1",
+        "Type": "Molding Press",
+        "Status": "idle",
+        "Utilization": 0,
+        "IsActive": true,
+        "LastMaintenanceDaysAgo": 10,
+        "NextMaintenanceDaysAhead": 20,
+        "Notes": "Development environment molding press"
+      },
+      {
+        "Name": "Development Building Machine 1",
+        "Type": "Building Machine",
+        "Status": "idle",
+        "Utilization": 0,
+        "IsActive": true,
+        "LastMaintenanceDaysAgo": 5,
+        "NextMaintenanceDaysAhead": 25,
+        "Notes": "Development environment building machine"
+      },
+      {
+        "Name": "Development Extrusion Line 1",
+        "Type": "Extrusion Line",
+        "Status": "maintenance",
+        "Utilization": 0,
+        "IsActive": false,
+        "LastMaintenanceDaysAgo": 1,
+        "NextMaintenanceDaysAhead": 7,
+        "Notes": "Under maintenance for testing"
+      }
+    ],
+    "Orders": [
+      {
+        "OrderNumber": "DEV-2025-001",
+        "CustomerName": "Test Customer A",
+        "ProductName": "Test Tire Model A",
+        "Quantity": 100,
+        "Priority": "High",
+        "EstimatedHours": 12.5,
+        "Status": "Pending",
+        "DueDateDaysAhead": 3,
+        "Notes": "Development test order",
+        "CreatedBy": "system"
+      },
+      {
+        "OrderNumber": "DEV-2025-002",
+        "CustomerName": "Test Customer B",
+        "ProductName": "Test Tire Model B",
+        "Quantity": 50,
+        "Priority": "Low",
+        "EstimatedHours": 8.0,
+        "Status": "InProgress",
+        "DueDateDaysAhead": 7,
+        "Notes": "Sample development order",
+        "CreatedBy": "system"
+      }
+    ],
+    "Jobs": [
+      {
+        "JobName": "Molding - Test Tire A",
+        "OrderNumber": "DEV-2025-001",
+        "MachineName": "Development Molding Press 1",
+        "Duration": 6.0,
+        "Status": "Scheduled",
+        "ScheduledStartDaysAhead": 1,
+        "Operator": "Dev Operator",
+        "Notes": "Test molding job",
+        "SortOrder": 1
+      },
+      {
+        "JobName": "Building - Test Tire B",
+        "OrderNumber": "DEV-2025-002",
+        "MachineName": "Development Building Machine 1",
+        "Duration": 4.0,
+        "Status": "InProgress",
+        "ScheduledStartDaysAhead": 0,
+        "Operator": "Dev Operator",
+        "Notes": "Test building job",
+        "SortOrder": 1
+      }
+    ]
+  }
+}

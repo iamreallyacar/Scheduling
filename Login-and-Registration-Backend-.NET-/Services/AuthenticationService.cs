@@ -28,23 +28,23 @@ namespace Login_and_Registration_Backend_.NET_.Services
             {
                 _logger.LogDebug("Attempting authentication for user: {Username}", request.Username);
                 
-                var (success, user) = await _userService.ValidateUserAsync(request);
+                var userResult = await _userService.ValidateUserAsync(request);
                 
-                if (!success || user == null)
+                if (!userResult.IsSuccess || userResult.Data == null)
                 {
                     _logger.LogWarning("Authentication failed for user: {Username}", request.Username);
                     return AuthenticationResult.FailureResult("Invalid username or password");
                 }
 
-                var token = _jwtService.GenerateJwtToken(user);
+                var token = _jwtService.GenerateJwtToken(userResult.Data);
                 var userDto = new UserDto
                 {
-                    Id = user.Id,
-                    Username = user.UserName ?? string.Empty,
-                    Email = user.Email ?? string.Empty
+                    Id = userResult.Data.Id,
+                    Username = userResult.Data.UserName ?? string.Empty,
+                    Email = userResult.Data.Email ?? string.Empty
                 };
 
-                _logger.LogInformation("User authenticated successfully: {UserId}", user.Id);
+                _logger.LogInformation("User authenticated successfully: {UserId}", userResult.Data.Id);
                 return AuthenticationResult.SuccessResult(token, userDto);
             }
             catch (Exception ex)
@@ -64,7 +64,7 @@ namespace Login_and_Registration_Backend_.NET_.Services
                 var existingUserByUsername = await _userService.GetUserByUsernameAsync(request.Username);
                 var existingUserByEmail = await _userService.GetUserByEmailAsync(request.Email);
 
-                if (existingUserByUsername != null || existingUserByEmail != null)
+                if (existingUserByUsername.IsSuccess || existingUserByEmail.IsSuccess)
                 {
                     _logger.LogWarning("Registration failed - user already exists: {Username}, {Email}", 
                         request.Username, request.Email);
@@ -73,31 +73,23 @@ namespace Login_and_Registration_Backend_.NET_.Services
 
                 var result = await _userService.RegisterUserAsync(request);
                 
-                if (!result.Succeeded)
+                if (!result.IsSuccess)
                 {
-                    var errors = result.Errors.Select(e => e.Description);
                     _logger.LogWarning("Registration failed for user: {Username}. Errors: {Errors}", 
-                        request.Username, string.Join(", ", errors));
-                    return AuthenticationResult.FailureResult("Registration failed", errors);
+                        request.Username, string.Join(", ", result.Errors));
+                    return AuthenticationResult.FailureResult("Registration failed", result.Errors);
                 }
 
-                // Get the newly created user and generate token
-                var user = await _userService.GetUserByUsernameAsync(request.Username);
-                if (user == null)
-                {
-                    _logger.LogError("User registration succeeded but user not found: {Username}", request.Username);
-                    return AuthenticationResult.FailureResult("Registration failed - user creation error");
-                }
-
-                var token = _jwtService.GenerateJwtToken(user);
+                // Generate token for the newly created user
+                var token = _jwtService.GenerateJwtToken(result.Data!);
                 var userDto = new UserDto
                 {
-                    Id = user.Id,
-                    Username = user.UserName ?? string.Empty,
-                    Email = user.Email ?? string.Empty
+                    Id = result.Data!.Id,
+                    Username = result.Data!.UserName ?? string.Empty,
+                    Email = result.Data!.Email ?? string.Empty
                 };
 
-                _logger.LogInformation("User registered successfully: {UserId}", user.Id);
+                _logger.LogInformation("User registered successfully: {UserId}", result.Data!.Id);
                 return AuthenticationResult.SuccessResult(token, userDto);
             }
             catch (Exception ex)
@@ -114,7 +106,8 @@ namespace Login_and_Registration_Backend_.NET_.Services
                 _logger.LogDebug("Handling OAuth user: {Email} from {Provider}", oauthInfo.Email, oauthInfo.Provider);
 
                 // Find existing user by email
-                var user = await _userService.GetUserByEmailAsync(oauthInfo.Email);
+                var userResult = await _userService.GetUserByEmailAsync(oauthInfo.Email);
+                ApplicationUser? user = userResult.IsSuccess ? userResult.Data : null;
                 
                 if (user == null)
                 {
@@ -128,15 +121,14 @@ namespace Login_and_Registration_Backend_.NET_.Services
                     };
 
                     var registrationResult = await _userService.RegisterUserAsync(registerRequest);
-                    if (!registrationResult.Succeeded)
+                    if (!registrationResult.IsSuccess)
                     {
-                        var errors = registrationResult.Errors.Select(e => e.Description);
                         _logger.LogError("Failed to create OAuth user: {Email}. Errors: {Errors}", 
-                            oauthInfo.Email, string.Join(", ", errors));
-                        return AuthenticationResult.FailureResult("Failed to create user account", errors);
+                            oauthInfo.Email, string.Join(", ", registrationResult.Errors));
+                        return AuthenticationResult.FailureResult("Failed to create user account", registrationResult.Errors);
                     }
 
-                    user = await _userService.GetUserByEmailAsync(oauthInfo.Email);
+                    user = registrationResult.Data;
                     if (user == null)
                     {
                         _logger.LogError("OAuth user creation succeeded but user not found: {Email}", oauthInfo.Email);

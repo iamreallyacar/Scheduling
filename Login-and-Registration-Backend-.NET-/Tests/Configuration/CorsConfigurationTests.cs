@@ -89,7 +89,7 @@ public class CorsConfigurationTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                {"Jwt:Key", "test-key"},
+                {"Jwt:Key", "this-is-a-very-long-test-key-that-meets-minimum-32-character-requirement"},
                 {"Jwt:Issuer", "test-issuer"},
                 {"Jwt:Audience", "test-audience"},
                 {"Authentication:Google:ClientId", "test-client-id"},
@@ -111,7 +111,7 @@ public class CorsConfigurationTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                {"Jwt:Key", "test-key"},
+                {"Jwt:Key", "this-is-a-very-long-test-key-that-meets-minimum-32-character-requirement"},
                 {"Jwt:Issuer", "test-issuer"},
                 {"Jwt:Audience", "test-audience"},
                 {"Authentication:Google:ClientId", "test-client-id"},
@@ -133,7 +133,7 @@ public class CorsConfigurationTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                {"Jwt:Key", "test-key"},
+                {"Jwt:Key", "this-is-a-very-long-test-key-that-meets-minimum-32-character-requirement"},
                 {"Jwt:Issuer", "test-issuer"},
                 {"Jwt:Audience", "test-audience"},
                 {"Authentication:Google:ClientId", "test-client-id"},

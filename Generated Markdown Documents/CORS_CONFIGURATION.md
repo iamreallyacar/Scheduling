@@ -7,16 +7,19 @@ The Cross-Origin Resource Sharing (CORS) configuration has been enhanced to prov
 ## Key Improvements
 
 ### 1. URL Validation
+
 - All CORS origins are now validated using proper URI parsing
 - Invalid URLs are rejected during application startup
 - No more fragile string replacement for protocol switching
 
 ### 2. Environment-Specific Security
+
 - **Production**: Only HTTPS origins are allowed
 - **Development**: Both HTTP and HTTPS are supported
 - **Staging**: HTTPS enforced but multiple subdomains supported
 
 ### 3. Multiple Origins Support
+
 - Configuration now supports arrays of allowed origins
 - Each environment can have multiple valid frontends
 - Automatic deduplication of origins
@@ -24,6 +27,7 @@ The Cross-Origin Resource Sharing (CORS) configuration has been enhanced to prov
 ## Configuration Structure
 
 ### appsettings.json Format
+
 ```json
 {
   "AppSettings": {
@@ -39,16 +43,19 @@ The Cross-Origin Resource Sharing (CORS) configuration has been enhanced to prov
 ### Environment-Specific Configurations
 
 #### Development
+
 - Supports both HTTP and HTTPS
 - Includes localhost and 127.0.0.1 variants
 - Automatically adds alternate protocol versions
 
 #### Staging
+
 - HTTPS only
 - Multiple subdomain support
 - Validates all URLs at startup
 
 #### Production
+
 - HTTPS only (enforced)
 - Multiple production domains supported
 - Strict validation
@@ -64,11 +71,13 @@ The Cross-Origin Resource Sharing (CORS) configuration has been enhanced to prov
 ## Error Handling
 
 ### Startup Validation
+
 - Invalid origins cause application startup failure
 - Clear error messages indicate which URLs are invalid
 - Production environments reject HTTP origins
 
 ### Runtime Behavior
+
 - Only validated origins are added to CORS policy
 - Logging shows exactly which origins are configured
 - Zero origins result in warning but don't crash the app
@@ -76,6 +85,7 @@ The Cross-Origin Resource Sharing (CORS) configuration has been enhanced to prov
 ## Migration from Old Configuration
 
 ### Old Format (Deprecated)
+
 ```json
 {
   "AppSettings": {
@@ -85,6 +95,7 @@ The Cross-Origin Resource Sharing (CORS) configuration has been enhanced to prov
 ```
 
 ### New Format (Recommended)
+
 ```json
 {
   "AppSettings": {

@@ -1,58 +1,47 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using Login_and_Registration_Backend_.NET_.Services;
 using Login_and_Registration_Backend_.NET_.Data;
 using Login_and_Registration_Backend_.NET_.Models;
 using Login_and_Registration_Backend_.NET_.Configuration;
 using Login_and_Registration_Backend_.NET_.Extensions;
+using Login_and_Registration_Backend_.NET_.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Get environment and validate configuration
-var environment = builder.Environment.EnvironmentName;
+// Simple logging setup
 var logger = LoggerFactory.Create(config => config.AddConsole()).CreateLogger("Startup");
+logger.LogInformation("Application starting in {Environment} environment", builder.Environment.EnvironmentName);
 
-logger.LogInformation("Application starting in {Environment} environment", environment);
-
-// Validate all required configuration using the helper
+// Quick configuration validation
 try
 {
-    ConfigurationHelper.ValidateConfiguration(builder.Configuration, environment);
+    ConfigurationHelper.ValidateConfiguration(builder.Configuration, builder.Environment.EnvironmentName);
     logger.LogInformation("Configuration validation passed");
 }
-catch (InvalidOperationException ex)
+catch (Exception ex)
 {
-    logger.LogError("Configuration validation failed: {Error}", ex.Message);
+    logger.LogError("Configuration error: {Error}", ex.Message);
     throw;
 }
 
-// Log configuration status (without revealing secrets)
-logger.LogInformation("JWT Issuer: {JwtIssuer}", builder.Configuration["Jwt:Issuer"]);
-logger.LogInformation("Frontend URL: {FrontendUrl}", builder.Configuration["AppSettings:FrontendUrl"]);
-
-// Entity Framework and Database Configuration
+// Database setup - simple and clean
 if (builder.Environment.IsEnvironment("Testing"))
 {
-    // Use in-memory database for testing (will be overridden by test factory)
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseInMemoryDatabase("TestingDatabase")
-    );
-    logger.LogInformation("Using In-Memory database for testing");
+        options.UseInMemoryDatabase("TestingDatabase"));
 }
 else
 {
-    // Use environment-specific database configuration
-    var connectionString = ConfigurationHelper.GetConnectionString(builder.Configuration, environment);
+    var connectionString = ConfigurationHelper.GetConnectionString(builder.Configuration, builder.Environment.EnvironmentName);
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseSqlite(connectionString)
-    );
-    
-    logger.LogInformation("Using SQLite database: {DatabaseFile}", 
-        connectionString.Replace("Data Source=", "").Replace(";", ""));
+        options.UseSqlite(connectionString));
 }
 
-// Identity services
+// Identity setup
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
     options.Password.RequireDigit = true;
@@ -64,72 +53,48 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
-// SignInManager
-builder.Services.AddScoped<SignInManager<ApplicationUser>>();
-
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
-
-// Add CORS policy
-builder.Services.AddCors(options =>
-{
-	// Use environment-specific allowed origins with validation
-	options.AddPolicy("AllowFrontend", policy =>
-	{
-		try
-		{
-			var allowedOrigins = ConfigurationHelper.GetAllowedOrigins(builder.Configuration, environment);
-			
-			if (allowedOrigins.Length == 0)
-			{
-				logger.LogWarning("No valid CORS origins configured. API will reject all cross-origin requests.");
-			}
-			else
-			{
-				policy
-					.WithOrigins(allowedOrigins)
-					.AllowAnyHeader()
-					.AllowAnyMethod()
-					.AllowCredentials();
-				
-				logger.LogInformation("CORS configured for {Count} origins: {Origins}", 
-					allowedOrigins.Length, string.Join(", ", allowedOrigins));
-			}
-		}
-		catch (Exception ex)
-		{
-			logger.LogError(ex, "Failed to configure CORS origins");
-			throw;
-		}
-	});
-});
-
-// Add Authentication with improved configuration
-builder.Services.AddCustomAuthentication(builder.Configuration);
-
-// Add Authorization with custom policies
-builder.Services.AddCustomAuthorization();
-
-builder.Services.AddControllers();
-
+// All services in one place
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<Login_and_Registration_Backend_.NET_.Services.IAuthenticationService, Login_and_Registration_Backend_.NET_.Services.AuthenticationService>();
 builder.Services.AddScoped<IDatabaseSeedingService, DatabaseSeedingService>();
+builder.Services.AddControllers();
+builder.Services.AddOpenApi();
+
+// Simple CORS setup
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        var frontendUrl = builder.Configuration["AppSettings:FrontendUrl"] ?? "http://localhost:3000";
+        policy.WithOrigins(frontendUrl)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
+// Simple authentication setup
+builder.Services.AddCustomAuthentication(builder.Configuration);
+builder.Services.AddCustomAuthorization();
+
+// Health checks
+builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseHealthCheck>("database")
+    .AddCheck<JwtServiceHealthCheck>("jwt-service");
 
 var app = builder.Build();
 
-// Initialize database and seed data (skip in testing environment)
+// Simple database initialization
 if (!app.Environment.IsEnvironment("Testing"))
 {
     await app.Services.InitializeDatabaseAsync();
 }
 
-// Configure the HTTP request pipeline.
+// Clean middleware pipeline
 if (app.Environment.IsDevelopment())
 {
-	app.MapOpenApi();
+    app.MapOpenApi();
 }
 
 app.UseHttpsRedirection();
@@ -137,6 +102,7 @@ app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 app.Run();
 
