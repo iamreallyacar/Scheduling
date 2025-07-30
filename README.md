@@ -82,13 +82,12 @@ Run the configuration test script to validate your setup:
 │   ├── Services/                           # Business logic services
 │   ├── Configuration/                      # Configuration helpers
 │   └── appsettings.{Environment}.json      # Environment-specific config
-├── Login-and-Registration-Frontend-React-/ # React frontend
-│   ├── src/
-│   │   ├── components/                     # React components
-│   │   ├── pages/                          # Page components
-│   │   ├── contexts/                       # React contexts
-│   │   └── services/                       # API services
-└── SECRETS_MANAGEMENT.md                   # Security configuration guide
+└── Login-and-Registration-Frontend-React-/ # React frontend
+    └── src/
+        ├── components/                     # React components
+        ├── pages/                          # Page components
+        ├── contexts/                       # React contexts
+        └── services/                       # API services
 ```
 
 ## Security Features
@@ -106,21 +105,3 @@ Run the configuration test script to validate your setup:
 - .NET 9 SDK
 - Node.js 18+
 - Git
-
-### Getting Started
-1. Clone the repository
-2. Follow the backend setup instructions above
-3. Follow the frontend setup instructions above
-4. Configure secrets as per `SECRETS_MANAGEMENT.md`
-
-## Deployment
-
-For deployment instructions and environment variable setup, see `SECRETS_MANAGEMENT.md`.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test with `.\test-config.ps1`
-5. Submit a pull request

@@ -7,5 +7,6 @@ Don't touch my code review markdown file
 
 # Documentation Guide
 
-Keep the documentation concise and focused
-Don't use emoji
+Do not create documents unless explicitly instructed
+Keep the documentation concise
+Don't use emojis
