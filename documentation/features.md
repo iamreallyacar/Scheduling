@@ -88,7 +88,7 @@ Revised 2026-11-04 (task D5): terms follow the revised domain model (operations,
 |---|---|---|
 | F-MNT-1 | Record unavailability per machine: planned maintenance or breakdown, with start, optional end and reason. Blocks placements in that period | P0 |
 | F-MNT-2 | Show each machine's current status, derived from unavailability and progress: Down, Maintenance, Running, Idle | P0 |
-| F-MNT-3 | Breakdown handling: list the lots affected by a breakdown | P1 |
+| F-MNT-3 | Breakdown impact view: affected lots grouped by order, with the resulting lateness (v1 already flags them as conflicts, F-SCH-4) | P1 |
 | F-MNT-4 | Reassign affected lots to alternate eligible machines | P1 |
 | F-MNT-5 | Recurring maintenance schedules | P2 |
 | F-MNT-6 | Maintenance history log | P2 |
@@ -174,4 +174,5 @@ Notes:
 - [business-problem.md](business-problem.md): situation and problem statement
 - [domain-model.md](domain-model.md): entities, rules, lifecycles, assumptions
 - [architecture.md](architecture.md): modules, engine, API, persistence, tests
+- [decisions.md](decisions.md): decision log
 - [tasks.md](tasks.md): preparation and implementation tasks

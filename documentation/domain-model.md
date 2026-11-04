@@ -161,7 +161,7 @@ Statuses are **derived, never stored**. A stored status could not be correct for
 |---|---|
 | Cancelled | The order is cancelled and the lot has not started |
 | Completed | Progress has `actualEnd` |
-| In Progress | Progress has `actualStart` and no `actualEnd` |
+| In Progress | Progress has `actualStart` and no `actualEnd`. A start can only be recorded for a lot placed in the live version |
 | Scheduled | The lot has a placement in the version being viewed (live by default) |
 | Unscheduled | Otherwise |
 
@@ -188,7 +188,7 @@ Statuses are **derived, never stored**. A stored status could not be correct for
 
 Marking a machine down means creating a breakdown unavailability starting now, with an estimated end if known. Bringing it back means setting the end.
 
-**Late is a flag, not a state (decided).** An order can be Scheduled and late, or In Progress and late. It is computed at query time for a given version, never stored. Cancelled orders are never late. Due date ends at the end of its plant-local day (`architecture.md` section 4).
+**Late is a flag, not a state (decided).** An order can be Scheduled and late, or In Progress and late. It is computed at query time for a given version, never stored. Cancelled orders are never late. Due date ends at the end of its plant-local day (`architecture.md` section 5).
 - Unfinished order: `isLate` when now is after the due date, or any lot's `plannedEnd` in the version is after it.
 - Completed order: `isLate` when the last lot's `actualEnd` is after the due date.
 
@@ -220,7 +220,7 @@ Customer entity, sequence-dependent changeover, machine-product eligibility, per
 
 Decided (task P1): Delayed is a derived flag (section 6); A1 to A3 accepted; A6 rejects placements across maintenance.
 
-Decided (tasks D1-D3, 2026-11-04, to be recorded in `decisions.md` in D7):
+Decided (tasks D1-D3, 2026-11-04, recorded in [decisions.md](decisions.md) as DEC-6 to DEC-12):
 - Job split into Operation and Lot (A6).
 - Machines generalised to resources of a type with a kind; each resource follows a calendar (A3, A4).
 - Duration from setup, cycle time and units per cycle (section 4).

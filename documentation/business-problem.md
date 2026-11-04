@@ -49,3 +49,7 @@ The rebuild focuses on the **production planner**. Other stakeholders are second
 ## 6. Related documents
 
 - [features.md](features.md): feature catalogue and priorities
+- [domain-model.md](domain-model.md): entities, rules, lifecycles, assumptions
+- [architecture.md](architecture.md): modules, engine, API, persistence, tests
+- [decisions.md](decisions.md): decision log
+- [tasks.md](tasks.md): preparation and implementation tasks

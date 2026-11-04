@@ -163,12 +163,6 @@ Chosen so P1+ features do not force a rewrite:
 - Optimistic concurrency (F-NFR-3): see section 4.
 - ERP/MES integration (F-NFR-6): add an integration module that talks to the Orders interface.
 
-## 12. Open points for `decisions.md`
+## 12. Decisions
 
-1. Confirm the stack (section 1).
-2. Cookie session instead of JWT (section 6).
-3. Due date as plant-local date, end of day (section 5).
-4. Statuses derived in Queries; upward reads through ports (section 2).
-5. Schedule version in the URL path, `live` alias (section 4).
-6. Later facts flag placements instead of deleting them (section 8).
-7. Two-step proposal and commit for scheduling an order as soon as possible (section 4).
+The choices in this document are recorded in [decisions.md](decisions.md): DEC-16 to DEC-19 are proposed, DEC-20 to DEC-23 are open. Settling them is task P4.

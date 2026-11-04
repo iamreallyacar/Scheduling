@@ -25,7 +25,10 @@
 
 ## VERIFICATION TOOLS
 
+- `python3 scripts/check_docs.py`: consistency checks for the planning documents (links, section references, feature/task/assumption/rule/decision IDs, P0 count, milestones, decision statuses). Run after every documentation change; it must pass before committing. When adding a new kind of cross-reference to the docs, add a check for it.
+
 ## DIRECTORY
 
-- `documentation/`: planning and design documents (`business-problem.md`, `features.md`, `domain-model.md`, `architecture.md`, `tasks.md`)
+- `documentation/`: planning and design documents (`business-problem.md`, `features.md`, `domain-model.md`, `architecture.md`, `decisions.md`, `tasks.md`)
+- `scripts/`: verification scripts (see VERIFICATION TOOLS)
 - `legacy/`: old code, old README, solution file and scripts. Outdated, kept for reference only. The rebuild replaces it.
