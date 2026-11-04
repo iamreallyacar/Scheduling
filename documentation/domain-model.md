@@ -2,7 +2,7 @@
 
 Status: DRAFT. Covers v1 (P0 features) only. Source: [features.md](features.md), [business-problem.md](business-problem.md). Items marked **A#** are assumptions that resolve open questions in `features.md` section 5. Change them here first if the business answers differently.
 
-Revised 2026-11-04 (tasks D1-D3 in [tasks.md](tasks.md)): Job split into Operation and Lot, machines generalised to resources with calendars, cycle-based durations, machine status replaced by Unavailability, stage dependencies with lag, schedule versions. `architecture.md` and `features.md` still use the old terms (Job, MaintenanceWindow, machine status) until tasks D4 and D5.
+Revised 2026-11-04 (tasks D1-D3 in [tasks.md](tasks.md)): Job split into Operation and Lot, machines generalised to resources with calendars, cycle-based durations, machine status replaced by Unavailability, stage dependencies with lag, schedule versions. `architecture.md` and `features.md` follow it (tasks D4, D5).
 
 ## 1. Glossary
 
@@ -117,11 +117,13 @@ Worked example. Calendar: Monday to Friday, 00:00-24:00 (three 8-hour shifts, A3
 
 All rules are checked among placements of **one schedule version**. Unavailability and progress are shared by all versions.
 
+Rules are enforced when a placement is written. Facts recorded later (a breakdown, a calendar or holiday change) can make existing placements break R3 or R6. Those placements are kept and flagged as conflicts until the planner moves or removes them, never deleted or moved silently (`architecture.md` section 8).
+
 | ID | Rule | Features |
 |---|---|---|
 | R1 | A lot can only be placed on an active resource of the type its operation needs | F-SCH-1 |
 | R2 | No two placements on one resource overlap. Touching is allowed (one ends at 10:00, next starts at 10:00) | F-SCH-4 |
-| R3 | A placement may not overlap an unavailability of its resource, of either kind. An unavailability with no end blocks everything from its start onward | F-MNT-1, F-MNT-2, F-SCH-4 |
+| R3 | A placement may not overlap an unavailability of its resource, of either kind. An unavailability with no end blocks everything from its start onward | F-MNT-1, F-SCH-4 |
 | R4 | For every dependency, every placed successor lot starts no earlier than every placed predecessor lot's `plannedEnd` plus `minLag`. Lots can be placed in either order; an unplaced lot imposes no constraint until it is placed | F-SCH-5 |
 | R5 | Retired. Machine status no longer blocks placements; a down or maintained resource is an unavailability under R3. The ID is kept so it is not reused | none |
 | R6 | `plannedEnd` is computed from the resource's working time as in section 4. The start itself must fall inside working time | F-SCH-6 |
@@ -175,7 +177,7 @@ Statuses are **derived, never stored**. A stored status could not be correct for
 | Scheduled | At least one lot placed, none started |
 | Pending | No lot placed |
 
-**Resource display status** (replaces the stored machine status, F-MNT-1):
+**Resource display status** (replaces the stored machine status, F-MNT-2):
 
 | Status | Condition at the current time |
 |---|---|
