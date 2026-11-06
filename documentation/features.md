@@ -1,6 +1,6 @@
 # Features: Tire Production Scheduler
 
-Status: DRAFT. Persona: **Production Planner**. Scenario: single-plant tire manufacturer (see `business-problem.md`).
+Status: DRAFT. Persona: Production Planner. Scenario: single-plant tire manufacturer (see `business-problem.md`).
 
 Revised 2026-11-04 (task D5): terms follow the revised domain model (operations, lots, resources, unavailability); earliest-slot finder and "schedule order as soon as possible" promoted to P0; CSV import and export promoted to P1; maintenance and breakdown features merged.
 
@@ -9,10 +9,10 @@ Revised 2026-11-04 (task D5): terms follow the revised domain model (operations,
 - Part A lists the features a fully functioning planner tool needs, grouped by area.
 - Part B assigns priorities. Each feature has an ID (`F-<area>-<n>`).
 - Priorities:
-  - **P0 (v1)**: without it the planner cannot build and maintain a schedule. Nothing else works.
-  - **P1 (v1.x)**: makes the schedule trustworthy and efficient for daily use.
-  - **P2 (v2)**: optimisation and integration.
-  - **P3 (later)**: nice to have.
+  - P0 (v1): without it the planner cannot build and maintain a schedule. Nothing else works.
+  - P1 (v1.x): makes the schedule trustworthy and efficient for daily use.
+  - P2 (v2): optimisation and integration.
+  - P3 (later): nice to have.
 - Out of scope for the planner persona (other personas, later docs): supervisor shop-floor entry, sales quoting portal, plant-manager analytics.
 - Terms (operation, lot, resource, unavailability, schedule version) are defined in `domain-model.md` section 1. The UI may call a lot a "job".
 
@@ -27,6 +27,7 @@ Revised 2026-11-04 (task D5): terms follow the revised domain model (operations,
 ## 3. Feature catalogue and priority
 
 ### 3.1 Access and users
+
 | ID | Feature | Pri |
 |---|---|---|
 | F-AUTH-1 | Sign in/out with account credentials | P0 |
@@ -36,6 +37,7 @@ Revised 2026-11-04 (task D5): terms follow the revised domain model (operations,
 | F-AUTH-5 | Audit trail of who changed what | P1 |
 
 ### 3.2 Master data
+
 | ID | Feature | Pri |
 |---|---|---|
 | F-MD-1 | Machine register: name, type, calendar, active flag. Status is shown, not entered (F-MNT-2) | P0 |
@@ -49,13 +51,14 @@ Revised 2026-11-04 (task D5): terms follow the revised domain model (operations,
 | F-MD-9 | Bulk import and export of master data (CSV) | P1 |
 
 ### 3.3 Orders
+
 | ID | Feature | Pri |
 |---|---|---|
 | F-ORD-1 | Create/edit/cancel production order: customer, product, quantity, due date, priority | P0 |
 | F-ORD-2 | Order lifecycle states: Pending, Scheduled, In Progress, Completed, Cancelled, plus a derived Late flag (not a state, see `domain-model.md` section 6) | P0 |
 | F-ORD-3 | Auto-generate operations and lots from the product routing when an order is created (one lot per operation) | P0 |
 | F-ORD-4 | Order list with search, filter (status, late, customer, due date, priority) and sort | P0 |
-| F-ORD-5 | Order detail view: operations, lots, schedule, progress, history | P0 |
+| F-ORD-5 | Order detail view: operations, lots, schedule, progress, history (v1: created and cancelled times, A19) | P0 |
 | F-ORD-6 | Rush/expedite flag with reason | P1 |
 | F-ORD-7 | Split an operation into several lots, to run on several machines at once | P1 |
 | F-ORD-8 | Order notes/attachments | P2 |
@@ -63,6 +66,7 @@ Revised 2026-11-04 (task D5): terms follow the revised domain model (operations,
 | F-ORD-10 | Material availability check on order (see 3.7) | P2 |
 
 ### 3.4 Scheduling (core)
+
 | ID | Feature | Pri |
 |---|---|---|
 | F-SCH-1 | Assign a lot to a machine and a start time (v1: form/dialog) | P0 |
@@ -84,6 +88,7 @@ Revised 2026-11-04 (task D5): terms follow the revised domain model (operations,
 | F-SCH-17 | Backward scheduling: propose the latest slots that still meet the due date | P1 |
 
 ### 3.5 Machine availability and maintenance
+
 | ID | Feature | Pri |
 |---|---|---|
 | F-MNT-1 | Record unavailability per machine: planned maintenance or breakdown, with start, optional end and reason. Blocks placements in that period | P0 |
@@ -94,6 +99,7 @@ Revised 2026-11-04 (task D5): terms follow the revised domain model (operations,
 | F-MNT-6 | Maintenance history log | P2 |
 
 ### 3.6 Progress tracking
+
 | ID | Feature | Pri |
 |---|---|---|
 | F-PRG-1 | Planner records actual start and end of a lot | P0 |
@@ -104,6 +110,7 @@ Revised 2026-11-04 (task D5): terms follow the revised domain model (operations,
 | F-PRG-6 | Shop-floor/supervisor progress entry (separate persona) | P3 |
 
 ### 3.7 Materials (optional for plant realism)
+
 | ID | Feature | Pri |
 |---|---|---|
 | F-MAT-1 | Bill of materials per product (rubber compound, steel belt, bead, etc.) | P2 |
@@ -111,6 +118,7 @@ Revised 2026-11-04 (task D5): terms follow the revised domain model (operations,
 | F-MAT-3 | Molds/tooling as constrained resources (a new resource kind) | P2 |
 
 ### 3.8 Visibility and reporting
+
 | ID | Feature | Pri |
 |---|---|---|
 | F-RPT-1 | Planner dashboard: orders due soon, overdue, unscheduled lots, conflicted placements, machines down | P0 |
@@ -121,12 +129,14 @@ Revised 2026-11-04 (task D5): terms follow the revised domain model (operations,
 | F-RPT-6 | Due-date promise lookup: "when can I deliver N units of product X?" (a dry run of F-SCH-16) | P2 |
 
 ### 3.9 Notifications
+
 | ID | Feature | Pri |
 |---|---|---|
 | F-NTF-1 | In-app alerts for conflicts, late orders and machine breakdowns | P1 |
 | F-NTF-2 | Email/chat notifications | P3 |
 
 ### 3.10 Platform and non-functional
+
 | ID | Feature | Pri |
 |---|---|---|
 | F-NFR-1 | Data persisted reliably, with soft delete of orders | P0 |
@@ -155,19 +165,20 @@ Each milestone ends with something usable.
 | M5 Execution | Planner tracks progress and sees what needs attention | F-PRG-1, F-PRG-2, F-RPT-1 |
 
 Notes:
+
 - F-SCH-4, F-SCH-5 and F-SCH-6 form the scheduling rules cluster, the riskiest part. Specify it with acceptance criteria and worked examples before M3 starts.
 - M4 builds on the same engine as M3 (`architecture.md` section 3), so it is mostly engine search plus one review screen.
 - M1 and M2 together give a working order-entry tool. M3 is where the app becomes a scheduler; M4 is where it becomes faster than the spreadsheet.
 
 ## 5. Open questions
 
-1. ~~Is P0 too large?~~ Resolved: decomposed into milestones and two cuts (section 4).
-2. ~~Are routings really fixed per product, or can planners alter them per order?~~ Assumed fixed (A1 in `domain-model.md`).
-3. ~~Is minute-level scheduling needed, or are shift-level slots enough?~~ Assumed minute precision in the model, 15-minute grid in the UI (A2).
-4. ~~Is material and mold availability a real constraint, or ignorable at first?~~ Assumed ignorable in v1 (A4).
-5. ~~Is the planner the only editor in v1, with other roles read-only?~~ Assumed: Planner and Admin edit, Viewer is read-only (A5).
-6. ~~Does the plant run 24/7 or follow a weekday pattern with weekend overtime?~~ Assumed Monday to Friday (A3). Still to confirm with the business, along with DST (`domain-model.md` section 9).
-7. Which stages need a lag, and how many cavities do the curing presses have? See `domain-model.md` section 9.
+- Q1 (closed): Is P0 too large? Resolved: decomposed into milestones and two cuts (section 4).
+- Q2 (closed): Are routings really fixed per product, or can planners alter them per order? Assumed fixed (A1 in `domain-model.md`).
+- Q3 (closed): Is minute-level scheduling needed, or are shift-level slots enough? Assumed minute precision in the model, 15-minute grid in the UI (A2).
+- Q4 (closed): Is material and mold availability a real constraint, or ignorable at first? Assumed ignorable in v1 (A4).
+- Q5 (closed): Is the planner the only editor in v1, with other roles read-only? Assumed: Planner and Admin edit, Viewer is read-only (A5).
+- Q6 (closed): Does the plant run 24/7 or follow a weekday pattern with weekend overtime? Assumed Monday to Friday (A3). Still to confirm with the business, along with DST (`domain-model.md` section 9).
+- Q7: Which stages need a lag, and how many cavities do the curing presses have? See `domain-model.md` section 9.
 
 ## 6. Related documents
 

@@ -13,6 +13,10 @@ Checks:
   ids        assumption (A#), rule (R#) and decision (DEC-#) references are defined
   tasks      task IDs in "Depends on" columns and "task X" mentions exist; statuses are valid
   decisions  decisions.md index statuses are valid; Accepted/Proposed entries have a section
+  criteria   acceptance criteria IDs are unique; every M1 and M2 feature, every active rule
+             and the engine search operations have a criteria section
+  style      CLAUDE.md documentation style guide: no bold or strike through, blank line
+             before and after headings, bullet lists and tables
 """
 
 import re
@@ -22,7 +26,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "documentation"
 FILES = sorted(DOCS.glob("*.md")) + [ROOT / "README.md", ROOT / "CLAUDE.md"]
-DOC_NAMES = ["business-problem", "features", "domain-model", "architecture", "decisions", "tasks"]
+DOC_NAMES = ["business-problem", "features", "domain-model", "architecture", "decisions", "acceptance-criteria", "tasks"]
 
 errors: list[str] = []
 
@@ -34,11 +38,6 @@ def err(check: str, path: Path, line: int, msg: str) -> None:
 
 def read(path: Path) -> list[str]:
     return path.read_text(encoding="utf-8").splitlines()
-
-
-def strip_struck(text: str) -> str:
-    """Remove ~~struck~~ text, which records history rather than current claims."""
-    return re.sub(r"~~.*?~~", "", text)
 
 
 TEXT = {p: read(p) for p in FILES if p.exists()}
@@ -147,7 +146,7 @@ def check_p0_and_milestones() -> None:
 
     for path in TEXT:
         for i, line in lines(path):
-            for m in re.finditer(r"P0 count:\s*(\d+)|(\d+) P0 features", strip_struck(line)):
+            for m in re.finditer(r"P0 count:\s*(\d+)|(\d+) P0 features", line):
                 n = int(m.group(1) or m.group(2))
                 if n != len(p0):
                     err("p0", path, i, f"says {n} P0 features, features.md defines {len(p0)}")
@@ -227,6 +226,74 @@ def check_decisions() -> None:
             err("decisions", dec, i, f"{did} is {status} but has no ### section")
 
 
+# ---------------------------------------------------------------- acceptance criteria
+def check_criteria() -> None:
+    criteria_md = DOCS / "acceptance-criteria.md"
+    seen: set[str] = set()
+    for i, cells in table_rows(criteria_md, r"AC-\d+"):
+        if cells[0] in seen:
+            err("criteria", criteria_md, i, f"{cells[0]} defined twice")
+        seen.add(cells[0])
+    sections = {line[4:].split(" ", 1)[0] for _, line in lines(criteria_md) if line.startswith("### ")}
+    milestones = milestone_table(FEATURES_MD)
+    required = set()
+    for name in ("M1 Foundation", "M2 Orders"):
+        if name not in milestones:
+            err("criteria", FEATURES_MD, 0, f"milestone {name} not found")
+            continue
+        required |= set(re.findall(r"F-[A-Z]+-\d+", milestones[name][1][-1]))
+    rules = {c[0] for _, c in table_rows(DOCS / "domain-model.md", r"R\d+") if "Retired" not in c[1]}
+    required |= rules | {"EarliestSlot", "ScheduleOrderAsap"}
+    for missing in sorted(required - sections):
+        err("criteria", criteria_md, 0, f"no acceptance criteria section for {missing}")
+    for path in TEXT:
+        for i, line in lines(path):
+            for ref in re.findall(r"\bAC-\d+\b", line):
+                if ref not in seen:
+                    err("criteria", path, i, f"{ref} is not defined")
+
+
+# ---------------------------------------------------------------- style
+def is_bullet(line: str) -> bool:
+    return re.match(r"\s*- ", line) is not None
+
+
+def block_kind(line: str) -> str:
+    """Classify a line so a change of kind between neighbours needs a blank line."""
+    if line.startswith("#"):
+        return "heading"
+    if line.startswith("|"):
+        return "table"
+    if is_bullet(line) or line.startswith("  "):
+        return "list"
+    return "text"
+
+
+def check_style() -> None:
+    for path in TEXT:
+        in_code = False
+        previous = ""
+        for i, line in lines(path):
+            if line.startswith("```"):
+                in_code = not in_code
+                previous = line
+                continue
+            if in_code:
+                continue
+            outside_code = re.sub(r"`[^`]*`", "", line)
+            if "**" in outside_code or "__" in outside_code:
+                err("style", path, i, "bold is not allowed")
+            if "~~" in outside_code:
+                err("style", path, i, "strike through is not allowed")
+            if re.match(r"\d+\. ", line):
+                err("style", path, i, "numbered lists are not allowed, use bullet points")
+            if line and previous and i > 2:
+                kinds = {block_kind(previous), block_kind(line)}
+                if "heading" in kinds or len(kinds) == 2:
+                    err("style", path, i, "missing blank line between heading, text, list or table")
+            previous = line
+
+
 def main() -> int:
     check_links()
     check_sections()
@@ -235,6 +302,8 @@ def main() -> int:
     check_ids()
     check_tasks()
     check_decisions()
+    check_criteria()
+    check_style()
     for e in errors:
         print(e)
     if errors:

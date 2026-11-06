@@ -1,16 +1,16 @@
 # Architecture
 
-Status: DRAFT. Covers v1 (P0). Source: [domain-model.md](domain-model.md), [features.md](features.md). The stack in section 1 is a proposal; it is confirmed or changed in `decisions.md` (task P4) before the scaffold (P9).
+Status: settled in task P4 (2026-11-06). Covers v1 (P0). Source: [domain-model.md](domain-model.md), [features.md](features.md). Decisions are recorded in [decisions.md](decisions.md).
 
 Revised 2026-11-04 (task D4): follows the domain model revision (operations and lots, resources, unavailability, dependencies, schedule versions, derived statuses) and adds the scheduling engine's slot finder.
 
 ## 1. Style and stack
 
-- **Modular monolith**: one deployable API, one single-page app, one PostgreSQL database. 2-5 planners and 15-25 machines do not justify services.
-- **Proposed stack** (same family as the legacy code, so existing knowledge carries over): ASP.NET Core Web API, EF Core with PostgreSQL, React with TypeScript.
-- Modules mirror the domain model: **Auth, MasterData, Orders, Scheduling, Progress**. Each is its own project with a public interface and internal implementation.
-- The **scheduling engine** is a separate project with no dependencies on the modules or the database (section 3).
-- A **Queries** project holds read-only views that span modules (section 2).
+- Modular monolith: one deployable API, one single-page app, one PostgreSQL database. 2-5 planners and 15-25 machines do not justify services.
+- Stack (DEC-20): .NET 10 (LTS) with ASP.NET Core Web API and EF Core, PostgreSQL, React with TypeScript.
+- Modules mirror the domain model: Auth, MasterData, Orders, Scheduling, Progress. Each is a folder (and namespace) in one API project, with a public interface and internal implementation (DEC-23).
+- The scheduling engine is a separate project with no dependencies on the modules or the database (section 3).
+- A Queries folder holds read-only views that span modules (section 2).
 - Each module owns its tables, one database schema per module. No module reads another module's tables.
 
 ## 2. Module boundaries
@@ -25,9 +25,10 @@ Revised 2026-11-04 (task D4): follows the domain model revision (operations and 
 | Queries | read models only, including all derived statuses and `isLate` | all modules, read-only |
 
 Rules:
+
 - Dependencies point downward in the table. No cycles. An architecture test enforces this (section 9).
-- **Statuses are derived, not stored** (`domain-model.md` section 6). Lot, operation and order status need placements (Scheduling) and progress (Progress), so they are computed in Queries. No module writes another module's status.
-- **Reading upward through ports.** A few commands need a fact from a module above them:
+- Statuses are derived, not stored (`domain-model.md` section 6). Lot, operation and order status need placements (Scheduling) and progress (Progress), so they are computed in Queries. No module writes another module's status.
+- Reading upward through ports. A few commands need a fact from a module above them:
   - Orders, to cancel or edit an order, needs "has any lot started?" (Progress) and "is any lot placed in the live version?" (Scheduling).
   - Scheduling, for R8, needs "is this lot completed?" (Progress).
 
@@ -38,32 +39,33 @@ Rules:
 
 A pure library: inputs are plain values, outputs are results or rule violations. No database, no clock, no module types. This is task M3-1 and the home of the worked examples in `domain-model.md`.
 
-**Inputs** (a snapshot for one schedule version):
+Inputs (a snapshot for one schedule version):
+
 - Calendars with their shifts, plant holidays, plant time zone id.
 - Resources: id, type, calendar, isActive.
 - Unavailabilities: resource, start, end (open end allowed), kind.
 - Placements of the version: lot, resource, start, end.
-- Lots: id, operation, duration, resource type, completed flag, order cancelled flag.
+- Lots: id, operation, duration, resource type, started flag, completed flag, order cancelled flag.
 - Operation dependencies with lag.
 
-**Operations:**
+Operations:
 
 | Operation | Result |
 |---|---|
 | `ComputeEnd(resource, start, duration)` | `plannedEnd` from working time (R6), or a violation if the start is outside working time |
 | `Validate(lot, resource, start)` | OK with `plannedEnd`, or every violated rule with its conflicting item (R1-R4, R6-R8) |
-| `EarliestSlot(lot, resources?, notBefore)` | The earliest start that passes `Validate`, on the given resources or on every active resource of the lot's type, preferring the earliest end. None if nothing fits within the horizon |
+| `EarliestSlot(lot, resources?, notBefore)` | On each given resource (default: every active resource of the lot's type) the earliest start that passes `Validate`. Across resources the slot with the earliest end wins; on a tie the earlier start, then the resource name. The lot's own current placement is ignored. None if nothing fits within the horizon |
 | `ScheduleOrderAsap(order lots, notBefore)` | A proposal: each unplaced lot in dependency order gets its `EarliestSlot`, with earlier proposals counted as placed. Existing placements never move. Fails as a whole if any lot cannot be placed |
 | `FindConflicts(snapshot)` | Existing placements that now break a rule (section 8) |
 
-**Earliest slot search.** On each candidate resource the earliest feasible start is always one of these points, so only they are tried, in time order: `notBefore`, the dependency earliest start (`domain-model.md` section 4), the start of each working period, and the end of each placement and unavailability on that resource. The first that passes `Validate` wins. The horizon (default 90 days) is a setting, so the search always ends. Backward search (latest start that meets the due date, P1) uses the same points mirrored.
+Earliest slot search. On each candidate resource the earliest feasible start is always one of these points, so only they are tried, in time order: `notBefore`, the dependency earliest start (`domain-model.md` section 4), the start of each working period, and the end of each placement and unavailability on that resource. The first that passes `Validate` wins. The horizon (default 90 days) is a setting, so the search always ends. Backward search (latest start that meets the due date, P1) uses the same points mirrored.
 
 `notBefore` defaults to now, from the injected clock. The engine never reads the clock itself.
 
 ## 4. API style
 
 - REST over JSON, versioned by path: `/api/v1/...`. OpenAPI document generated from the code; the frontend client is generated from it.
-- **Schedule versions in the path.** Everything that depends on a version sits under `/versions/{versionId}/...`. `live` is an alias for the live version, and in v1 the client always uses it. Scenarios (P2) then need no URL change.
+- Schedule versions in the path. Everything that depends on a version sits under `/versions/{versionId}/...`. `live` is an alias for the live version, and in v1 the client always uses it. Scenarios (P2) then need no URL change.
 - Resources:
 
 | Area | Resources |
@@ -75,10 +77,10 @@ A pure library: inputs are plain values, outputs are results or rule violations.
 | Progress | `/lots/{id}/progress` |
 | Views | `/versions/{v}/dashboard`, order list and detail views |
 
-- **Placing a lot** is `PUT /versions/live/lots/{id}/placement` with `{ resourceId, plannedStart }`. The server computes and returns `plannedEnd`. Removing is `DELETE` on the same URL.
-- **Earliest slot** is `GET /versions/live/lots/{id}/earliest-slot?resourceId=&notBefore=`. It changes nothing; the planner then places the lot with the returned values.
-- **Schedule order as soon as possible** has two steps: `POST /versions/live/orders/{id}/asap-proposal` returns proposed placements without saving them; `POST .../asap-proposal/commit` with the same proposal saves all of them in one transaction. The commit validates again and fails as a whole if anything changed in between.
-- **Marking a machine down** is `POST /resources/{id}/unavailabilities` with `kind: Breakdown`, a start and an optional end. There is no machine status endpoint; status is derived.
+- Placing a lot is `PUT /versions/live/lots/{id}/placement` with `{ resourceId, plannedStart }`. The server computes and returns `plannedEnd`. Removing is `DELETE` on the same URL.
+- Earliest slot is `GET /versions/live/lots/{id}/earliest-slot?resourceId=&notBefore=`. It changes nothing; the planner then places the lot with the returned values.
+- Schedule order as soon as possible has two steps: `POST /versions/live/orders/{id}/asap-proposal` returns proposed placements without saving them; `POST .../asap-proposal/commit` with the same proposal saves all of them in one transaction. The commit validates again and fails as a whole if anything changed in between.
+- Marking a machine down is `POST /resources/{id}/unavailabilities` with `kind: Breakdown`, a start and an optional end. There is no machine status endpoint; status is derived.
 - Lists are paged (`page`, `pageSize`) with explicit `sort` and filter query parameters (F-ORD-4).
 - Soft-deleted orders are excluded by a global query filter (F-NFR-1). Cancel is a state change, not a delete.
 - Concurrent-edit protection (F-NFR-3) is P1. Keep room for it: every mutable entity can later gain a version column and an `ETag`/`If-Match` pair without changing URLs.
@@ -89,31 +91,32 @@ A pure library: inputs are plain values, outputs are results or rule violations.
 Implements A2.
 
 - The database stores `timestamptz` in UTC. The API sends and receives ISO 8601 UTC (`2026-11-04T14:00:00Z`).
-- The **plant time zone** is one IANA id (for example `Europe/Berlin`) in MasterData settings. The UI always renders in the plant zone, not the browser zone, so every planner sees the same wall clock.
+- The plant time zone is one IANA id (for example `Europe/Berlin`) in MasterData settings. The UI always renders in the plant zone, not the browser zone, so every planner sees the same wall clock.
 - Calendar shift times and holiday dates are plant-local. Only the engine converts between local and UTC, using the zone id passed in.
-- Working time is measured in **elapsed real time**. On a DST day a local time that does not exist is skipped and one that occurs twice counts both occurrences, so the 3x8h pattern yields 23 or 25 working hours that day.
+- Working time is measured in elapsed real time. On a DST day a local time that does not exist is skipped and one that occurs twice counts both occurrences, so the 3x8h pattern yields 23 or 25 working hours that day.
 - Dependency lag is elapsed real time and ignores calendars (A8).
-- **Due date is a plant-local date**, due at the end of that local day. This is a choice not stated before; record it in `decisions.md`.
+- Due date is a plant-local date, due at the end of that local day (DEC-22).
 - Engine tests include a spring-forward and a fall-back case.
 - Server code never reads the system clock directly; it uses an injected clock so "now" is testable (needed for `isLate`, display status and `notBefore`).
 
 ## 6. Authentication and authorization
 
-- **Cookie-based session** with ASP.NET Core Identity: HTTP-only, `Secure`, `SameSite=Lax` cookie, same origin for API and SPA. No token is held in browser storage. (The legacy code used JWT; with one SPA on one origin, cookies are simpler and safer.) SSO (F-AUTH-4) can be added later as an external login provider.
-- Passwords are hashed by Identity; accounts lock out after repeated failures. State-changing requests carry an anti-forgery token.
-- **Roles**: Planner, Viewer, Admin (F-AUTH-2). Enforced by authorization policies on API endpoints:
+- Cookie-based session with ASP.NET Core Identity (DEC-21): HTTP-only, `Secure`, `SameSite=Lax` cookie, same origin for API and SPA. No token is held in browser storage. (The legacy code used JWT; with one SPA on one origin, cookies are simpler and safer.) SSO (F-AUTH-4) can be added later as an external login provider.
+- Passwords are hashed by Identity; accounts lock out after repeated failures (threshold and lockout period are settings, default 5 failures and 15 minutes). State-changing requests carry an anti-forgery token.
+- Roles: Planner, Viewer, Admin (F-AUTH-2). Enforced by authorization policies on API endpoints:
   - Viewer: read everything.
   - Planner: edit orders, placements, unavailabilities and lot progress.
   - Admin: Planner rights plus master data (including calendars and routings) and users.
 - The UI hides actions a role cannot use, but only the API check counts.
-- The first Admin is created from configuration or an environment variable at startup. No credentials in the repository.
+- The first Admin is created from configuration or an environment variable at startup when the user table is empty. If the settings are missing then, startup fails with an error naming them. No credentials in the repository.
 
 ## 7. Error format
 
-- All errors use **RFC 9457 problem details** (`application/problem+json`) with `type`, `title`, `status`, `detail`, plus these fields:
-  - `code`: stable machine-readable string (for example `rule.R2.overlap`, `rule.R4.dependency`, `slot.none`, `validation.failed`).
+- All errors use RFC 9457 problem details (`application/problem+json`) with `type`, `title`, `status`, `detail`, plus these fields:
+  - `code`: stable machine-readable string (for example `rule.R2.overlap`, `rule.R4.dependency`, `slot.none`, `validation.failed`). [acceptance-criteria.md](acceptance-criteria.md) gives the code for every case it covers.
   - `errors`: for validation failures, a map of field to messages.
-  - `rule` and `conflict`: for scheduling rule violations (R7), the rule id and the conflicting item as `{ "type": "placement", "id": 42 }`. Types: `placement`, `unavailability`, `lot`.
+  - `rule` and `conflict`: for scheduling rule violations (R7), the rule id and the conflicting item as `{ "type": "placement", "id": 42 }`. Types: `placement`, `unavailability`, `lot`, `resource`. They hold the first violation in rule order.
+  - `violations`: every broken rule with its conflicting item, because `Validate` reports all of them.
 - Status codes: 400 malformed request or validation failure, 401 not signed in, 403 wrong role, 404 not found, 409 duplicate or state conflict (for example cancelling an order with a lot In Progress, or committing a stale proposal), 422 scheduling rule violation or no slot found, 500 unexpected.
 - Unexpected errors return a generic body with a correlation id; details go to the log only.
 - The frontend shows `detail` to the user and uses `code` for behavior.
@@ -121,9 +124,9 @@ Implements A2.
 ## 8. Persistence
 
 - EF Core migrations, one schema per module. Constraints back the domain rules where possible: unique `Product.code`, unique `(product, sequenceNo)`, unique `(version, lot)` on placements, positive quantities (A7).
-- **R2** is also guarded by a PostgreSQL exclusion constraint on placements over `(version, resource, tstzrange(plannedStart, plannedEnd))`, so a race between two requests cannot double-book a resource. Touching ranges are allowed (half-open ranges).
-- **R3 and R4** span tables, so no single constraint covers them. A placement command locks the resource row and the order row (`SELECT ... FOR UPDATE`), builds the engine snapshot, validates and writes in one transaction. Open-ended unavailabilities are stored with an infinite upper bound.
-- **Later facts never delete placements.** A new unavailability or a calendar change can make existing placements break R3 or R6. The fact is saved anyway (it is true), affected `plannedEnd` values are recomputed, and the placements stay. `FindConflicts` lists them, and the timeline and dashboard flag them until the planner moves or removes them.
+- R2 is also guarded by a PostgreSQL exclusion constraint on placements over `(version, resource, tstzrange(plannedStart, plannedEnd))`, so a race between two requests cannot double-book a resource. Touching ranges are allowed (half-open ranges).
+- R3 and R4 span tables, so no single constraint covers them. A placement command locks the resource row and the order row (`SELECT ... FOR UPDATE`), builds the engine snapshot, validates and writes in one transaction. Open-ended unavailabilities are stored with an infinite upper bound.
+- Later facts never delete placements. A new unavailability or a calendar change can make existing placements break R3 or R6. The fact is saved anyway (it is true), affected `plannedEnd` values are recomputed, and the placements stay. `FindConflicts` lists them, and the timeline and dashboard flag them until the planner moves or removes them.
 - The live schedule version row is created by the first migration.
 - Seed data (task P7) is loaded by a separate command, never on normal startup in production.
 
@@ -135,11 +138,11 @@ Implements A2.
 | Property | Engine: any slot returned by `EarliestSlot` passes `Validate`; no feasible start exists before it; `ScheduleOrderAsap` proposals pass `Validate` together | FsCheck or similar |
 | Module integration | Each module against a real PostgreSQL, including constraints, locking and soft delete | xUnit with Testcontainers |
 | API | Auth and role policies, problem-details shape, rule violations returned as 422 with `rule` and `conflict` | `WebApplicationFactory` |
-| Architecture | Module dependency table in section 2 holds; the engine references no module | NetArchTest or similar |
+| Architecture | Module dependency table in section 2 holds between module namespaces; the engine project references no module | NetArchTest or similar |
 | Frontend | Components and forms (placement dialog, order form, ASAP proposal review) | Vitest, Testing Library |
 | End to end | A few smoke flows only: sign in, create order, schedule it as soon as possible, see it on the timeline | Playwright |
 
-- Acceptance criteria (P5, P6) are written first and each maps to at least one test.
+- Acceptance criteria ([acceptance-criteria.md](acceptance-criteria.md), tasks P5 and P6) are written first and each maps to at least one test named after its ID.
 - Tests run on every commit; a failing test blocks merge.
 
 ## 10. Frontend notes
@@ -153,6 +156,7 @@ Implements A2.
 ## 11. Extension points for later versions
 
 Chosen so P1+ features do not force a rewrite:
+
 - Per-resource calendars (F-MD-6): `Resource.calendar` already exists and the engine takes calendars as input.
 - Setup and changeover (F-MD-7, F-SCH-9): fixed setup is already in the duration; sequence-dependent changeover adds an engine input.
 - Lot splitting (F-ORD-7): operations already hold 1..n lots, and every rule works per lot.
@@ -165,4 +169,4 @@ Chosen so P1+ features do not force a rewrite:
 
 ## 12. Decisions
 
-The choices in this document are recorded in [decisions.md](decisions.md): DEC-16 to DEC-19 are proposed, DEC-20 to DEC-23 are open. Settling them is task P4.
+The choices in this document are recorded in [decisions.md](decisions.md) as DEC-16 to DEC-23, all accepted in task P4.

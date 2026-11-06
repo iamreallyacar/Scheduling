@@ -24,10 +24,10 @@ Applies recommendations 1-8 from the planning review. D1-D3 change the domain mo
 | P1  | Answer the domain-model questions: Delayed as a derived flag, assumptions A1-A3, maintenance pausing (A6)                                                  |            | Done   |
 | P2  | Update `features.md` for the P1 outcome (F-ORD-2 Delayed)                                                                                                  | P1         | Done   |
 | P3  | Write `architecture.md`: module boundaries, API style, time zone handling, auth approach, error format, test strategy                                      | P1         | Done   |
-| P4  | Settle the open and proposed entries in `decisions.md`: stack, cookie session, due-date semantics, module granularity, and DEC-16 to DEC-19 (D7 started the file) | D7         | Todo   |
-| P5  | Write acceptance criteria for M1 and M2 features                                                                                                           | D3         | Todo   |
-| P6  | Write acceptance criteria for scheduling rules R1-R8 and the engine operations `EarliestSlot` and `ScheduleOrderAsap` (needed before M3 and M4)          | D4         | Todo   |
-| P7  | Build a synthetic plant generator (see below). It produces the seed data, demo data and the F-NFR-5 performance data set                                  | D3         | Todo   |
+| P4  | Settle the open and proposed entries in `decisions.md`: stack, cookie session, due-date semantics, module granularity, and DEC-16 to DEC-19 (D7 started the file) | D7         | Done   |
+| P5  | Write acceptance criteria for M1 and M2 features                                                                                                           | D3         | Done   |
+| P6  | Write acceptance criteria for scheduling rules R1-R8 and the engine operations `EarliestSlot` and `ScheduleOrderAsap` (needed before M3 and M4)          | D4         | Done   |
+| P7  | Build a synthetic plant generator (see below). It produces the seed data, demo data and the F-NFR-5 performance data set                                  | P9, M2-3   | Todo   |
 | P8  | Sketch wireframes: timeline view, lot placement form with earliest-slot suggestion, ASAP proposal review                                                   | D4         | Todo   |
 | P9  | Scaffold the repository (backend, frontend, Postgres, engine project, test projects)                                                                       | P4         | Todo   |
 | P10 | Fill in `CLAUDE.md`: coding standards, verification tools, methodology, current progress pointing here                                                    | P9         | Todo   |
@@ -37,11 +37,12 @@ Applies recommendations 1-8 from the planning review. D1-D3 change the domain mo
 
 A command that builds a consistent plant from parameters, so seed data is never written by hand and demos, tests and performance checks share one source.
 
-- **Parameters:** machines per resource type, number of products, routing shape (stages, lags, cycle times, units per cycle), plant calendar and holidays, orders per week, quantity range, due-date spread, share of rush orders, breakdown and maintenance frequency, horizon.
-- **Deterministic:** the same random seed gives the same plant, so tests and bug reports can name a seed.
-- **Presets:** `small` (a few machines, for tests), `plant` (the scenario in `business-problem.md`: ~20 machines, ~40 products, 3 shifts), `stress` (25 machines x 2 weeks, fully loaded, for F-NFR-5).
-- **Output:** master data and orders written through the module interfaces, never raw SQL, so every generated row passes the same validation as user input. Optionally a placed live schedule, built with `ScheduleOrderAsap` once M4 exists.
+- Parameters: machines per resource type, number of products, routing shape (stages, lags, cycle times, units per cycle), plant calendar and holidays, orders per week, quantity range, due-date spread, share of rush orders, breakdown and maintenance frequency, horizon.
+- Deterministic: the same random seed gives the same plant, so tests and bug reports can name a seed.
+- Presets: `small` (a few machines, for tests), `plant` (the scenario in `business-problem.md`: ~20 machines, ~40 products, 3 shifts), `stress` (25 machines x 2 weeks, fully loaded, for F-NFR-5).
+- Output: master data and orders written through the module interfaces, never raw SQL, so every generated row passes the same validation as user input. Optionally a placed live schedule, built with `ScheduleOrderAsap` once M4 exists.
 - Never runs on normal startup in production (`architecture.md` section 8).
+- Order: the generator writes through the module interfaces, so it needs the scaffold (P9) and the master data and order modules (up to M2-3). It was listed under D3 before; moved on 2026-11-06. The parameters and presets above are its specification.
 
 ## Implementation (draft, refine in P11)
 
