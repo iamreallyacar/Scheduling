@@ -1,13 +1,10 @@
 # Features: Tire Production Scheduler
 
-Status: DRAFT. Persona: Production Planner. Scenario: single-plant tire manufacturer (see `business-problem.md`).
-
-Revised 2026-11-04 (task D5): terms follow the revised domain model (operations, lots, resources, unavailability); earliest-slot finder and "schedule order as soon as possible" promoted to P0; CSV import and export promoted to P1; maintenance and breakdown features merged.
+Status: DRAFT. Persona: Production Planner. Scenario: single-plant tire manufacturer (see README.md, section "Business problem").
 
 ## 1. How to read this
 
-- Part A lists the features a fully functioning planner tool needs, grouped by area.
-- Part B assigns priorities. Each feature has an ID (`F-<area>-<n>`).
+- Section 2 lists the features a fully functioning planner tool needs, grouped by area, each with an ID (`F-<area>-<n>`) and a priority.
 - Priorities:
   - P0 (v1): without it the planner cannot build and maintain a schedule. Nothing else works.
   - P1 (v1.x): makes the schedule trustworthy and efficient for daily use.
@@ -16,17 +13,9 @@ Revised 2026-11-04 (task D5): terms follow the revised domain model (operations,
 - Out of scope for the planner persona (other personas, later docs): supervisor shop-floor entry, sales quoting portal, plant-manager analytics.
 - Terms (operation, lot, resource, unavailability, schedule version) are defined in `domain-model.md` section 1. The UI may call a lot a "job".
 
-## 2. Assumptions (to confirm)
+## 2. Feature catalogue and priority
 
-- One plant, ~15-25 machines, 3 shifts.
-- Each tire model has a fixed routing of stages (for example extrusion, building, curing, inspection) with dependencies between them. Each stage runs on a resource type.
-- Planners schedule lots on machines. Times have minute precision; the UI uses a 15-minute grid (A2 in `domain-model.md`).
-- Planners are a small group (2-5 people). Concurrent edits are possible but rare.
-- No ERP/MES integration in v1. Data is entered manually; CSV import follows in P1.
-
-## 3. Feature catalogue and priority
-
-### 3.1 Access and users
+### 2.1 Access and users
 
 | ID | Feature | Pri |
 |---|---|---|
@@ -36,7 +25,7 @@ Revised 2026-11-04 (task D5): terms follow the revised domain model (operations,
 | F-AUTH-4 | Single sign-on (Google/Microsoft) | P2 |
 | F-AUTH-5 | Audit trail of who changed what | P1 |
 
-### 3.2 Master data
+### 2.2 Master data
 
 | ID | Feature | Pri |
 |---|---|---|
@@ -50,7 +39,7 @@ Revised 2026-11-04 (task D5): terms follow the revised domain model (operations,
 | F-MD-8 | Machine-product eligibility and machine-specific rates (which machines can run which products, how fast) | P1 |
 | F-MD-9 | Bulk import and export of master data (CSV) | P1 |
 
-### 3.3 Orders
+### 2.3 Orders
 
 | ID | Feature | Pri |
 |---|---|---|
@@ -63,9 +52,9 @@ Revised 2026-11-04 (task D5): terms follow the revised domain model (operations,
 | F-ORD-7 | Split an operation into several lots, to run on several machines at once | P1 |
 | F-ORD-8 | Order notes/attachments | P2 |
 | F-ORD-9 | Order import and export (CSV) | P1 |
-| F-ORD-10 | Material availability check on order (see 3.7) | P2 |
+| F-ORD-10 | Material availability check on order (see 2.7) | P2 |
 
-### 3.4 Scheduling (core)
+### 2.4 Scheduling (core)
 
 | ID | Feature | Pri |
 |---|---|---|
@@ -87,7 +76,7 @@ Revised 2026-11-04 (task D5): terms follow the revised domain model (operations,
 | F-SCH-16 | Schedule an order as soon as possible: propose earliest slots for all its unplaced lots in dependency order, without moving existing placements; planner reviews and commits all at once | P0 |
 | F-SCH-17 | Backward scheduling: propose the latest slots that still meet the due date | P1 |
 
-### 3.5 Machine availability and maintenance
+### 2.5 Machine availability and maintenance
 
 | ID | Feature | Pri |
 |---|---|---|
@@ -98,7 +87,7 @@ Revised 2026-11-04 (task D5): terms follow the revised domain model (operations,
 | F-MNT-5 | Recurring maintenance schedules | P2 |
 | F-MNT-6 | Maintenance history log | P2 |
 
-### 3.6 Progress tracking
+### 2.6 Progress tracking
 
 | ID | Feature | Pri |
 |---|---|---|
@@ -109,7 +98,7 @@ Revised 2026-11-04 (task D5): terms follow the revised domain model (operations,
 | F-PRG-5 | Automatic re-flow of downstream lots when a lot runs late | P2 |
 | F-PRG-6 | Shop-floor/supervisor progress entry (separate persona) | P3 |
 
-### 3.7 Materials (optional for plant realism)
+### 2.7 Materials (optional for plant realism)
 
 | ID | Feature | Pri |
 |---|---|---|
@@ -117,7 +106,7 @@ Revised 2026-11-04 (task D5): terms follow the revised domain model (operations,
 | F-MAT-2 | Material stock levels and shortage flags against scheduled lots | P2 |
 | F-MAT-3 | Molds/tooling as constrained resources (a new resource kind) | P2 |
 
-### 3.8 Visibility and reporting
+### 2.8 Visibility and reporting
 
 | ID | Feature | Pri |
 |---|---|---|
@@ -128,14 +117,14 @@ Revised 2026-11-04 (task D5): terms follow the revised domain model (operations,
 | F-RPT-5 | On-time delivery rate and schedule adherence KPIs | P2 |
 | F-RPT-6 | Due-date promise lookup: "when can I deliver N units of product X?" (a dry run of F-SCH-16) | P2 |
 
-### 3.9 Notifications
+### 2.9 Notifications
 
 | ID | Feature | Pri |
 |---|---|---|
 | F-NTF-1 | In-app alerts for conflicts, late orders and machine breakdowns | P1 |
 | F-NTF-2 | Email/chat notifications | P3 |
 
-### 3.10 Platform and non-functional
+### 2.10 Platform and non-functional
 
 | ID | Feature | Pri |
 |---|---|---|
@@ -146,44 +135,10 @@ Revised 2026-11-04 (task D5): terms follow the revised domain model (operations,
 | F-NFR-5 | Schedule view usable with ~25 machines x 2 weeks without lag | P1 |
 | F-NFR-6 | ERP/MES integration | P3 |
 
-## 4. v1 scope (all P0)
+## 3. v1 scope (all P0)
 
 A planner can: sign in; maintain machines, products, routings with dependencies, and the plant calendar; create an order and get its operations and lots generated from the routing; schedule the order as soon as possible in one step, or place single lots via a form with an "earliest slot" suggestion; see the result on a read-only timeline; be blocked from conflicts, broken dependencies and unavailable machines, and see placements that a later breakdown made invalid; record maintenance and breakdowns; record lot progress; and see a dashboard of what is due, overdue, unscheduled or conflicted.
 
-P0 count: 26 features. History: F-SCH-3 (drag-and-drop) moved to P1 and F-MD-5 simplified to one plant calendar; then F-SCH-11 and the new F-SCH-16 promoted to P0 (D5), because placing every lot by hand would be slower than the current spreadsheet.
+Not in v1: drag-and-drop scheduling, multi-order auto-scheduling, what-if scenarios (the data model already supports them), materials, notifications, ERP/MES integration, other personas (supervisor, sales, plant manager).
 
-### Milestones
-
-Each milestone ends with something usable.
-
-| Milestone | Outcome | Features |
-|---|---|---|
-| M1 Foundation | Planner signs in and maintains the plant's master data | F-AUTH-1, F-AUTH-2, F-NFR-1, F-NFR-2, F-MD-1, F-MD-2 |
-| M2 Orders | Planner enters orders and gets operations and lots generated | F-MD-3, F-MD-5, F-ORD-1, F-ORD-2, F-ORD-3, F-ORD-4, F-ORD-5 |
-| M3 Scheduling | Planner places lots on machines and is blocked from invalid placements | F-SCH-7, F-SCH-1, F-SCH-2, F-SCH-5, F-SCH-6, F-SCH-4, F-MNT-1, F-MNT-2 |
-| M4 Assisted scheduling | Planner gets earliest slots and schedules whole orders in one step | F-SCH-11, F-SCH-16 |
-| M5 Execution | Planner tracks progress and sees what needs attention | F-PRG-1, F-PRG-2, F-RPT-1 |
-
-Notes:
-
-- F-SCH-4, F-SCH-5 and F-SCH-6 form the scheduling rules cluster, the riskiest part. Specify it with acceptance criteria and worked examples before M3 starts.
-- M4 builds on the same engine as M3 (`architecture.md` section 3), so it is mostly engine search plus one review screen.
-- M1 and M2 together give a working order-entry tool. M3 is where the app becomes a scheduler; M4 is where it becomes faster than the spreadsheet.
-
-## 5. Open questions
-
-- Q1 (closed): Is P0 too large? Resolved: decomposed into milestones and two cuts (section 4).
-- Q2 (closed): Are routings really fixed per product, or can planners alter them per order? Assumed fixed (A1 in `domain-model.md`).
-- Q3 (closed): Is minute-level scheduling needed, or are shift-level slots enough? Assumed minute precision in the model, 15-minute grid in the UI (A2).
-- Q4 (closed): Is material and mold availability a real constraint, or ignorable at first? Assumed ignorable in v1 (A4).
-- Q5 (closed): Is the planner the only editor in v1, with other roles read-only? Assumed: Planner and Admin edit, Viewer is read-only (A5).
-- Q6 (closed): Does the plant run 24/7 or follow a weekday pattern with weekend overtime? Assumed Monday to Friday (A3). Still to confirm with the business, along with DST (`domain-model.md` section 9).
-- Q7: Which stages need a lag, and how many cavities do the curing presses have? See `domain-model.md` section 9.
-
-## 6. Related documents
-
-- [business-problem.md](business-problem.md): situation and problem statement
-- [domain-model.md](domain-model.md): entities, rules, lifecycles, assumptions
-- [architecture.md](architecture.md): modules, engine, API, persistence, tests
-- [decisions.md](decisions.md): decision log
-- [tasks.md](tasks.md): preparation and implementation tasks
+P0 count: 26 features. The milestones that deliver them are in `TASKS.md` section "Milestones".

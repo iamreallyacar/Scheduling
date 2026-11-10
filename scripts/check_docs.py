@@ -8,13 +8,17 @@ Checks:
   links      local Markdown links point to existing files
   sections   "x.md section N" / "x §N" / bare "section N" point to existing numbered headings
   features   every F-<AREA>-<n> used is defined once in features.md
-  p0         P0 count matches the stated count and the milestone table; milestone features are P0
-  milestones milestone names agree across features.md, tasks.md and README.md
+  p0         P0 count matches the stated count and the TASKS.md milestone table; every P0
+             feature is in exactly one milestone and milestone features are P0
+  milestones milestone headings in TASKS.md match its milestone table
   ids        assumption (A#), rule (R#) and decision (DEC-#) references are defined
   tasks      task IDs in "Depends on" columns and "task X" mentions exist; statuses are valid
   decisions  decisions.md index statuses are valid; Accepted/Proposed entries have a section
+  questions  open question IDs (BQ#, WQ#) are defined once in the decisions.md Open table
   criteria   acceptance criteria IDs are unique; every M1 and M2 feature, every active rule
              and the engine search operations have a criteria section
+  coverage   every active acceptance criterion is assigned to at least one implementation
+             task in the TASKS.md Criteria column (ranges such as "AC-1 to AC-15" count)
   style      CLAUDE.md documentation style guide: no bold or strike through, blank line
              before and after headings, bullet lists and tables
 """
@@ -24,9 +28,16 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DOCS = ROOT / "documentation"
-FILES = sorted(DOCS.glob("*.md")) + [ROOT / "README.md", ROOT / "CLAUDE.md"]
-DOC_NAMES = ["business-problem", "features", "domain-model", "architecture", "decisions", "acceptance-criteria", "tasks"]
+REQUIREMENTS = ROOT / "REQUIREMENTS"
+# Documents that section references ("x.md section N", "x §N") can point to, by the name used in the text.
+DOC_PATHS = {
+    "ARCHITECTURE": ROOT / "ARCHITECTURE.md",
+    "TASKS": ROOT / "TASKS.md",
+    **{name: REQUIREMENTS / f"{name}.md"
+       for name in ("features", "domain-model", "decisions", "acceptance-criteria", "wireframes")},
+}
+DOC_NAMES = list(DOC_PATHS)
+FILES = list(DOC_PATHS.values()) + [ROOT / "README.md", ROOT / "CLAUDE.md"]
 
 errors: list[str] = []
 
@@ -40,6 +51,8 @@ def read(path: Path) -> list[str]:
     return path.read_text(encoding="utf-8").splitlines()
 
 
+for missing_file in (p for p in FILES if not p.exists()):
+    err("files", missing_file, 0, "expected document is missing")
 TEXT = {p: read(p) for p in FILES if p.exists()}
 
 
@@ -80,7 +93,8 @@ def headings(path: Path) -> set[str]:
     return nums
 
 
-HEADINGS = {name: headings(DOCS / f"{name}.md") for name in DOC_NAMES}
+HEADINGS = {name: headings(path) for name, path in DOC_PATHS.items()}
+NAME_OF = {path: name for name, path in DOC_PATHS.items()}
 QUALIFIED = re.compile(
     r"`?(" + "|".join(DOC_NAMES) + r")(?:\.md)?`?\s+(?:section|§)\s*(\d+(?:\.\d+)*)(?:-(\d+(?:\.\d+)*))?"
 )
@@ -89,7 +103,7 @@ BARE = re.compile(r"\bsections?\s+(\d+(?:\.\d+)*)")
 
 def check_sections() -> None:
     for path in TEXT:
-        own = path.stem if path.parent == DOCS else None
+        own = NAME_OF.get(path)
         for i, line in lines(path):
             spans = []
             for m in QUALIFIED.finditer(line):
@@ -105,7 +119,8 @@ def check_sections() -> None:
 
 
 # ---------------------------------------------------------------- features
-FEATURES_MD = DOCS / "features.md"
+FEATURES_MD = DOC_PATHS["features"]
+TASKS_MD = DOC_PATHS["TASKS"]
 FEATURE_DEFS: dict[str, str] = {}
 
 
@@ -132,17 +147,17 @@ def milestone_table(path: Path) -> dict[str, tuple[int, list[str]]]:
 
 def check_p0_and_milestones() -> None:
     p0 = {f for f, p in FEATURE_DEFS.items() if p == "P0"}
-    ms = milestone_table(FEATURES_MD)
+    ms = milestone_table(TASKS_MD)
     seen: dict[str, str] = {}
     for name, (i, cells) in ms.items():
         for fid in re.findall(r"F-[A-Z]+-\d+", cells[-1]):
             if fid in seen:
-                err("p0", FEATURES_MD, i, f"{fid} is in both {seen[fid]} and {name}")
+                err("p0", TASKS_MD, i, f"{fid} is in both {seen[fid]} and {name}")
             seen[fid] = name
             if FEATURE_DEFS.get(fid) != "P0":
-                err("p0", FEATURES_MD, i, f"{fid} is in {name} but is not P0")
+                err("p0", TASKS_MD, i, f"{fid} is in {name} but is not P0")
     for fid in sorted(p0 - seen.keys()):
-        err("p0", FEATURES_MD, 0, f"P0 feature {fid} is in no milestone")
+        err("p0", TASKS_MD, 0, f"P0 feature {fid} is in no milestone")
 
     for path in TEXT:
         for i, line in lines(path):
@@ -152,22 +167,18 @@ def check_p0_and_milestones() -> None:
                     err("p0", path, i, f"says {n} P0 features, features.md defines {len(p0)}")
 
     names = set(ms)
-    tasks_md = DOCS / "tasks.md"
-    task_ms = {line[4:].strip() for _, line in lines(tasks_md) if re.match(r"### M\d+ ", line)}
+    if not names:
+        err("milestones", TASKS_MD, 0, "no milestone table found")
+    task_ms = {line[4:].strip() for _, line in lines(TASKS_MD) if re.match(r"### M\d+ ", line)}
     if task_ms != names:
-        err("milestones", tasks_md, 0,
-            f"milestone headings {sorted(task_ms)} differ from features.md {sorted(names)}")
-    readme = ROOT / "README.md"
-    readme_ms = set(milestone_table(readme))
-    if readme_ms and readme_ms != names:
-        err("milestones", readme, 0,
-            f"milestones {sorted(readme_ms)} differ from features.md {sorted(names)}")
+        err("milestones", TASKS_MD, 0,
+            f"milestone headings {sorted(task_ms)} differ from the milestone table {sorted(names)}")
 
 
 # ---------------------------------------------------------------- A#, R#, DEC-#
 def check_ids() -> None:
-    dm = DOCS / "domain-model.md"
-    dec = DOCS / "decisions.md"
+    dm = DOC_PATHS["domain-model"]
+    dec = DOC_PATHS["decisions"]
     defined = {
         "A": {c[0] for _, c in table_rows(dm, r"A\d+")},
         "R": {c[0] for _, c in table_rows(dm, r"R\d+")},
@@ -187,12 +198,15 @@ TASK_STATUSES = {"Todo", "Doing", "Done"}
 
 
 def check_tasks() -> None:
-    tasks_md = DOCS / "tasks.md"
+    tasks_md = TASKS_MD
     rows = list(table_rows(tasks_md, r"(?:P|D)\d+|M\d+-\d+"))
     ids = {cells[0] for _, cells in rows}
     for i, cells in rows:
         if cells[-1] not in TASK_STATUSES:
             err("tasks", tasks_md, i, f"{cells[0]} has invalid status '{cells[-1]}'")
+        # Only implementation rows have a "Depends on" column; completed planning rows do not.
+        if not re.fullmatch(r"M\d+-\d+", cells[0]):
+            continue
         for dep in re.findall(r"\b(?:P|D|M)\d+(?:-\d+)?\b", cells[-2]):
             if dep not in ids:
                 err("tasks", tasks_md, i, f"{cells[0]} depends on unknown task {dep}")
@@ -210,7 +224,7 @@ DEC_STATUSES = {"Accepted", "Proposed", "Open", "Superseded"}
 
 
 def check_decisions() -> None:
-    dec = DOCS / "decisions.md"
+    dec = DOC_PATHS["decisions"]
     sections = {m.group(1) for _, line in lines(dec) if (m := re.match(r"### (DEC-\d+) ", line))}
     seen = set()
     for i, cells in table_rows(dec, r"DEC-\d+"):
@@ -226,23 +240,40 @@ def check_decisions() -> None:
             err("decisions", dec, i, f"{did} is {status} but has no ### section")
 
 
+# ---------------------------------------------------------------- open questions
+def check_questions() -> None:
+    dec = DOC_PATHS["decisions"]
+    defined: set[str] = set()
+    for i, cells in table_rows(dec, r"[BW]Q\d+"):
+        if cells[0] in defined:
+            err("questions", dec, i, f"{cells[0]} defined twice")
+        defined.add(cells[0])
+    for path in TEXT:
+        for i, line in lines(path):
+            for ref in re.findall(r"\b[BW]Q\d+\b", line):
+                if ref not in defined:
+                    err("questions", path, i, f"{ref} is not in the decisions.md Open table")
+            for ref in re.findall(r"\bQ\d+\b", line):
+                err("questions", path, i, f"{ref} has no prefix; open questions are BQ# or WQ#")
+
+
 # ---------------------------------------------------------------- acceptance criteria
 def check_criteria() -> None:
-    criteria_md = DOCS / "acceptance-criteria.md"
+    criteria_md = DOC_PATHS["acceptance-criteria"]
     seen: set[str] = set()
     for i, cells in table_rows(criteria_md, r"AC-\d+"):
         if cells[0] in seen:
             err("criteria", criteria_md, i, f"{cells[0]} defined twice")
         seen.add(cells[0])
     sections = {line[4:].split(" ", 1)[0] for _, line in lines(criteria_md) if line.startswith("### ")}
-    milestones = milestone_table(FEATURES_MD)
+    milestones = milestone_table(TASKS_MD)
     required = set()
     for name in ("M1 Foundation", "M2 Orders"):
         if name not in milestones:
-            err("criteria", FEATURES_MD, 0, f"milestone {name} not found")
+            err("criteria", TASKS_MD, 0, f"milestone {name} not found")
             continue
         required |= set(re.findall(r"F-[A-Z]+-\d+", milestones[name][1][-1]))
-    rules = {c[0] for _, c in table_rows(DOCS / "domain-model.md", r"R\d+") if "Retired" not in c[1]}
+    rules = {c[0] for _, c in table_rows(DOC_PATHS["domain-model"], r"R\d+") if "Retired" not in c[1]}
     required |= rules | {"EarliestSlot", "ScheduleOrderAsap"}
     for missing in sorted(required - sections):
         err("criteria", criteria_md, 0, f"no acceptance criteria section for {missing}")
@@ -251,6 +282,33 @@ def check_criteria() -> None:
             for ref in re.findall(r"\bAC-\d+\b", line):
                 if ref not in seen:
                     err("criteria", path, i, f"{ref} is not defined")
+
+
+# ---------------------------------------------------------------- coverage
+def criteria_ids_in(cell: str) -> set[int]:
+    ids: set[int] = set()
+    for m in re.finditer(r"AC-(\d+)(?:\s+to\s+AC-(\d+))?", cell):
+        first, last = int(m.group(1)), int(m.group(2) or m.group(1))
+        ids.update(range(first, last + 1))
+    return ids
+
+
+def check_coverage() -> None:
+    criteria_md = DOC_PATHS["acceptance-criteria"]
+    tasks_md = TASKS_MD
+    active = {int(c[0][3:]) for _, c in table_rows(criteria_md, r"AC-\d+") if "Retired" not in c[3]}
+    covered: set[int] = set()
+    # Implementation task rows: ID | Task | Features | Criteria | Depends on | Status
+    for i, cells in table_rows(tasks_md, r"M\d+-\d+"):
+        if len(cells) != 6:
+            err("coverage", tasks_md, i, f"{cells[0]} should have 6 columns, has {len(cells)}")
+            continue
+        for m in re.finditer(r"AC-(\d+)\s+to\s+AC-(\d+)", cells[3]):
+            if int(m.group(1)) >= int(m.group(2)):
+                err("coverage", tasks_md, i, f"{cells[0]} has an empty or reversed range {m.group(0)}")
+        covered |= criteria_ids_in(cells[3])
+    for missing in sorted(active - covered):
+        err("coverage", tasks_md, 0, f"AC-{missing} is assigned to no implementation task")
 
 
 # ---------------------------------------------------------------- style
@@ -302,7 +360,9 @@ def main() -> int:
     check_ids()
     check_tasks()
     check_decisions()
+    check_questions()
     check_criteria()
+    check_coverage()
     check_style()
     for e in errors:
         print(e)

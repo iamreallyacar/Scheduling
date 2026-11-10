@@ -1,14 +1,14 @@
 # Acceptance Criteria
 
-Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules and engine search) on 2026-11-06. Sources: [features.md](features.md), [domain-model.md](domain-model.md), [architecture.md](architecture.md), [decisions.md](decisions.md).
+Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules and engine search) on 2026-11-06. Sources: [features.md](features.md), [domain-model.md](domain-model.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [decisions.md](decisions.md).
 
 ## 1. How to read this
 
 - Each criterion has a stable ID (`AC-n`). IDs are never renumbered or reused; a dropped criterion keeps its row with "Retired" in the Then column.
-- Every criterion maps to at least one test (`architecture.md` section 9). A test names the criterion it covers, for example `AC_42_order_number_must_be_unique`.
+- Every criterion maps to at least one test (`ARCHITECTURE.md` section 9). A test names the criterion it covers, for example `AC_42_order_number_must_be_unique`.
 - Level says where the main test lives: Engine (unit or property test of the scheduling engine), API (`WebApplicationFactory` against a real database), Integration (module against a real database), UI (component test) or E2E (Playwright).
 - Times are plant-local wall-clock times unless they end in `Z`. Unless a row says otherwise, the plant time zone is `Europe/Berlin` and the calendar is the plant default: Monday to Friday, shifts 00:00-08:00, 08:00-16:00, 16:00-24:00 (A3).
-- "Rejected" means: the API answers with problem details (`architecture.md` section 7) carrying the status and `code` given, and nothing is saved.
+- "Rejected" means: the API answers with problem details (`ARCHITECTURE.md` section 7) carrying the status and `code` given, and nothing is saved.
 - Assumptions made while writing these criteria are A12 to A19 in `domain-model.md` section 7.
 
 ## 2. M1 Foundation
@@ -156,7 +156,7 @@ Statuses Pending and Cancelled arrive in M2; Scheduled with M3; In Progress and 
 
 ## 4. Scheduling rules
 
-Applies to `Validate`, `ComputeEnd` and `FindConflicts` in the engine (task M3-1) and to the placement endpoint (task M3-4). Unless a row says otherwise, Press 1 and Press 2 are active resources of type Curing, Builder 1 is of type Building, and all placements are in the live version. The worked examples in `domain-model.md` section 5 are criteria too; each row below that repeats one says so.
+Applies to `Validate`, `ComputeEnd` and `FindConflicts` in the engine (task M3-1) and to the placement endpoint (task M3-4). Unless a row says otherwise, Press 1 and Press 2 are active resources of type Curing, Builder 1 is of type Building, and all placements are in the live version. This section is the only copy of the rules' worked examples (rows marked "worked example"); `domain-model.md` section 5 states the rules and points here.
 
 ### R1 Resource type and active resource
 
@@ -177,7 +177,7 @@ Applies to `Validate`, `ComputeEnd` and `FindConflicts` in the engine (task M3-1
 | AC-80 | Lot A on Press 1, Mon 08:00-12:00 | Lot B on Press 2 starts Mon 11:00 | Accepted (worked example) | Engine |
 | AC-81 | Lot A on Press 1, Mon 08:00-12:00 | Lot A is moved to Press 1, Mon 10:00 | Accepted; a lot never conflicts with its own current placement | Engine |
 | AC-82 | Lot A on Press 1, Mon 08:00-12:00 in a scenario version | Lot B is placed on Press 1, Mon 08:00 in the live version | Accepted; rules compare placements within one version only (DEC-11) | Engine |
-| AC-83 | Two requests at the same moment placing different lots on Press 1 with overlapping times | Both are processed | Exactly one succeeds; the other is rejected, 422 `rule.R2.overlap`. The database never holds both (exclusion constraint, `architecture.md` section 8) | Integration |
+| AC-83 | Two requests at the same moment placing different lots on Press 1 with overlapping times | Both are processed | Exactly one succeeds; the other is rejected, 422 `rule.R2.overlap`. The database never holds both (exclusion constraint, `ARCHITECTURE.md` section 8) | Integration |
 
 ### R3 No overlap with unavailability
 
@@ -223,7 +223,7 @@ Applies to `Validate`, `ComputeEnd` and `FindConflicts` in the engine (task M3-1
 
 | ID | Given | When | Then | Level |
 |---|---|---|---|---|
-| AC-109 | Any rejected placement | The response is read | 422 with `code`, `rule`, `conflict` (`type` is `placement`, `unavailability`, `lot` or `resource`, plus `id`) and `violations` listing every broken rule with its conflict (`architecture.md` section 7) | API |
+| AC-109 | Any rejected placement | The response is read | 422 with `code`, `rule`, `conflict` (`type` is `placement`, `unavailability`, `lot` or `resource`, plus `id`) and `violations` listing every broken rule with its conflict (`ARCHITECTURE.md` section 7) | API |
 | AC-110 | A placement that breaks R2 and R4 at once | `Validate` runs | Both violations are returned; `rule` and `conflict` hold the first in rule order | Engine |
 | AC-111 | Lot A on Press 1, Mon 08:00-12:00 | Lot B is placed on Press 1, Mon 11:00 | Lot B is not moved to Mon 12:00 or anywhere else; the request is rejected and nothing is saved | Engine, API |
 
@@ -239,11 +239,11 @@ Applies to `Validate`, `ComputeEnd` and `FindConflicts` in the engine (task M3-1
 
 ### EarliestSlot
 
-Covers F-SCH-11 and `architecture.md` section 3.
+Covers F-SCH-11 and `ARCHITECTURE.md` section 3.
 
 | ID | Given | When | Then | Level |
 |---|---|---|---|---|
-| AC-115 | Any generated plant (P7, `small` preset) and any lot | `EarliestSlot` returns a slot | The slot passes `Validate` | Engine (property) |
+| AC-115 | Any generated plant (task M2-7, `small` preset) and any lot | `EarliestSlot` returns a slot | The slot passes `Validate` | Engine (property) |
 | AC-116 | The same | `EarliestSlot` returns a slot on a resource | No earlier start on that resource, checked minute by minute from `notBefore`, passes `Validate` | Engine (property) |
 | AC-117 | Lot A on Press 1, Mon 08:00-12:00; a 4-hour curing lot; `notBefore` Mon 08:00 | `EarliestSlot` is asked for Press 1 only | Press 1, Mon 12:00 | Engine |
 | AC-118 | The same | `EarliestSlot` is asked without resources | Press 2, Mon 08:00. Across resources the slot with the earliest end wins; on a tie, the earlier start, then the resource name | Engine |
@@ -258,7 +258,7 @@ Covers F-SCH-11 and `architecture.md` section 3.
 
 ### ScheduleOrderAsap
 
-Covers F-SCH-16, DEC-19 and `architecture.md` section 4.
+Covers F-SCH-16, DEC-19 and `ARCHITECTURE.md` section 4.
 
 | ID | Given | When | Then | Level |
 |---|---|---|---|---|

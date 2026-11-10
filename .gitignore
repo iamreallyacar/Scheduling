@@ -1,0 +1,18 @@
+# Local settings and secrets
+.env
+*.user
+
+# .NET build output
+bin/
+obj/
+TestResults/
+
+# Frontend
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Editors
+.vs/
+.vscode/
+.idea/

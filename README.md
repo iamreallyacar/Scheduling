@@ -1,65 +1,55 @@
 # Tire Production Scheduler
 
-Status: rebuild in planning. No application code yet.
+Status: rebuild in progress. Planning is finished and the repository is scaffolded; no features are built yet. Progress: [TASKS.md](TASKS.md).
 
 A web application that lets production planners at a single-plant tire manufacturer build, check and maintain the production schedule in one place.
 
 ## Business problem
 
-Planners build the weekly schedule in spreadsheets and on a whiteboard. Machine status and maintenance windows reach them verbally, so the schedule goes stale within hours. Planners cannot see which orders are at risk, which machines are free, or what a rush order would displace. Consequences: late orders found late, uneven machine load, unreliable due-date promises, and hours spent re-planning after a disruption.
+A fictional scenario that set the project's direction. A mid-sized tire manufacturer runs one plant with about 15-25 machines in 3 shifts and makes roughly 40 tire models. Each tire passes through stages such as extrusion, building, curing and inspection, each on its own machine type. A small group of 2-5 planners builds the weekly schedule in spreadsheets and on a whiteboard. Machine status and maintenance windows reach them verbally, so the schedule goes stale within hours, and rush orders arrive every week.
 
-The rebuild focuses on the production planner. Full detail: [documentation/business-problem.md](documentation/business-problem.md).
+Consequences: late orders are found only near their due date, some machines sit idle while others are overloaded, sales cannot promise reliable due dates, and re-planning after a disruption takes hours. The rebuild serves the production planner first; shift supervisors, sales and the plant manager come later. Candidate success measures, without baselines yet: on-time delivery rate, machine utilization, time to re-plan after a disruption, and share of due-date promises met.
 
-## Scope
+## Where to read more
 
-Features are catalogued with priorities in [documentation/features.md](documentation/features.md). Version 1 contains the 26 P0 features, delivered in five milestones:
-
-| Milestone | Outcome |
+| Topic | Document |
 |---|---|
-| M1 Foundation | Planner signs in and maintains machines and products |
-| M2 Orders | Planner enters orders and gets operations and lots generated from the product routing |
-| M3 Scheduling | Planner places lots on machines and is blocked from conflicts, broken stage dependencies and unavailable machines |
-| M4 Assisted scheduling | Planner gets earliest-slot suggestions and schedules a whole order in one step |
-| M5 Execution | Planner records lot progress and sees a dashboard of due, overdue, unscheduled and conflicted work |
+| Features, priorities and v1 scope | [REQUIREMENTS/features.md](REQUIREMENTS/features.md) |
+| Milestones, tasks and progress | [TASKS.md](TASKS.md) |
+| Stack, modules and design rules | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Why each choice was made, open questions | [REQUIREMENTS/decisions.md](REQUIREMENTS/decisions.md) |
+| Checks to run and repository layout | [CLAUDE.md](CLAUDE.md), sections VERIFICATION and DIRECTORY |
 
-Not in v1: drag-and-drop scheduling, multi-order auto-scheduling, what-if scenarios (the data model already supports them), materials, notifications, ERP/MES integration, other personas (supervisor, sales, plant manager).
+## Getting started
 
-## Stack
+Needs the .NET 10 SDK with the ASP.NET Core runtime, Node.js 24 or later, and Docker with Compose. On Arch-based systems the ASP.NET Core runtime is a separate package (`aspnet-runtime`, `aspnet-targeting-pack`).
 
-Accepted in [documentation/decisions.md](documentation/decisions.md) (DEC-20):
+```
+cp .env.example .env                      # then choose a password in .env
+docker compose up -d --wait               # PostgreSQL
+export ConnectionStrings__Scheduler="Host=localhost;Port=5432;Database=tire_scheduler;Username=tire_scheduler;Password=<your password>"
+dotnet run --project backend/src/TireScheduler.Api    # API on http://localhost:5080
+cd frontend && npm install && npm run dev            # app on http://localhost:5173, /api proxied to the API
+```
 
-| Layer | Choice |
-|---|---|
-| Backend | .NET 10 (LTS), ASP.NET Core Web API, EF Core |
-| Frontend | React with TypeScript |
-| Database | PostgreSQL |
+`GET /api/v1/health/live` answers when the API runs; `GET /api/v1/health/ready` also checks the database. The API tests start PostgreSQL through Docker (Testcontainers), so Docker must be running.
 
-## Architecture
+Tooling notes:
 
-Modular monolith: one deployable backend, split into module folders with explicit boundaries checked by an architecture test, plus a separate scheduling engine project (DEC-23). Details: [documentation/architecture.md](documentation/architecture.md).
+- `global.json` sits at the repository root and sets the .NET SDK version and the test runner (Microsoft Testing Platform), so `dotnet test` works from any folder.
+- TypeScript stays on 6.0 until typescript-eslint supports 7.
+- `frontend/package.json` overrides `minimatch` to 11.0.1 or later to fix advisory GHSA-g3hv-75wg-m249 in a lint dependency.
 
-- Auth: sign-in, roles (Planner, Viewer, Admin)
-- MasterData: resources (machines), calendars, holidays, products, routings with stage dependencies
-- Orders: orders, operations and lots generated from the routing
-- Scheduling: placements per schedule version, machine unavailability (maintenance, breakdowns)
-- Progress: actual start and end of lots
-- Queries: derived statuses, late flags, dashboard and list views
+## Configuration
 
-Design rules:
+Settings are read from environment variables (or `dotnet user-secrets` for the API in development). Secrets are never committed.
 
-- The scheduling engine (rule checks, working-time calculation, earliest-slot search) is a pure library with no database or web dependencies, unit tested with the worked examples in the domain model.
-- Modules talk to each other through public interfaces, not through each other's tables.
-- The frontend talks to the backend over a REST API only.
-
-## Verification
-
-`python3 scripts/check_docs.py` checks that the planning documents agree with each other (links, section references, feature and task IDs, P0 counts, milestones, decisions).
-
-## Repository layout
-
-- `documentation/`: planning and design documents
-- `scripts/`: verification scripts
-- `legacy/`: previous implementation and README, kept for reference only and not part of the rebuild
+| Variable | Read by | Meaning |
+|---|---|---|
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | `compose.yaml`, from `.env` | Database name, user and password of the local PostgreSQL container. Required |
+| `POSTGRES_PORT` | `compose.yaml`, from `.env` | Host port for PostgreSQL. Default 5432 |
+| `ConnectionStrings__Scheduler` | API | PostgreSQL connection string. Required; the API stops at startup with an error naming it if it is missing |
+| `API_PROXY_TARGET` | frontend dev server | Address of the API for the `/api` proxy. Set in `frontend/.env.development` |
 
 ## License
 

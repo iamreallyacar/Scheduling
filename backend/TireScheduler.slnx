@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TireScheduler.Api/TireScheduler.Api.csproj" />
+    <Project Path="src/TireScheduler.Engine/TireScheduler.Engine.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/TireScheduler.Api.Tests/TireScheduler.Api.Tests.csproj" />
+    <Project Path="tests/TireScheduler.Architecture.Tests/TireScheduler.Architecture.Tests.csproj" />
+    <Project Path="tests/TireScheduler.Engine.Tests/TireScheduler.Engine.Tests.csproj" />
+  </Folder>
+</Solution>

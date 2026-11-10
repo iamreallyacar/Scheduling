@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Pure scheduling library (ARCHITECTURE.md section 3): no references to the API, the
+       modules, the database or the web stack. The architecture tests enforce this. -->
+</Project>

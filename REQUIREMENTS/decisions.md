@@ -1,6 +1,6 @@
 # Decisions
 
-Status values: Accepted (in force), Proposed (written into the docs, waiting for review), Open (not decided), Superseded (replaced by a later entry). Task P4 in [tasks.md](tasks.md) settled every Proposed and Open entry on 2026-11-06.
+Status values: Accepted (in force), Proposed (written into the docs, waiting for review), Open (not decided), Superseded (replaced by a later entry). Task P4 in [TASKS.md](../TASKS.md) settled every Proposed and Open entry on 2026-11-06.
 
 To change a decision, add a new entry that supersedes the old one and mark the old one Superseded. Do not edit an accepted entry's reasoning after the fact.
 
@@ -10,7 +10,7 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 |---|---|---|---|---|
 | DEC-1 | Late is a derived flag, not an order state | Accepted | 2026-11-04 (P1) | domain-model §6 |
 | DEC-2 | Routing fixed per product, copied into each order | Accepted | 2026-11-04 (P1) | A1 |
-| DEC-3 | UTC storage, one plant time zone, 15-minute UI grid | Accepted | 2026-11-04 (P1) | A2, architecture §5 |
+| DEC-3 | UTC storage, one plant time zone, 15-minute UI grid | Accepted | 2026-11-04 (P1) | A2, ARCHITECTURE §5 |
 | DEC-4 | One plant calendar in v1, as data | Accepted | 2026-11-04 (P1) | A3 |
 | DEC-5 | Lots never run across an unavailability | Accepted | 2026-11-04 (P1) | A6, R3 |
 | DEC-6 | Operation and Lot replace Job | Accepted | 2026-11-04 (D1) | domain-model §2, A6 |
@@ -20,17 +20,17 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 | DEC-10 | Stage dependencies with lag, checked in either placement order | Accepted | 2026-11-04 (D2) | R4, A8, A11 |
 | DEC-11 | Every placement belongs to a schedule version | Accepted | 2026-11-04 (D3) | A9, A10 |
 | DEC-12 | All statuses derived, never stored | Accepted | 2026-11-04 (D3) | domain-model §6 |
-| DEC-13 | Earliest slot and "schedule order ASAP" are P0 | Accepted | 2026-11-04 (D5) | features §3.4, §4 |
+| DEC-13 | Earliest slot and "schedule order ASAP" are P0 | Accepted | 2026-11-04 (D5) | features §2.4, §3 |
 | DEC-14 | CSV import and export are P1 | Accepted | 2026-11-04 (D5) | F-MD-9, F-ORD-9 |
-| DEC-15 | Synthetic plant generator instead of hand-written seed data | Accepted | 2026-11-04 (D6) | tasks P7 |
-| DEC-16 | Upward reads between modules through ports | Accepted | 2026-11-06 (P4) | architecture §2 |
-| DEC-17 | Schedule version in the URL path, `live` alias | Accepted | 2026-11-06 (P4) | architecture §4 |
-| DEC-18 | Later facts flag placements instead of deleting them | Accepted | 2026-11-06 (P4) | architecture §8, domain-model §5 |
-| DEC-19 | "Schedule order ASAP" as proposal, then commit | Accepted | 2026-11-06 (P4) | architecture §4 |
-| DEC-20 | Stack: .NET 10 (LTS) ASP.NET Core, EF Core, PostgreSQL, React with TypeScript | Accepted | 2026-11-06 (P4) | architecture §1 |
-| DEC-21 | Cookie session instead of JWT | Accepted | 2026-11-06 (P4) | architecture §6 |
-| DEC-22 | Due date ends at the end of its plant-local day | Accepted | 2026-11-06 (P4) | architecture §5 |
-| DEC-23 | Engine as its own project, modules as folders in one API project | Accepted | 2026-11-06 (P4) | architecture §1-2 |
+| DEC-15 | Synthetic plant generator instead of hand-written seed data | Accepted | 2026-11-04 (D6) | tasks M2-7 |
+| DEC-16 | Upward reads between modules through ports | Accepted | 2026-11-06 (P4) | ARCHITECTURE §2 |
+| DEC-17 | Schedule version in the URL path, `live` alias | Accepted | 2026-11-06 (P4) | ARCHITECTURE §4 |
+| DEC-18 | Later facts flag placements instead of deleting them | Accepted | 2026-11-06 (P4) | ARCHITECTURE §8, domain-model §5 |
+| DEC-19 | "Schedule order ASAP" as proposal, then commit | Accepted | 2026-11-06 (P4) | ARCHITECTURE §4 |
+| DEC-20 | Stack: .NET 10 (LTS) ASP.NET Core, EF Core, PostgreSQL, React with TypeScript | Accepted | 2026-11-06 (P4) | ARCHITECTURE §1 |
+| DEC-21 | Cookie session instead of JWT | Accepted | 2026-11-06 (P4) | ARCHITECTURE §6 |
+| DEC-22 | Due date ends at the end of its plant-local day | Accepted | 2026-11-06 (P4) | ARCHITECTURE §5 |
+| DEC-23 | Engine as its own project, modules as folders in one API project | Accepted | 2026-11-06 (P4) | ARCHITECTURE §1-2 |
 
 ## Accepted
 
@@ -76,7 +76,7 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 - Decision: machines are resources. A resource type has a kind (`Machine` in v1); each resource references a calendar (the plant default in v1).
 - Reason: molds (F-MAT-3) and per-machine calendars (F-MD-6) become data, not schema changes.
 - Alternatives: a Machine entity with a plant-wide shift pattern, rejected for the same retrofit cost.
-- Consequences: a lot needing two resources at once (machine and mold) still needs a second placement per lot later (architecture §11).
+- Consequences: a lot needing two resources at once (machine and mold) still needs a second placement per lot later (ARCHITECTURE §11).
 
 ### DEC-8 Cycle-based duration
 
@@ -123,6 +123,7 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 ### DEC-15 Synthetic plant generator
 
 - Decision: P7 builds a deterministic, parameterised generator with presets instead of hand-written seed data.
+- Note (2026-11-10): P7 is now task M2-7. Only the task moved; the decision is unchanged.
 - Reason: one source for seed data, demos, tests and the F-NFR-5 performance set.
 - Alternatives: static seed files, rejected as hard to scale and keep valid.
 
@@ -174,8 +175,19 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 - Decision: the scheduling engine is its own project with no references to modules or the database. Auth, MasterData, Orders, Scheduling, Progress and Queries are folders in one API project, each with its own database schema.
 - Reason: one project per module adds build and wiring cost for a small team. Boundaries are kept by an architecture test on namespaces instead of by project references.
 - Alternatives: one project per module, rejected for the overhead; a module can still be moved into its own project later because the folder boundaries are already enforced.
-- Consequences: module boundaries are a convention checked by tests, not by the compiler, so the architecture test (architecture §9) must run on every commit.
+- Consequences: module boundaries are a convention checked by tests, not by the compiler, so the architecture test (ARCHITECTURE §9) must run on every commit.
 
 ## Open
 
-None. Add new open questions here as a table with ID, question and current proposal.
+The only list of open questions. BQ questions wait for the business; until it answers, the docs follow the assumption named. WQ questions were found while sketching the wireframes. Each must be answered before the task in "Needed by"; record the answer in the row (or as a new decision) and update the documents it affects.
+
+| ID | Question | Current proposal | Needed by |
+|---|---|---|---|
+| BQ1 | Does the plant's time zone observe DST? | Assume yes (A2); the engine handles DST either way | M3-1 |
+| BQ2 | Does the real plant run weekends? | Assume Monday to Friday (A3). If not, the generator seeds seven days of `CalendarShift` rows instead of five | M2-7 |
+| BQ3 | Which stages need a dependency lag, and how long (for example green tire rest before curing)? | None yet. Routings default to no lag (F-MD-3); lags are routing data, so an answer needs no code change | M2-7 |
+| BQ4 | How many cavities do the curing presses have (`unitsPerCycle`), and does it differ between presses? | `unitsPerCycle` is set per routing stage, so all presses of a type share it. Different rates per press need machine-specific rates (F-MD-8, P1) | M2-7 |
+| BQ5 | Does planned maintenance during non-working time block a lot that pauses across it? | Assume yes, overlap is checked over the whole span (A16) | M3-1 |
+| WQ1 | The placement form cannot show the planned end before saving, because no endpoint validates without saving | Show "calculated when saved" in v1. If planners need a preview, add `GET .../placement/preview` returning `Validate` output | M3-4 |
+| WQ2 | The proposal review shows whether the order would be late, but the proposal response has no lateness field, and the UI must not compute rules | Add `finishesAt` and `wouldBeLate` to the proposal response, computed in Queries with the same `isLate` rule | M4-4 |
+| WQ3 | The timeline needs a time range, but `/versions/{v}/timeline` has no range parameters yet | Add `from` and `to` query parameters (plant-local dates), default two weeks | M3-6 |

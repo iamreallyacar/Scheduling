@@ -1,8 +1,6 @@
 # Domain Model
 
-Status: DRAFT. Covers v1 (P0 features) only. Source: [features.md](features.md), [business-problem.md](business-problem.md). Items marked A# are assumptions that resolve open questions in `features.md` section 5. Change them here first if the business answers differently.
-
-Revised 2026-11-04 (tasks D1-D3 in [tasks.md](tasks.md)): Job split into Operation and Lot, machines generalised to resources with calendars, cycle-based durations, machine status replaced by Unavailability, stage dependencies with lag, schedule versions. `architecture.md` and `features.md` follow it (tasks D4, D5).
+Status: DRAFT. Covers v1 (P0 features) only. Source: [features.md](features.md), [README.md](../README.md). Items marked A# are assumptions; this file is their only list. Change them here first if the business answers differently. Open questions are in the Open table of [decisions.md](decisions.md).
 
 ## 1. Glossary
 
@@ -119,7 +117,7 @@ Earliest start from dependencies (R4): for a successor lot, `max(predecessor lot
 
 All rules are checked among placements of one schedule version. Unavailability and progress are shared by all versions.
 
-Rules are enforced when a placement is written. Facts recorded later (a breakdown, a calendar or holiday change) can make existing placements break R3 or R6. Those placements are kept and flagged as conflicts until the planner moves or removes them, never deleted or moved silently (`architecture.md` section 8).
+Rules are enforced when a placement is written. Facts recorded later (a breakdown, a calendar or holiday change) can make existing placements break R3 or R6. Those placements are kept and flagged as conflicts until the planner moves or removes them, never deleted or moved silently (`ARCHITECTURE.md` section 8).
 
 | ID | Rule | Features |
 |---|---|---|
@@ -132,26 +130,7 @@ Rules are enforced when a placement is written. Facts recorded later (a breakdow
 | R7 | Placement is rejected, not silently adjusted. The error names the rule broken and the conflicting item (placement, unavailability or lot) | F-NFR-2 |
 | R8 | A lot that has started (In Progress or Completed) cannot be placed, moved or unplaced (A17). A lot of a cancelled order cannot be placed | F-ORD-2 |
 
-Worked examples (Press 1 and Press 2 of type Curing, calendar as in section 4, live version):
-
-| Case | Existing | Attempt | Result |
-|---|---|---|---|
-| R2 overlap | Lot A on Press 1, Mon 08:00-12:00 | Lot B on Press 1 starts Mon 11:00 | Rejected, overlaps Lot A |
-| R2 adjacent | Lot A on Press 1, Mon 08:00-12:00 | Lot B on Press 1 starts Mon 12:00 | Accepted |
-| R2 other resource | Lot A on Press 1, Mon 08:00-12:00 | Lot B on Press 2 starts Mon 11:00 | Accepted |
-| R3 planned | Planned maintenance Press 1, Tue 06:00-10:00 | 4-hour lot starts Tue 04:00 (ends 08:00) | Rejected, overlaps maintenance |
-| R3 open breakdown | Breakdown Press 1 from Wed 09:00, no end | Lot starts on Press 1 the following Monday | Rejected, overlaps breakdown. Accepted after the breakdown gets an end before Monday |
-| R3 before breakdown | Breakdown Press 1 from Wed 09:00, no end | 4-hour lot on Press 1 starts Wed 05:00 | Accepted (ends 09:00, touching) |
-| R4 forward | Stage 1 lot ends Mon 10:00, lag 0 | Stage 2 lot starts Mon 09:00 | Rejected, stage 1 not finished |
-| R4 forward | Stage 1 lot ends Mon 10:00, lag 0 | Stage 2 lot starts Mon 10:00 | Accepted |
-| R4 lag | Building lot ends Mon 10:00, lag 120 min before curing | Curing lot starts Mon 11:00 | Rejected, earliest start Mon 12:00 |
-| R4 lag over weekend | Building lot ends Fri 23:00, lag 120 min | Curing lot starts Mon 00:00 | Accepted. Lag is elapsed time, so it ended Sat 01:00 |
-| R4 backward | Curing lot placed Wed 08:00, lag 120 min. Building lot unplaced | 6-hour building lot starts Wed 02:00 (ends 08:00) | Rejected, ends less than 120 min before curing starts |
-| R4 backward | Same | 6-hour building lot starts Wed 00:00 (ends 06:00) | Accepted |
-| R4 two lots | Stage 1 lots end Mon 10:00 and Mon 14:00, lag 0 | Stage 2 lot starts Mon 12:00 | Rejected, waits for the later lot (A11) |
-| R6 | Holiday on Monday | 8-hour lot starts Fri 20:00 | Ends Tue 04:00 |
-
-Acceptance criteria for these rules are in [acceptance-criteria.md](acceptance-criteria.md) section 4 (task P6).
+Worked examples for every rule are acceptance criteria, in [acceptance-criteria.md](acceptance-criteria.md) section 4. That file is their only copy.
 
 ## 6. Lifecycles and derived status
 
@@ -190,7 +169,7 @@ Resource display status (replaces the stored machine status, F-MNT-2):
 
 Marking a machine down means creating a breakdown unavailability starting now, with an estimated end if known. Bringing it back means setting the end.
 
-Late is a flag, not a state (decided). An order can be Scheduled and late, or In Progress and late. It is computed at query time for a given version, never stored. Cancelled orders are never late. Due date ends at the end of its plant-local day (`architecture.md` section 5).
+Late is a flag, not a state (decided). An order can be Scheduled and late, or In Progress and late. It is computed at query time for a given version, never stored. Cancelled orders are never late. Due date ends at the end of its plant-local day (`ARCHITECTURE.md` section 5).
 
 - Unfinished order: `isLate` when now is after the due date, or any lot's `plannedEnd` in the version is after it.
 - Completed order: `isLate` when the last lot's `actualEnd` is after the due date.
@@ -201,49 +180,28 @@ Order progress (F-PRG-2) = completed quantity / total quantity over the lots of 
 
 ## 7. Assumptions
 
-| ID | Assumption | Resolves |
-|---|---|---|
-| A1 | Routing is fixed per product. Orders copy its stages, dependencies and duration values into operations at creation, so later routing edits do not affect existing orders. Per-order alteration can be added later without changing the copy approach. Editing an order's product or quantity is allowed only while none of its lots is placed in the live version or started; operations and lots are then regenerated | Q2 |
-| A2 | Times are stored in minutes-precision UTC and shown in one configured plant time zone. Calendar times are wall-clock time in that zone, so DST days are 23 or 25 hours long. Planners pick starts on a 15-minute grid in the UI (UI-only, the model does not depend on it). `plannedEnd` is stored and recomputed when a calendar or the holidays change | Q3 |
-| A3 | One calendar in v1, the plant default: Monday to Friday, three 8-hour shifts. Holidays apply to every calendar. Every resource references a calendar, so per-resource calendars (F-MD-6, P1) are new data, not a schema change. A 24/7 plant is expressed as calendar rows. Until F-MD-6, weekend starts are rejected by R6 | Q6 |
-| A4 | Materials and molds are ignored in v1 (P2). Molds will be resources of a new kind | Q4 |
-| A5 | Only Planner and Admin edit; Viewer is read-only | Q5 |
-| A6 | A lot runs on one resource without interruption, except that it pauses across non-working time (weekends, holidays). It never runs across an unavailability: such a placement is rejected under R3. An operation can be split into several lots on different resources; v1 always creates one lot per operation, and manual splitting (F-ORD-7) is P1 | none |
-| A7 | Order and lot quantities are positive whole numbers of tires | none |
-| A8 | Dependency lag is elapsed real time, not working time, because the processes it models (resting, cooling) continue outside shifts | none |
-| A9 | Unavailability is shared by all schedule versions because it is a fact about the plant, not a planning choice. Moving planned maintenance per scenario can be added later | none |
-| A10 | v1 has exactly one live schedule version. Creating, comparing and committing scenarios is P2 (F-SCH-12). Every placement carries a version from v1 so scenarios need no schema change | none |
-| A11 | A dependency links operations, so every successor lot waits for every predecessor lot. Overlapping stages lot by lot (transfer batches) can be added later as a dependency option | none |
-| A12 | The planner types the order number (unique without regard to case), so it matches the numbers already used in spreadsheets. Priority is Low, Normal or High (default Normal) and only sorts and filters in v1 | none |
-| A13 | Delete is for orders entered by mistake: allowed only while the order is Pending with no live placement and no progress, as a soft delete. Every other order is cancelled instead. Cancelling removes the placements of its lots that have not started, in every version, so they stop blocking machines | none |
-| A14 | Master data that other rows reference cannot be deleted; a resource is retired by deactivating it. A resource with placements cannot change its type. Resource names and resource type names are unique | none |
-| A15 | Deactivating a resource is always saved. Its placements stay and are flagged as R1 conflicts, as for other later facts (DEC-18) | none |
-| A16 | R3 overlap is checked over the whole span from `plannedStart` to `plannedEnd`, including non-working time in which the lot pauses. Planned maintenance on a weekend therefore blocks a lot that pauses over that weekend. To confirm with the business | none |
-| A17 | A started lot stays where it is in the live version: it runs on that machine, and its actuals are recorded against that placement. Completed lots keep their placement as the record of where they ran | none |
-| A18 | The plant time zone is set once in configuration and not editable in v1, because changing it would shift every calendar and stored local date. A shift never crosses midnight; a night shift across midnight is two rows | none |
-| A19 | The order history in F-ORD-5 is the creation time and the cancellation time in v1. A full change history needs the audit trail (F-AUTH-5, P1) | none |
+| ID | Assumption |
+|---|---|
+| A1 | Routing is fixed per product. Orders copy its stages, dependencies and duration values into operations at creation, so later routing edits do not affect existing orders. Per-order alteration can be added later without changing the copy approach. Editing an order's product or quantity is allowed only while none of its lots is placed in the live version or started; operations and lots are then regenerated |
+| A2 | Times are stored in minutes-precision UTC and shown in one configured plant time zone. Calendar times are wall-clock time in that zone, so DST days are 23 or 25 hours long (BQ1). Planners pick starts on a 15-minute grid in the UI (UI-only, the model does not depend on it). `plannedEnd` is stored and recomputed when a calendar or the holidays change |
+| A3 | One calendar in v1, the plant default: Monday to Friday, three 8-hour shifts. Holidays apply to every calendar. Every resource references a calendar, so per-resource calendars (F-MD-6, P1) are new data, not a schema change. A 24/7 plant is expressed as calendar rows. Until F-MD-6, weekend starts are rejected by R6 (BQ2) |
+| A4 | Materials and molds are ignored in v1 (P2). Molds will be resources of a new kind |
+| A5 | Only Planner and Admin edit; Viewer is read-only |
+| A6 | A lot runs on one resource without interruption, except that it pauses across non-working time (weekends, holidays). It never runs across an unavailability: such a placement is rejected under R3. An operation can be split into several lots on different resources; v1 always creates one lot per operation, and manual splitting (F-ORD-7) is P1 |
+| A7 | Order and lot quantities are positive whole numbers of tires |
+| A8 | Dependency lag is elapsed real time, not working time, because the processes it models (resting, cooling) continue outside shifts |
+| A9 | Unavailability is shared by all schedule versions because it is a fact about the plant, not a planning choice. Moving planned maintenance per scenario can be added later |
+| A10 | v1 has exactly one live schedule version. Creating, comparing and committing scenarios is P2 (F-SCH-12). Every placement carries a version from v1 so scenarios need no schema change |
+| A11 | A dependency links operations, so every successor lot waits for every predecessor lot. Overlapping stages lot by lot (transfer batches) can be added later as a dependency option |
+| A12 | The planner types the order number (unique without regard to case), so it matches the numbers already used in spreadsheets. Priority is Low, Normal or High (default Normal) and only sorts and filters in v1 |
+| A13 | Delete is for orders entered by mistake: allowed only while the order is Pending with no live placement and no progress, as a soft delete. Every other order is cancelled instead. Cancelling removes the placements of its lots that have not started, in every version, so they stop blocking machines |
+| A14 | Master data that other rows reference cannot be deleted; a resource is retired by deactivating it. A resource with placements cannot change its type. Resource names and resource type names are unique |
+| A15 | Deactivating a resource is always saved. Its placements stay and are flagged as R1 conflicts, as for other later facts (DEC-18) |
+| A16 | R3 overlap is checked over the whole span from `plannedStart` to `plannedEnd`, including non-working time in which the lot pauses. Planned maintenance on a weekend therefore blocks a lot that pauses over that weekend. To confirm with the business (BQ5) |
+| A17 | A started lot stays where it is in the live version: it runs on that machine, and its actuals are recorded against that placement. Completed lots keep their placement as the record of where they ran |
+| A18 | The plant time zone is set once in configuration and not editable in v1, because changing it would shift every calendar and stored local date. A shift never crosses midnight; a night shift across midnight is two rows |
+| A19 | The order history in F-ORD-5 is the creation time and the cancellation time in v1. A full change history needs the audit trail (F-AUTH-5, P1) |
 
 ## 8. Out of the model for v1
 
 Customer entity, sequence-dependent changeover, machine-product eligibility, per-resource calendar exceptions and overtime, manual lot splitting, non-machine resources (molds, crews), scenario creation and commit, locks, audit trail, quantity produced and scrap, materials. Each is P1 or later. The model has a place for each: `Order.customerName` becomes a foreign key, `Resource.calendar` takes other calendars, `ResourceType.kind` takes new kinds, operations already hold 1..n lots, and placements already carry a version.
-
-## 9. Decisions and remaining questions
-
-Decided (task P1): Delayed is a derived flag (section 6); A1 to A3 accepted; A6 rejects placements across maintenance.
-
-Decided (tasks D1-D3, 2026-11-04, recorded in [decisions.md](decisions.md) as DEC-6 to DEC-12):
-
-- Job split into Operation and Lot (A6).
-- Machines generalised to resources of a type with a kind; each resource follows a calendar (A3, A4).
-- Duration from setup, cycle time and units per cycle (section 4).
-- Machine status replaced by Unavailability; display status derived; R5 retired.
-- Stage dependencies with lag, checked in either placement order (R4, A8, A11).
-- Schedule versions on every placement, one live version in v1 (A9, A10).
-- All statuses derived, not stored (section 6).
-
-Still unanswered, assumed as written until the business says otherwise:
-
-- Q1: Does the plant's time zone observe DST (A2)?
-- Q2: Does the real plant run weekends (A3)? If so, seed seven days of `CalendarShift` rows instead of five.
-- Q3: Which stages need a lag, and how long (for example green tire rest before curing)?
-- Q4: How many cavities do the curing presses have (`unitsPerCycle`), and does it differ between presses? Different rates per press need machine-specific rates (P1).

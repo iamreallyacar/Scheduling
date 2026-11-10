@@ -1,8 +1,6 @@
 # Architecture
 
-Status: settled in task P4 (2026-11-06). Covers v1 (P0). Source: [domain-model.md](domain-model.md), [features.md](features.md). Decisions are recorded in [decisions.md](decisions.md).
-
-Revised 2026-11-04 (task D4): follows the domain model revision (operations and lots, resources, unavailability, dependencies, schedule versions, derived statuses) and adds the scheduling engine's slot finder.
+Status: settled in task P4 (2026-11-06). Covers v1 (P0). Source: [domain-model.md](REQUIREMENTS/domain-model.md), [features.md](REQUIREMENTS/features.md). Decisions are recorded in [decisions.md](REQUIREMENTS/decisions.md).
 
 ## 1. Style and stack
 
@@ -37,7 +35,7 @@ Rules:
 
 ## 3. Scheduling engine
 
-A pure library: inputs are plain values, outputs are results or rule violations. No database, no clock, no module types. This is task M3-1 and the home of the worked examples in `domain-model.md`.
+A pure library: inputs are plain values, outputs are results or rule violations. No database, no clock, no module types. Built in task M3-1; its expected behavior, including the worked examples, is in [acceptance-criteria.md](REQUIREMENTS/acceptance-criteria.md) sections 4 and 5.
 
 Inputs (a snapshot for one schedule version):
 
@@ -113,7 +111,7 @@ Implements A2.
 ## 7. Error format
 
 - All errors use RFC 9457 problem details (`application/problem+json`) with `type`, `title`, `status`, `detail`, plus these fields:
-  - `code`: stable machine-readable string (for example `rule.R2.overlap`, `rule.R4.dependency`, `slot.none`, `validation.failed`). [acceptance-criteria.md](acceptance-criteria.md) gives the code for every case it covers.
+  - `code`: stable machine-readable string (for example `rule.R2.overlap`, `rule.R4.dependency`, `slot.none`, `validation.failed`). [acceptance-criteria.md](REQUIREMENTS/acceptance-criteria.md) gives the code for every case it covers.
   - `errors`: for validation failures, a map of field to messages.
   - `rule` and `conflict`: for scheduling rule violations (R7), the rule id and the conflicting item as `{ "type": "placement", "id": 42 }`. Types: `placement`, `unavailability`, `lot`, `resource`. They hold the first violation in rule order.
   - `violations`: every broken rule with its conflicting item, because `Validate` reports all of them.
@@ -128,21 +126,21 @@ Implements A2.
 - R3 and R4 span tables, so no single constraint covers them. A placement command locks the resource row and the order row (`SELECT ... FOR UPDATE`), builds the engine snapshot, validates and writes in one transaction. Open-ended unavailabilities are stored with an infinite upper bound.
 - Later facts never delete placements. A new unavailability or a calendar change can make existing placements break R3 or R6. The fact is saved anyway (it is true), affected `plannedEnd` values are recomputed, and the placements stay. `FindConflicts` lists them, and the timeline and dashboard flag them until the planner moves or removes them.
 - The live schedule version row is created by the first migration.
-- Seed data (task P7) is loaded by a separate command, never on normal startup in production.
+- Seed data (task M2-7) is loaded by a separate command, never on normal startup in production.
 
 ## 9. Test strategy
 
-| Level | What | Tooling (proposed) |
+| Level | What | Tooling |
 |---|---|---|
-| Unit | Engine: every worked example in `domain-model.md` plus DST cases; derived statuses and `isLate` | xUnit |
-| Property | Engine: any slot returned by `EarliestSlot` passes `Validate`; no feasible start exists before it; `ScheduleOrderAsap` proposals pass `Validate` together | FsCheck or similar |
-| Module integration | Each module against a real PostgreSQL, including constraints, locking and soft delete | xUnit with Testcontainers |
+| Unit | Engine: every Engine-level acceptance criterion, including the worked examples and DST cases; derived statuses and `isLate` | xUnit v3 |
+| Property | Engine: any slot returned by `EarliestSlot` passes `Validate`; no feasible start exists before it; `ScheduleOrderAsap` proposals pass `Validate` together | FsCheck or similar, added in task M3-1 |
+| Module integration | Each module against a real PostgreSQL, including constraints, locking and soft delete | xUnit v3 with Testcontainers |
 | API | Auth and role policies, problem-details shape, rule violations returned as 422 with `rule` and `conflict` | `WebApplicationFactory` |
-| Architecture | Module dependency table in section 2 holds between module namespaces; the engine project references no module | NetArchTest or similar |
+| Architecture | Module dependency table in section 2 holds between module namespaces; the engine project references no module | NetArchTest |
 | Frontend | Components and forms (placement dialog, order form, ASAP proposal review) | Vitest, Testing Library |
-| End to end | A few smoke flows only: sign in, create order, schedule it as soon as possible, see it on the timeline | Playwright |
+| End to end | A few smoke flows only: sign in, create order, schedule it as soon as possible, see it on the timeline | Playwright, added with the first flow |
 
-- Acceptance criteria ([acceptance-criteria.md](acceptance-criteria.md), tasks P5 and P6) are written first and each maps to at least one test named after its ID.
+- Acceptance criteria ([acceptance-criteria.md](REQUIREMENTS/acceptance-criteria.md), tasks P5 and P6) are written first and each maps to at least one test named after its ID.
 - Tests run on every commit; a failing test blocks merge.
 
 ## 10. Frontend notes
@@ -151,6 +149,7 @@ Implements A2.
 - The timeline (F-SCH-2) shows lots as bars per resource and flags conflicted placements. It is read-only in v1, so it can be a simple custom component. Drag-and-drop (P1) is the point at which a Gantt library should be evaluated.
 - The placement form offers "earliest slot" next to the manual start field. The order detail view offers "schedule as soon as possible", shows the proposal on a timeline preview, and commits on confirmation.
 - Server state via a query cache library; no duplicated client-side business rules. Conflicts are always decided by the server, and the form shows the returned error.
+- Wireframes for the timeline, the placement form and the proposal review are in [wireframes.md](REQUIREMENTS/wireframes.md) (task P8).
 - The UI passes `live` as the version everywhere, through one setting, so a scenario switcher (P2) changes one value.
 
 ## 11. Extension points for later versions
@@ -166,7 +165,3 @@ Chosen so P1+ features do not force a rewrite:
 - Audit trail (F-AUTH-5): all writes go through module interfaces, so one interception point exists.
 - Optimistic concurrency (F-NFR-3): see section 4.
 - ERP/MES integration (F-NFR-6): add an integration module that talks to the Orders interface.
-
-## 12. Decisions
-
-The choices in this document are recorded in [decisions.md](decisions.md) as DEC-16 to DEC-23, all accepted in task P4.
