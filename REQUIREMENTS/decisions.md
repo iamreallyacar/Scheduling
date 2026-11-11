@@ -31,6 +31,10 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 | DEC-21 | Cookie session instead of JWT | Accepted | 2026-11-06 (P4) | ARCHITECTURE §6 |
 | DEC-22 | Due date ends at the end of its plant-local day | Accepted | 2026-11-06 (P4) | ARCHITECTURE §5 |
 | DEC-23 | Engine as its own project, modules as folders in one API project | Accepted | 2026-11-06 (P4) | ARCHITECTURE §1-2 |
+| DEC-24 | Migrations are applied at startup, module by module | Proposed | 2026-11-10 (M1-1) | ARCHITECTURE §8 |
+| DEC-25 | Minimal API endpoints; module code rejects a request by throwing a problem exception | Proposed | 2026-11-10 (M1-2) | ARCHITECTURE §2, §7 |
+| DEC-26 | Session ends through the user's security stamp; lockout counted on the injected clock | Proposed | 2026-11-10 (M1-1) | ARCHITECTURE §6, A21 |
+| DEC-27 | OpenAPI document kept in the repository; frontend types generated from it | Proposed | 2026-11-10 (M1-2) | ARCHITECTURE §4, §10 |
 
 ## Accepted
 
@@ -176,6 +180,37 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 - Reason: one project per module adds build and wiring cost for a small team. Boundaries are kept by an architecture test on namespaces instead of by project references.
 - Alternatives: one project per module, rejected for the overhead; a module can still be moved into its own project later because the folder boundaries are already enforced.
 - Consequences: module boundaries are a convention checked by tests, not by the compiler, so the architecture test (ARCHITECTURE §9) must run on every commit.
+
+## Proposed
+
+Made while building M1 (2026-11-10) and already followed by the code. Waiting for review; on approval the status becomes Accepted and the entry moves up.
+
+### DEC-24 Migrations at startup
+
+- Decision: the API applies pending EF Core migrations when it starts, one module after the other, each with its own history table in its own schema. Startup steps (migrations, then the first Admin) finish before the first request is taken; a failing step stops startup.
+- Reason: one API instance and one database (ARCHITECTURE §1), so nothing else can run at the same time; AC-8 and AC-40 already expect the database to be ready after a start.
+- Alternatives: a separate migrate command run by the deployment, the better choice once several instances start together. The steps are behind one interface (`IStartupStep`), so moving them into a command later is a small change.
+- Consequences: the readiness check cannot report an unreachable database at start, because the API does not start without it.
+
+### DEC-25 Minimal API endpoints and problem exceptions
+
+- Decision: endpoints are minimal API route groups, one endpoints file per area of a module, not MVC controllers. Request bodies are checked by an endpoint filter over their data annotations. Module code rejects a request by throwing `ApiProblemException` with status, `code` and `detail`; one exception handler writes every problem details answer.
+- Reason: an unreadable body raises an exception in minimal APIs, which separates `request.malformed` from `validation.failed` cleanly (AC-21, AC-22); MVC reports both through the same model state. Throwing ends the request, so a transaction rolls back and nothing is saved (AC-17).
+- Alternatives: MVC controllers as first written in ARCHITECTURE §2, rejected for the reason above; result types instead of exceptions, rejected because every caller up the chain would have to pass them on.
+- Consequences: the filter checks only the body's own properties. Nested request objects (routing stages, M2-1) need the filter extended first.
+
+### DEC-26 Session end and lockout
+
+- Decision: every request compares the security stamp in the session cookie with the user's row. Sign-out writes a new stamp, which ends every session of that user (A21). Failed sign-ins are counted in our own code on the injected clock, using the lockout columns of the Identity user.
+- Reason: a cookie alone stays valid until it expires, which AC-5 does not allow. ASP.NET Core Identity's own lockout reads the system clock, which ARCHITECTURE §5 forbids and which made AC-3 untestable.
+- Alternatives: a server-side session table, which would end one session at a time but adds a table and cleanup; Identity's `SignInManager`, rejected for the clock.
+- Consequences: one user lookup per request, acceptable for 2-5 planners. A role change or deactivation (F-AUTH-3) must write a new stamp to take effect at once.
+
+### DEC-27 OpenAPI document in the repository
+
+- Decision: the OpenAPI document is committed as `backend/openapi/tire-scheduler-v1.json`. A backend test fails when it differs from what the code describes and rewrites it when run with `UPDATE_OPENAPI=1`. The frontend generates its request and response types from the file (`npm run generate:api`, `@hey-api/openapi-ts`) and calls the API through one hand-written fetch wrapper.
+- Reason: API changes show up in review as a diff, and the frontend build needs no running backend. Only the types are generated because the generator's runtime client does not pass the project's strict TypeScript settings.
+- Alternatives: generating the document at build time, rejected because it starts the whole application, including the database steps of DEC-24; `openapi-typescript`, rejected because it does not support TypeScript 6 yet.
 
 ## Open
 

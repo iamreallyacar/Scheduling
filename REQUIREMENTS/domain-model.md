@@ -201,6 +201,10 @@ Order progress (F-PRG-2) = completed quantity / total quantity over the lots of 
 | A17 | A started lot stays where it is in the live version: it runs on that machine, and its actuals are recorded against that placement. Completed lots keep their placement as the record of where they ran |
 | A18 | The plant time zone is set once in configuration and not editable in v1, because changing it would shift every calendar and stored local date. A shift never crosses midnight; a night shift across midnight is two rows |
 | A19 | The order history in F-ORD-5 is the creation time and the cancellation time in v1. A full change history needs the audit trail (F-AUTH-5, P1) |
+| A20 | Names and codes are stored without surrounding spaces. Resource names and resource type names are unique without regard to case, like the product code, so "Press 1" and "press 1" cannot both exist |
+| A21 | Signing out ends every session of that user, on every device, because sessions are ended through the user and not one by one (DEC-26). A session ends after 12 hours without a request (setting) |
+| A22 | Master data lists (resource types, resources, products) are returned whole, without paging, because a plant has tens of rows of each. Paging stays for lists that grow, such as orders |
+| A23 | Text lengths: resource, resource type and calendar names up to 100 characters, product code up to 50, product name up to 200, product spec up to 500. The first Admin is created with the name "Administrator" |
 
 ## 8. Out of the model for v1
 

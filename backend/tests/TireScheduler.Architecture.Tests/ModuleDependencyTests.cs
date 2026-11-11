@@ -43,6 +43,22 @@ public sealed class ModuleDependencyTests
         Assert.True(result.IsSuccessful, FailureMessage(result));
     }
 
+    // The folders every module may use (ARCHITECTURE.md section 2) must not know any module,
+    // or a module could reach another one through them.
+    [Theory]
+    [InlineData("TireScheduler.Api.Errors")]
+    [InlineData("TireScheduler.Api.Security")]
+    [InlineData("TireScheduler.Api.Database")]
+    public void Shared_folder_depends_on_no_module(string sharedNamespace)
+    {
+        ArchTestResult result = Types.InAssembly(ApiAssembly)
+            .That().ResideInNamespace(sharedNamespace)
+            .ShouldNot().HaveDependencyOnAny(ModulesNamespace, "TireScheduler.Api.Queries")
+            .GetResult();
+
+        Assert.True(result.IsSuccessful, FailureMessage(result));
+    }
+
     [Fact]
     public void Every_module_has_a_dependency_entry()
     {

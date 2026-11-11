@@ -19,3 +19,8 @@ indent_size = 2
 
 [*.md]
 trim_trailing_whitespace = false
+
+# EF Core writes these files (`dotnet ef migrations add`); they are not edited by hand except
+# for data steps, so the code style analyzers skip them.
+[**/Migrations/*.cs]
+generated_code = true

@@ -31,7 +31,8 @@ Rules:
   - Scheduling, for R8, needs "is this lot completed?" (Progress).
 
   The lower module declares a small read interface (for example `ILotActivity` in Orders); the higher module implements it and registers it in dependency injection. Source-code dependencies still point downward. Keep these ports few and read-only.
-- Each module registers itself with one extension method (dependency injection) and exposes its own controllers.
+- Each module registers its services with one extension method and maps its own endpoints with another. Endpoints are minimal API route groups (DEC-25).
+- Three folders beside the modules hold what every module uses and depend on no module: `Errors` (problem details, request validation filter, section 7), `Security` (roles, access policies, anti-forgery check, section 6) and `Database` (connection, module contexts, startup steps, section 8).
 
 ## 3. Scheduling engine
 
@@ -62,12 +63,13 @@ Earliest slot search. On each candidate resource the earliest feasible start is 
 
 ## 4. API style
 
-- REST over JSON, versioned by path: `/api/v1/...`. OpenAPI document generated from the code; the frontend client is generated from it.
+- REST over JSON, versioned by path: `/api/v1/...`. The OpenAPI document is generated from the code and kept in `backend/openapi/tire-scheduler-v1.json`, where a test keeps it up to date; the frontend types are generated from it (DEC-27).
 - Schedule versions in the path. Everything that depends on a version sits under `/versions/{versionId}/...`. `live` is an alias for the live version, and in v1 the client always uses it. Scenarios (P2) then need no URL change.
 - Resources:
 
 | Area | Resources |
 |---|---|
+| Auth | `/auth/sign-in`, `/auth/sign-out`, `/auth/antiforgery-token`, `/me` (the signed-in user) |
 | Master data | `/resource-types`, `/resources`, `/calendars`, `/calendars/{id}/shifts`, `/holidays`, `/products`, `/products/{id}/routing` (stages and dependencies together) |
 | Orders | `/orders`, `/orders/{id}` (with operations and lots), `/lots/{id}` |
 | Unavailability | `/resources/{id}/unavailabilities` |
@@ -79,7 +81,7 @@ Earliest slot search. On each candidate resource the earliest feasible start is 
 - Earliest slot is `GET /versions/live/lots/{id}/earliest-slot?resourceId=&notBefore=`. It changes nothing; the planner then places the lot with the returned values.
 - Schedule order as soon as possible has two steps: `POST /versions/live/orders/{id}/asap-proposal` returns proposed placements without saving them; `POST .../asap-proposal/commit` with the same proposal saves all of them in one transaction. The commit validates again and fails as a whole if anything changed in between.
 - Marking a machine down is `POST /resources/{id}/unavailabilities` with `kind: Breakdown`, a start and an optional end. There is no machine status endpoint; status is derived.
-- Lists are paged (`page`, `pageSize`) with explicit `sort` and filter query parameters (F-ORD-4).
+- Lists are paged (`page`, `pageSize`) with explicit `sort` and filter query parameters (F-ORD-4). Master data lists are small and returned whole (A22).
 - Soft-deleted orders are excluded by a global query filter (F-NFR-1). Cancel is a state change, not a delete.
 - Concurrent-edit protection (F-NFR-3) is P1. Keep room for it: every mutable entity can later gain a version column and an `ETag`/`If-Match` pair without changing URLs.
 - No bulk endpoints in v1 apart from the order proposal commit. CSV import (P1) adds them.
@@ -100,12 +102,15 @@ Implements A2.
 ## 6. Authentication and authorization
 
 - Cookie-based session with ASP.NET Core Identity (DEC-21): HTTP-only, `Secure`, `SameSite=Lax` cookie, same origin for API and SPA. No token is held in browser storage. (The legacy code used JWT; with one SPA on one origin, cookies are simpler and safer.) SSO (F-AUTH-4) can be added later as an external login provider.
-- Passwords are hashed by Identity; accounts lock out after repeated failures (threshold and lockout period are settings, default 5 failures and 15 minutes). State-changing requests carry an anti-forgery token.
+- Passwords are hashed by Identity; accounts lock out after repeated failures (threshold and lockout period are settings, default 5 failures and 15 minutes). The failures are counted on the injected clock (DEC-26).
+- State-changing requests carry an anti-forgery token: the client reads it from `GET /auth/antiforgery-token` and sends it back in the header that answer names. The token belongs to the session, so the client asks again after sign-in and sign-out. The check runs after the role check, so a request without a session is answered 401 first.
+- Every request compares the session with the user's row, so sign-out and deactivation end a session at once (DEC-26, A21).
+- The cookies are marked `Secure` unless the setting `Security:CookiesRequireHttps` is false, which is for local development over plain HTTP only.
 - Roles: Planner, Viewer, Admin (F-AUTH-2). Enforced by authorization policies on API endpoints:
   - Viewer: read everything.
   - Planner: edit orders, placements, unavailabilities and lot progress.
   - Admin: Planner rights plus master data (including calendars and routings) and users.
-- The UI hides actions a role cannot use, but only the API check counts.
+- The UI hides actions a role cannot use, but only the API check counts. `GET /me` returns `canPlan` and `canAdminister`, so the UI holds no role rules of its own.
 - The first Admin is created from configuration or an environment variable at startup when the user table is empty. If the settings are missing then, startup fails with an error naming them. No credentials in the repository.
 
 ## 7. Error format
@@ -116,12 +121,15 @@ Implements A2.
   - `rule` and `conflict`: for scheduling rule violations (R7), the rule id and the conflicting item as `{ "type": "placement", "id": 42 }`. Types: `placement`, `unavailability`, `lot`, `resource`. They hold the first violation in rule order.
   - `violations`: every broken rule with its conflicting item, because `Validate` reports all of them.
 - Status codes: 400 malformed request or validation failure, 401 not signed in, 403 wrong role, 404 not found, 409 duplicate or state conflict (for example cancelling an order with a lot In Progress, or committing a stale proposal), 422 scheduling rule violation or no slot found, 500 unexpected.
-- Unexpected errors return a generic body with a correlation id; details go to the log only.
+- Unexpected errors return a generic body with code `server.error` and a `correlationId`; details go to the log only, under the same id.
+- Module code rejects a request by throwing `ApiProblemException`; one handler writes every problem details answer (DEC-25). A status without a body (no session, wrong role, unknown route, unreadable request) gets its `code` and `detail` from the status.
 - The frontend shows `detail` to the user and uses `code` for behavior.
 
 ## 8. Persistence
 
-- EF Core migrations, one schema per module. Constraints back the domain rules where possible: unique `Product.code`, unique `(product, sequenceNo)`, unique `(version, lot)` on placements, positive quantities (A7).
+- EF Core migrations, one schema per module, each with its own context and migration history, applied at startup (DEC-24). Create one with `dotnet ef migrations add <Name> --context <Module>DbContext --output-dir Modules/<Module>/Migrations` (README.md).
+- Text that is unique without regard to case (A20) has a stored upper-case copy of the column, and the unique index is on the copy. A broken unique index is answered as 409 `conflict.duplicate`, so two requests at once cannot both save the same value.
+- Constraints back the domain rules where possible: unique `Product.code`, unique `(product, sequenceNo)`, unique `(version, lot)` on placements, positive quantities (A7).
 - R2 is also guarded by a PostgreSQL exclusion constraint on placements over `(version, resource, tstzrange(plannedStart, plannedEnd))`, so a race between two requests cannot double-book a resource. Touching ranges are allowed (half-open ranges).
 - R3 and R4 span tables, so no single constraint covers them. A placement command locks the resource row and the order row (`SELECT ... FOR UPDATE`), builds the engine snapshot, validates and writes in one transaction. Open-ended unavailabilities are stored with an infinite upper bound.
 - Later facts never delete placements. A new unavailability or a calendar change can make existing placements break R3 or R6. The fact is saved anyway (it is true), affected `plannedEnd` values are recomputed, and the placements stay. `FindConflicts` lists them, and the timeline and dashboard flag them until the planner moves or removes them.
@@ -145,7 +153,7 @@ Implements A2.
 
 ## 10. Frontend notes
 
-- React with TypeScript, routes per module area, API client generated from OpenAPI.
+- React with TypeScript, routes per module area. Request and response types are generated from the OpenAPI document (`src/api/generated`, never edited by hand). One fetch wrapper (`src/api/request.ts`) adds the anti-forgery token and turns every rejection into an error that carries the problem details; form fields show the messages of their field from it.
 - The timeline (F-SCH-2) shows lots as bars per resource and flags conflicted placements. It is read-only in v1, so it can be a simple custom component. Drag-and-drop (P1) is the point at which a Gantt library should be evaluated.
 - The placement form offers "earliest slot" next to the manual start field. The order detail view offers "schedule as soon as possible", shows the proposal on a timeline preview, and commits on confirmation.
 - Server state via a query cache library; no duplicated client-side business rules. Conflicts are always decided by the server, and the form shows the returned error.

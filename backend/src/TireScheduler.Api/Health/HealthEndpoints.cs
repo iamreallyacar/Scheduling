@@ -15,11 +15,12 @@ public static class HealthEndpoints
         return services;
     }
 
-    // Live: the process answers. Ready: the process can also reach its database.
+    // Live: the process answers. Ready: the process can also reach its database. Both are open
+    // without a session, because the hosting platform calls them.
     public static IEndpointRouteBuilder MapSchedulerHealthEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapHealthChecks(LivePath, new HealthCheckOptions { Predicate = _ => false });
-        endpoints.MapHealthChecks(ReadyPath, new HealthCheckOptions { Predicate = check => check.Tags.Contains(ReadyTag) });
+        endpoints.MapHealthChecks(LivePath, new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
+        endpoints.MapHealthChecks(ReadyPath, new HealthCheckOptions { Predicate = check => check.Tags.Contains(ReadyTag) }).AllowAnonymous();
         return endpoints;
     }
 }

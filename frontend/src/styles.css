@@ -1,0 +1,197 @@
+:root {
+  --text: #1c2430;
+  --muted: #5b6675;
+  --line: #d5dae1;
+  --surface: #f5f7f9;
+  --accent: #1f5fa8;
+  --danger: #a4262c;
+  color: var(--text);
+  font-family: system-ui, sans-serif;
+  line-height: 1.45;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 1rem 1.5rem 3rem;
+}
+
+h1 {
+  font-size: 1.5rem;
+}
+
+h2 {
+  font-size: 1.2rem;
+  margin-top: 2.5rem;
+}
+
+h3 {
+  font-size: 1rem;
+  margin-top: 0;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.app-title {
+  font-weight: 600;
+}
+
+.app-header nav {
+  display: flex;
+  flex: 1;
+  gap: 1rem;
+}
+
+.app-header a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.app-header a.active {
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.app-user,
+.page-message,
+.problem-reference {
+  color: var(--muted);
+}
+
+table {
+  width: 100%;
+  margin-bottom: 1rem;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+tbody th {
+  font-weight: 600;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+
+button[type='submit'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.row-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.filter-bar {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.plain-list {
+  padding: 0;
+  list-style: none;
+}
+
+.plain-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 32rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.panel,
+.sign-in form {
+  max-width: 26rem;
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.sign-in {
+  max-width: 26rem;
+  padding-top: 4rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.9rem;
+}
+
+.field-inline {
+  flex-direction: row-reverse;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.field input:not([type='checkbox']),
+.field select {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.field [aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.field-errors {
+  margin: 0;
+  padding: 0;
+  color: var(--danger);
+  font-size: 0.9rem;
+  list-style: none;
+}
+
+.problem {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--danger);
+  border-radius: 4px;
+  color: var(--danger);
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.5rem;
+}

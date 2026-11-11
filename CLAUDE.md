@@ -54,7 +54,7 @@
 ## VERIFICATION
 
 - `python3 scripts/check_docs.py`: consistency checks for the planning documents (links, section references, feature/task/assumption/rule/decision IDs, P0 count, milestones, decision statuses, acceptance criteria assigned to tasks) and the documentation style guide (no bold or strike through, blank lines around headings, lists and tables). Run after every documentation change; it must pass before committing. When adding a new kind of cross-reference to the docs, add a check for it.
-- `dotnet build backend` and `dotnet test --solution backend/TireScheduler.slnx`: backend build (warnings are errors) and all backend tests. API tests need Docker. Run after every backend change.
+- `dotnet build backend` and `dotnet test --solution backend/TireScheduler.slnx`: backend build (warnings are errors) and all backend tests. API tests need Docker. Run after every backend change. After an intended API change, run the tests once with `UPDATE_OPENAPI=1` to rewrite `backend/openapi/tire-scheduler-v1.json`, then `npm run generate:api` in `frontend/`.
 - In `frontend/`: `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`. Run after every frontend change.
 
 ## PROJECT OVERVIEW
@@ -70,7 +70,8 @@
 - `ARCHITECTURE.md`: code architecture
 - `REQUIREMENTS/`: requirement folder: `features.md` (features, priorities, v1 scope), `domain-model.md` (terms, entities, rules, assumptions), `acceptance-criteria.md` (testable behavior), `wireframes.md` (screen sketches), `decisions.md` (decision log and open questions)
 - `scripts/`: verification scripts (see VERIFICATION)
-- `backend/`: .NET solution (`TireScheduler.slnx`). `src/TireScheduler.Api` is the API, with one folder per module under `Modules/` plus `Queries/`; `src/TireScheduler.Engine` is the scheduling engine; `tests/` holds `TireScheduler.Engine.Tests`, `TireScheduler.Architecture.Tests` (module dependency table) and `TireScheduler.Api.Tests` (API against a real database)
-- `frontend/`: React with TypeScript app (Vite)
+- `backend/`: .NET solution (`TireScheduler.slnx`). `src/TireScheduler.Api` is the API, with one folder per module under `Modules/` plus `Queries/`, and the shared folders `Errors/`, `Security/` and `Database/` (`ARCHITECTURE.md` section 2); `openapi/` holds the OpenAPI document the frontend types are generated from; `src/TireScheduler.Engine` is the scheduling engine; `tests/` holds `TireScheduler.Engine.Tests`, `TireScheduler.Architecture.Tests` (module dependency table) and `TireScheduler.Api.Tests` (API against a real database)
+- `frontend/`: React with TypeScript app (Vite). `src/api/generated` is generated from the OpenAPI document and never edited by hand
 - `global.json`: .NET SDK version and test runner for every `dotnet` command
+- `dotnet-tools.json`: local .NET tools (`dotnet ef` for migrations); install with `dotnet tool restore`
 - `compose.yaml`, `.env.example`: local PostgreSQL

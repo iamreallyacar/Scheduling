@@ -25,6 +25,7 @@ Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules
 | AC-6 | No session | Any API endpoint except sign-in is called | Rejected, 401 `auth.required`. The UI shows the sign-in page and returns to the requested page after sign-in | API, UI |
 | AC-7 | A signed-in user | A state-changing request is sent without a valid anti-forgery token | Rejected, 400 `auth.antiforgery` | API |
 | AC-8 | An empty user table and admin bootstrap settings (email, password) in configuration | The application starts | One Admin user is created. If the settings are missing while the user table is empty, startup fails with an error naming the missing settings. If users exist, the settings are ignored | Integration |
+| AC-138 | The setting `Security:CookiesRequireHttps` (default true) | A state-changing request arrives over plain HTTP | With the default it fails as an unexpected error (AC-25) and nothing is saved; reads such as the health checks still answer. With the setting false, which is for local development only, sign-in works over plain HTTP and the cookies are not marked `Secure` | API |
 
 ### F-AUTH-2 Roles
 
@@ -37,6 +38,7 @@ Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules
 | AC-13 | An Admin | The Admin calls any endpoint | Allowed | API |
 | AC-14 | The full list of endpoints | The role test runs | Every endpoint has an authorization policy; the test fails when a new endpoint has none | API |
 | AC-15 | A Viewer, then a Planner | They open the order list and the machine register | The Viewer sees no create, edit, cancel or delete actions; the Planner sees order actions but no machine edit actions | UI |
+| AC-139 | A signed-in user of any role | `GET /api/v1/me` is called | The answer also holds `canPlan` and `canAdminister`, true exactly when the role may write as in AC-11 to AC-13. The UI decides from these two values which actions to show (AC-15) and holds no role rules of its own | API |
 
 ### F-NFR-1 Reliable persistence and soft delete
 
@@ -67,6 +69,8 @@ Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules
 | AC-28 | A resource type | The Admin creates a resource with name and type, without a calendar | Saved, active, on the plant default calendar. A request cannot set a status; there is no status field (DEC-9) | API |
 | AC-29 | An active resource with no placements | The Admin changes its name, type or active flag | Saved | API |
 | AC-30 | Resources of several types | Anyone opens the machine register | Resources are listed by type, then name, with type, calendar and active flag; the list filters by type and by active flag. The derived status column is added in M3 (F-MNT-2) | API, UI |
+| AC-140 | A resource type and a resource that no other row references | The Admin renames the resource type, or deletes the resource or the resource type | Saved; a deleted item is gone from its list and its id answers as in AC-23 | API |
+| AC-141 | A resource name or resource type name typed with spaces around it, or equal to an existing name except for case (A20) | The Admin saves it | The name is stored without the surrounding spaces; the name that differs only by case is rejected as in AC-24 | API |
 
 ### F-MD-2 Product register
 

@@ -1,43 +1,36 @@
 using System.Net;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
+using Npgsql;
 using TireScheduler.Api.Health;
 
 namespace TireScheduler.Api.Tests;
 
-public sealed class HealthEndpointTests(PostgresFixture postgres) : IClassFixture<PostgresFixture>
+public sealed class HealthEndpointTests(SchedulerApiFixture api) : IClassFixture<SchedulerApiFixture>
 {
-    [Fact]
-    public async Task Live_answers_ok()
+    [Theory]
+    [InlineData(HealthEndpoints.LivePath)]
+    [InlineData(HealthEndpoints.ReadyPath)]
+    public async Task AC_138_health_endpoint_answers_ok_without_a_session_over_plain_http(string path)
     {
-        await using SchedulerApiFactory factory = new(postgres.ConnectionString);
-        using HttpClient client = factory.CreateClient();
+        // The default test client uses http, as a health probe inside the hosting platform does.
+        using HttpClient client = api.Factory.CreateClient();
 
-        HttpResponseMessage response = await client.GetAsync(new Uri(HealthEndpoints.LivePath, UriKind.Relative), TestContext.Current.CancellationToken);
+        HttpResponseMessage response = await client.GetAsync(new Uri(path, UriKind.Relative), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Fact]
-    public async Task Ready_answers_ok_when_the_database_is_reachable()
-    {
-        await using SchedulerApiFactory factory = new(postgres.ConnectionString);
-        using HttpClient client = factory.CreateClient();
-
-        HttpResponseMessage response = await client.GetAsync(new Uri(HealthEndpoints.ReadyPath, UriKind.Relative), TestContext.Current.CancellationToken);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task Ready_answers_service_unavailable_when_the_database_is_unreachable()
+    public async Task Ready_check_is_unhealthy_when_the_database_is_unreachable()
     {
         // Port 1 on localhost has no PostgreSQL, so the connection is refused at once.
-        await using SchedulerApiFactory factory = new("Host=127.0.0.1;Port=1;Username=none;Password=none;Timeout=2");
-        using HttpClient client = factory.CreateClient();
+        await using NpgsqlDataSource unreachable = NpgsqlDataSource.Create("Host=127.0.0.1;Port=1;Username=none;Password=none;Timeout=2");
+        PostgresHealthCheck check = new(unreachable);
 
-        HttpResponseMessage response = await client.GetAsync(new Uri(HealthEndpoints.ReadyPath, UriKind.Relative), TestContext.Current.CancellationToken);
+        HealthCheckResult result = await check.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Equal(HealthStatus.Unhealthy, result.Status);
     }
 
     [Fact]

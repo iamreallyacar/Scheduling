@@ -4,10 +4,13 @@ Status values: Todo, Doing, Done. Update this file when a task changes state. Fe
 
 ## Where to start
 
-Handover for a new session. Updated at the end of every session; last updated 2026-11-10, after the documentation reorganization into the CLAUDE.md layout.
+Handover for a new session. Updated at the end of every session; last updated 2026-11-10, after milestone M1.
 
-- State: planning and preparation are finished (see Completed planning). The repository is scaffolded and every check passes, but no feature is built yet.
-- Next task: M1-2 (error handling baseline), then M1-1. M3-1 (the scheduling engine) depends only on P9 and can be built in parallel at any time.
+- State: M1 Foundation is built and every check passes. A planner can sign in and an Admin maintains machine types, machines and products. Nothing is committed yet for M1.
+- Next task: M2-1 (routing per product) or M2-2 (plant time zone, shifts, holidays); both are unblocked. M3-1 (the scheduling engine) depends only on P9 and can be built in parallel at any time.
+- To review first: DEC-24 to DEC-27 in `decisions.md` are Proposed. They were made while building M1 and the code already follows them.
+- Patterns to copy for a new module: `Modules/MasterData` (context, register classes, endpoints file), its tests in `TireScheduler.Api.Tests/MasterData`, and `frontend/src/products` for a page with a form. After an API change run the API tests once with `UPDATE_OPENAPI=1`, then `npm run generate:api` (README.md, Tooling notes).
+- Known limit: the request validation filter checks only the top level of a request body. M2-1 (routing with nested stages) must extend it first (DEC-25).
 - Before coding a task: read its acceptance criteria and the documents its row points to. Tasks marked "Write first" begin by writing their criteria (see Implementation below).
 - Open questions: all are in the Open table of `decisions.md`. WQ1 to WQ3 are settled by the task named in their row. BQ1 to BQ5 wait for the business; the docs follow the stated assumptions until it replies.
 - Local setup and tooling notes: README.md, section "Getting started".
@@ -66,20 +69,22 @@ Version 1 is the P0 features of [features.md](REQUIREMENTS/features.md), deliver
 
 | ID | Task | Features | Criteria | Depends on | Status |
 |---|---|---|---|---|---|
-| M1-2 | Error handling baseline: problem details with `code`, validation filter, correlation id for unexpected errors, frontend form error display, OpenAPI document and generated frontend client. Tested through a test-only endpoint until real ones exist | F-NFR-2 | AC-21, AC-22, AC-23, AC-25, AC-26 | P9 | Todo |
-| M1-1 | Sign in/out with ASP.NET Core Identity and cookie session, roles and policies, first Admin from configuration, sign-in page and role-aware app shell. Adds the first EF Core context (Auth schema) and the migration setup | F-AUTH-1, F-AUTH-2 | AC-1 to AC-15 | M1-2 | Todo |
-| M1-3 | Resource types and machine register (Admin edits, everyone reads). The MasterData migration creates the plant default calendar that every machine references | F-MD-1, F-NFR-1 | AC-16, AC-20, AC-24, AC-27 to AC-30, AC-40 | M1-1 | Todo |
-| M1-4 | Product register | F-MD-2 | AC-20, AC-24, AC-31 to AC-33 | M1-1 | Todo |
+| M1-2 | Error handling baseline: problem details with `code`, validation filter, correlation id for unexpected errors, frontend form error display, OpenAPI document and generated frontend client. Tested through a test-only endpoint until real ones exist | F-NFR-2 | AC-21, AC-22, AC-23, AC-25, AC-26 | P9 | Done |
+| M1-1 | Sign in/out with ASP.NET Core Identity and cookie session, roles and policies, first Admin from configuration, sign-in page and role-aware app shell. Adds the first EF Core context (Auth schema) and the migration setup | F-AUTH-1, F-AUTH-2 | AC-1 to AC-15, AC-138, AC-139 | M1-2 | Done |
+| M1-3 | Resource types and machine register (Admin edits, everyone reads). The MasterData migration creates the plant default calendar that every machine references | F-MD-1, F-NFR-1 | AC-16, AC-20, AC-24, AC-27 to AC-30, AC-40, AC-140, AC-141 | M1-1 | Done |
+| M1-4 | Product register | F-MD-2 | AC-20, AC-24, AC-31 to AC-33 | M1-1 | Done |
 
 M1-2 runs before M1-1 because sign-in errors already use the error format.
+
+Parts of M1 criteria that need later data are tested by the task that adds the data, and are listed in its Criteria column: AC-20 for a resource type used by a routing stage (M2-1), a product used by an order (M2-3) and a resource used by an unavailability or a placement (M3-2, M3-4); AC-33 for the routing deleted with its product (M2-1); AC-32 for orders that keep pointing to a changed product (M2-3); AC-29 for a resource with placements (M3-4). AC-11 has no endpoint to test until M2-3 adds the first Planner write.
 
 ### M2 Orders
 
 | ID | Task | Features | Criteria | Depends on | Status |
 |---|---|---|---|---|---|
-| M2-1 | Routing per product: stages with duration values, dependencies with lag (linear chain by default), routing editor | F-MD-3 | AC-34 to AC-38 | M1-3, M1-4 | Todo |
+| M2-1 | Routing per product: stages with duration values, dependencies with lag (linear chain by default), routing editor | F-MD-3 | AC-20, AC-33, AC-34 to AC-38 | M1-3, M1-4 | Todo |
 | M2-2 | Plant time zone setting, plant calendar shifts and holiday list | F-MD-5 | AC-24, AC-41 to AC-44 | M1-3 | Todo |
-| M2-3 | Create, edit, cancel and delete order, with operation, dependency and lot generation from the routing; soft delete with a global query filter | F-ORD-1, F-ORD-3, F-NFR-1 | AC-17 to AC-19, AC-23, AC-24, AC-39, AC-45 to AC-52, AC-61 to AC-64 | M2-1 | Todo |
+| M2-3 | Create, edit, cancel and delete order, with operation, dependency and lot generation from the routing; soft delete with a global query filter | F-ORD-1, F-ORD-3, F-NFR-1 | AC-11, AC-17 to AC-20, AC-23, AC-24, AC-32, AC-39, AC-45 to AC-52, AC-61 to AC-64 | M2-1 | Todo |
 | M2-4 | Derived order status and late flag in Queries (Pending and Cancelled until M3 and M5 add the others) | F-ORD-2 | AC-53 to AC-57 | M2-3 | Todo |
 | M2-5 | Order list with search, filter and sort | F-ORD-4 | AC-65 to AC-69 | M2-4 | Todo |
 | M2-6 | Order detail view with operations and lots | F-ORD-5 | AC-70 | M2-4 | Todo |
@@ -101,9 +106,9 @@ A command that builds a consistent plant from parameters, so seed data is never 
 | ID | Task | Features | Criteria | Depends on | Status |
 |---|---|---|---|---|---|
 | M3-1 | Scheduling engine: `ComputeEnd`, `Validate` (R1-R8), `FindConflicts`; unit tests for its criteria, including the DST cases (engine level) | F-SCH-4, F-SCH-5, F-SCH-6 | AC-73 to AC-75, AC-78 to AC-82, AC-84 to AC-87, AC-89 to AC-106, AC-110 to AC-114 | P9 | Todo |
-| M3-2 | Unavailability (planned, breakdown, open end) recorded on the machine page, and derived machine status (Down, Maintenance, Idle; Running follows in M5-1) | F-MNT-1, F-MNT-2 | Write first | M1-3 | Todo |
+| M3-2 | Unavailability (planned, breakdown, open end) recorded on the machine page, and derived machine status (Down, Maintenance, Idle; Running follows in M5-1) | F-MNT-1, F-MNT-2 | AC-20; write first for the rest | M1-3 | Todo |
 | M3-3 | Unscheduled-lots queue | F-SCH-7 | Write first | M2-3 | Todo |
-| M3-4 | Place, move and remove a lot via the placement form in the live version: locking, exclusion constraint, problem details for violations (API level of the M3-1 rules). Settles WQ1 | F-SCH-1, F-SCH-4, F-SCH-5 | AC-58, AC-71, AC-74, AC-75, AC-77, AC-78, AC-83, AC-84, AC-89, AC-102, AC-109, AC-111 to AC-114; write first for the placement form | M2-2, M3-1, M3-2, M3-3 | Todo |
+| M3-4 | Place, move and remove a lot via the placement form in the live version: locking, exclusion constraint, problem details for violations (API level of the M3-1 rules). Settles WQ1 | F-SCH-1, F-SCH-4, F-SCH-5 | AC-20, AC-29, AC-58, AC-71, AC-74, AC-75, AC-77, AC-78, AC-83, AC-84, AC-89, AC-102, AC-109, AC-111 to AC-114; write first for the placement form | M2-2, M3-1, M3-2, M3-3 | Todo |
 | M3-5 | Conflicts from later facts: `/conflicts` endpoint, `plannedEnd` recomputed after calendar and holiday changes, placements flagged after a breakdown or deactivation | F-SCH-4 | AC-76, AC-88, AC-107, AC-108 | M3-4 | Todo |
 | M3-6 | Read-only timeline view with conflicted placements flagged, as in `wireframes.md` section 2. Settles WQ3 | F-SCH-2 | Write first | M3-5 | Todo |
 

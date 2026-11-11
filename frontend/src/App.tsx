@@ -1,8 +1,25 @@
-// Application shell. Routes per module area are added by the milestone tasks (ARCHITECTURE.md section 10).
+import { Navigate, Route, Routes } from 'react-router';
+import { RequireSession } from './auth/RequireSession';
+import { SIGN_IN_PATH } from './auth/signInLocation';
+import { SignInPage } from './auth/SignInPage';
+import { MachineRegisterPage } from './machines/MachineRegisterPage';
+import { ProductRegisterPage } from './products/ProductRegisterPage';
+import { AppShell } from './shell/AppShell';
+import { NotFoundPage } from './shell/NotFoundPage';
+
+// Routes per module area (ARCHITECTURE.md section 10).
 export function App() {
   return (
-    <main>
-      <h1>Tire Production Scheduler</h1>
-    </main>
+    <Routes>
+      <Route path={SIGN_IN_PATH} element={<SignInPage />} />
+      <Route element={<RequireSession />}>
+        <Route element={<AppShell />}>
+          <Route index element={<Navigate to="/machines" replace />} />
+          <Route path="/machines" element={<MachineRegisterPage />} />
+          <Route path="/products" element={<ProductRegisterPage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
+      </Route>
+    </Routes>
   );
 }
