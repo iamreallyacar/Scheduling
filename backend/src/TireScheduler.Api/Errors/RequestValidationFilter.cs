@@ -1,11 +1,7 @@
-using System.ComponentModel.DataAnnotations;
-using System.Text.Json;
-
 namespace TireScheduler.Api.Errors;
 
-// Checks the data annotations of a request body before the endpoint runs and reports every
-// invalid field in one answer (AC-21). It looks at the body's own properties only; a request
-// with nested objects needs its nested checks added here first.
+// Checks a request body before the endpoint runs and reports every invalid field, nested
+// ones included, in one answer (AC-21).
 internal sealed class RequestValidationFilter<TRequest> : IEndpointFilter
     where TRequest : class
 {
@@ -13,18 +9,12 @@ internal sealed class RequestValidationFilter<TRequest> : IEndpointFilter
     {
         TRequest request = context.Arguments.OfType<TRequest>().Single();
 
-        List<ValidationResult> failures = [];
-        if (!Validator.TryValidateObject(request, new ValidationContext(request), failures, validateAllProperties: true))
+        Dictionary<string, IReadOnlyList<string>> fieldErrors = RequestBodyValidator.FindFieldErrors(request);
+        if (fieldErrors.Count > 0)
         {
-            throw ApiProblemException.ValidationFailed(GroupByJsonFieldName(failures));
+            throw ApiProblemException.ValidationFailed(fieldErrors);
         }
 
         return await next(context).ConfigureAwait(false);
     }
-
-    private static Dictionary<string, IReadOnlyList<string>> GroupByJsonFieldName(List<ValidationResult> failures) =>
-        failures
-            .SelectMany(failure => failure.MemberNames.Select(memberName => (memberName, failure.ErrorMessage)))
-            .GroupBy(pair => JsonNamingPolicy.CamelCase.ConvertName(pair.memberName), pair => pair.ErrorMessage ?? "Not valid.")
-            .ToDictionary(group => group.Key, IReadOnlyList<string> (group) => group.ToArray());
 }

@@ -4,13 +4,13 @@ Status values: Todo, Doing, Done. Update this file when a task changes state. Fe
 
 ## Where to start
 
-Handover for a new session. Updated at the end of every session; last updated 2026-11-10, after milestone M1.
+Handover for a new session. Updated at the end of every session; last updated 2026-11-11, after task M2-1.
 
-- State: M1 Foundation is built and every check passes. A planner can sign in and an Admin maintains machine types, machines and products. Nothing is committed yet for M1.
-- Next task: M2-1 (routing per product) or M2-2 (plant time zone, shifts, holidays); both are unblocked. M3-1 (the scheduling engine) depends only on P9 and can be built in parallel at any time.
-- To review first: DEC-24 to DEC-27 in `decisions.md` are Proposed. They were made while building M1 and the code already follows them.
-- Patterns to copy for a new module: `Modules/MasterData` (context, register classes, endpoints file), its tests in `TireScheduler.Api.Tests/MasterData`, and `frontend/src/products` for a page with a form. After an API change run the API tests once with `UPDATE_OPENAPI=1`, then `npm run generate:api` (README.md, Tooling notes).
-- Known limit: the request validation filter checks only the top level of a request body. M2-1 (routing with nested stages) must extend it first (DEC-25).
+- State: M1 Foundation and M2-1 are built and every check passes. A planner can sign in and an Admin maintains machine types, machines, products and the routing of each product. M2-1 is not committed yet.
+- Next task: M2-2 (plant time zone, shifts, holidays) or M2-3 (orders, which read the routing); both are unblocked. M3-1 (the scheduling engine) depends only on P9 and can be built in parallel at any time.
+- To review first: DEC-24 to DEC-27 in `decisions.md` are Proposed. They were made while building M1 and the code already follows them. A24 in `domain-model.md` and AC-142 and AC-143 were added by M2-1.
+- Patterns to copy for a new module: `Modules/MasterData` (context, register classes, endpoints file), its tests in `TireScheduler.Api.Tests/MasterData`, `frontend/src/products` for a page with a form, and `Modules/MasterData/Routings` with `frontend/src/routing` for a request with nested lists that is saved as a whole. After an API change run the API tests once with `UPDATE_OPENAPI=1`, then `npm run generate:api` (README.md, Tooling notes).
+- For M2-3: the Orders module needs the routing of a product. MasterData has no public read interface for it yet; add one there instead of reading its tables (`ARCHITECTURE.md` section 2).
 - Before coding a task: read its acceptance criteria and the documents its row points to. Tasks marked "Write first" begin by writing their criteria (see Implementation below).
 - Open questions: all are in the Open table of `decisions.md`. WQ1 to WQ3 are settled by the task named in their row. BQ1 to BQ5 wait for the business; the docs follow the stated assumptions until it replies.
 - Local setup and tooling notes: README.md, section "Getting started".
@@ -82,7 +82,7 @@ Parts of M1 criteria that need later data are tested by the task that adds the d
 
 | ID | Task | Features | Criteria | Depends on | Status |
 |---|---|---|---|---|---|
-| M2-1 | Routing per product: stages with duration values, dependencies with lag (linear chain by default), routing editor | F-MD-3 | AC-20, AC-33, AC-34 to AC-38 | M1-3, M1-4 | Todo |
+| M2-1 | Routing per product: stages with duration values, dependencies with lag (linear chain by default), routing editor | F-MD-3 | AC-20, AC-33, AC-34 to AC-38, AC-142, AC-143 | M1-3, M1-4 | Done |
 | M2-2 | Plant time zone setting, plant calendar shifts and holiday list | F-MD-5 | AC-24, AC-41 to AC-44 | M1-3 | Todo |
 | M2-3 | Create, edit, cancel and delete order, with operation, dependency and lot generation from the routing; soft delete with a global query filter | F-ORD-1, F-ORD-3, F-NFR-1 | AC-11, AC-17 to AC-20, AC-23, AC-24, AC-32, AC-39, AC-45 to AC-52, AC-61 to AC-64 | M2-1 | Todo |
 | M2-4 | Derived order status and late flag in Queries (Pending and Cancelled until M3 and M5 add the others) | F-ORD-2 | AC-53 to AC-57 | M2-3 | Todo |

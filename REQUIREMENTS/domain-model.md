@@ -205,6 +205,7 @@ Order progress (F-PRG-2) = completed quantity / total quantity over the lots of 
 | A21 | Signing out ends every session of that user, on every device, because sessions are ended through the user and not one by one (DEC-26). A session ends after 12 hours without a request (setting) |
 | A22 | Master data lists (resource types, resources, products) are returned whole, without paging, because a plant has tens of rows of each. Paging stays for lists that grow, such as orders |
 | A23 | Text lengths: resource, resource type and calendar names up to 100 characters, product code up to 50, product name up to 200, product spec up to 500. The first Admin is created with the name "Administrator" |
+| A24 | The routing API names the stages of a dependency by sequence number, because a save replaces the whole routing and stage ids do not survive it. A routing saved with no stages means the product has no routing. A field error inside a list is named by its path with a position counted from 0, for example `stages[0].cycleMinutes` |
 
 ## 8. Out of the model for v1
 

@@ -504,6 +504,76 @@
           }
         }
       }
+    },
+    "/api/v1/products/{productId}/routing": {
+      "get": {
+        "tags": [
+          "Products"
+        ],
+        "operationId": "GetRouting",
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Products"
+        ],
+        "operationId": "ReplaceRouting",
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoutingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -710,6 +780,188 @@
           },
           "kind": {
             "$ref": "#/components/schemas/ResourceKind"
+          }
+        }
+      },
+      "RoutingDependencyRequest": {
+        "required": [
+          "predecessorSequenceNo",
+          "successorSequenceNo"
+        ],
+        "type": "object",
+        "properties": {
+          "predecessorSequenceNo": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "successorSequenceNo": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "minLagMinutes": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "RoutingDependencyResponse": {
+        "required": [
+          "predecessorSequenceNo",
+          "successorSequenceNo",
+          "minLagMinutes"
+        ],
+        "type": "object",
+        "properties": {
+          "predecessorSequenceNo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "successorSequenceNo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "minLagMinutes": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "RoutingRequest": {
+        "required": [
+          "stages",
+          "dependencies"
+        ],
+        "type": "object",
+        "properties": {
+          "stages": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/RoutingStageRequest"
+            }
+          },
+          "dependencies": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/RoutingDependencyRequest"
+            }
+          }
+        }
+      },
+      "RoutingResponse": {
+        "required": [
+          "stages",
+          "dependencies"
+        ],
+        "type": "object",
+        "properties": {
+          "stages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutingStageResponse"
+            }
+          },
+          "dependencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutingDependencyResponse"
+            }
+          }
+        }
+      },
+      "RoutingStageRequest": {
+        "required": [
+          "sequenceNo",
+          "resourceTypeId",
+          "cycleMinutes"
+        ],
+        "type": "object",
+        "properties": {
+          "sequenceNo": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "resourceTypeId": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "setupMinutes": {
+            "maximum": 2147483647,
+            "minimum": 0,
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "cycleMinutes": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "unitsPerCycle": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "RoutingStageResponse": {
+        "required": [
+          "sequenceNo",
+          "resourceType",
+          "setupMinutes",
+          "cycleMinutes",
+          "unitsPerCycle"
+        ],
+        "type": "object",
+        "properties": {
+          "sequenceNo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "resourceType": {
+            "$ref": "#/components/schemas/NamedReference"
+          },
+          "setupMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "cycleMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unitsPerCycle": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

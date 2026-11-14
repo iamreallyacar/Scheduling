@@ -35,6 +35,9 @@ export const deleteResource = (id: number) =>
 
 export const listProducts = () => requestApi<Api.ListProductsResponse>('GET', { url: '/api/v1/products' } satisfies Api.ListProductsData);
 
+export const getProduct = (id: number) =>
+  requestApi<Api.GetProductResponse>('GET', { url: '/api/v1/products/{id}', path: { id } } satisfies Api.GetProductData);
+
 export const createProduct = (body: Api.ProductRequest) =>
   requestApi<Api.CreateProductResponse>('POST', { url: '/api/v1/products', body } satisfies Api.CreateProductData);
 
@@ -43,3 +46,9 @@ export const updateProduct = (id: number, body: Api.ProductRequest) =>
 
 export const deleteProduct = (id: number) =>
   requestApi<Api.DeleteProductResponse>('DELETE', { url: '/api/v1/products/{id}', path: { id } } satisfies Api.DeleteProductData);
+
+export const getRouting = (productId: number) =>
+  requestApi<Api.GetRoutingResponse>('GET', { url: '/api/v1/products/{productId}/routing', path: { productId } } satisfies Api.GetRoutingData);
+
+export const replaceRouting = (productId: number, body: Api.RoutingRequest) =>
+  requestApi<Api.ReplaceRoutingResponse>('PUT', { url: '/api/v1/products/{productId}/routing', path: { productId }, body } satisfies Api.ReplaceRoutingData);

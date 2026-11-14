@@ -24,6 +24,13 @@ describe('product register', () => {
     expect(within(row as HTMLElement).getByText('91V')).toBeInTheDocument();
   });
 
+  it('links each product to its routing', async () => {
+    stubApi(stubProductApi(viewerUser, [passengerTire]));
+    renderApp('/products');
+
+    expect(await screen.findByRole('link', { name: 'Routing of PS-205' })).toHaveAttribute('href', '/products/1/routing');
+  });
+
   it.each([viewerUser, plannerUser])('AC_15 $role sees no product edit actions', async (currentUser) => {
     stubApi(stubProductApi(currentUser, [passengerTire]));
     renderApp('/products');

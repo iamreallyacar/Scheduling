@@ -4,6 +4,7 @@ import { SIGN_IN_PATH } from './auth/signInLocation';
 import { SignInPage } from './auth/SignInPage';
 import { MachineRegisterPage } from './machines/MachineRegisterPage';
 import { ProductRegisterPage } from './products/ProductRegisterPage';
+import { RoutingPage } from './routing/RoutingPage';
 import { AppShell } from './shell/AppShell';
 import { NotFoundPage } from './shell/NotFoundPage';
 
@@ -17,6 +18,7 @@ export function App() {
           <Route index element={<Navigate to="/machines" replace />} />
           <Route path="/machines" element={<MachineRegisterPage />} />
           <Route path="/products" element={<ProductRegisterPage />} />
+          <Route path="/products/:productId/routing" element={<RoutingPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>

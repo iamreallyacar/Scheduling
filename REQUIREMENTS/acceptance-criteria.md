@@ -86,11 +86,13 @@ Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules
 
 | ID | Given | When | Then | Level |
 |---|---|---|---|---|
-| AC-34 | A product | The Admin saves a routing (stages and dependencies together) | Saved as a whole, replacing the previous routing. Each stage has sequence number, resource type, `setupMinutes` (0 or more, default 0), `cycleMinutes` (more than 0) and `unitsPerCycle` (1 or more, default 1) | API |
+| AC-34 | A product | The Admin saves a routing (stages and dependencies together) | Saved as a whole, replacing the previous routing. Each stage has sequence number, resource type, `setupMinutes` (0 or more, default 0), `cycleMinutes` (more than 0) and `unitsPerCycle` (1 or more, default 1). A dependency names its two stages by sequence number and has `minLagMinutes` (default 0) (A24) | API |
 | AC-35 | A routing | Sequence numbers are not 1, 2, 3 ... without gaps or repeats | Rejected, 400 `validation.failed` | API |
-| AC-36 | A routing | Its dependencies form a cycle, link a stage to itself, repeat a pair or have a negative lag | Rejected, 400 `routing.invalid_dependency`, naming the stages | API |
-| AC-37 | A routing | A stage names a resource type that does not exist | Rejected, 400 `validation.failed` | API |
+| AC-36 | A routing | Its dependencies form a cycle, link a stage to itself, repeat a pair, have a negative lag or name a stage that is not in the routing | Rejected, 400 `routing.invalid_dependency`, naming the stages | API |
+| AC-37 | A routing | A stage names a resource type that does not exist | Rejected, 400 `validation.failed` on that stage's resource type field (`stages[0].resourceTypeId` for the first stage) | API |
 | AC-38 | The routing editor | The Admin adds stage N | The UI adds a dependency from stage N-1 to stage N with lag 0, which the Admin can edit or remove; parallel branches are allowed | UI |
+| AC-142 | A product | A signed-in user of any role reads its routing | The stages in sequence order, each with its resource type id and name, and the dependencies. A product without a routing answers with no stages and no dependencies; saving a routing with no stages removes the routing (A24) | API |
+| AC-143 | The routing editor | The Admin removes a stage | The stages after it move up so the numbers stay 1, 2, 3 ..., and the dependencies of the removed stage are removed | UI |
 | AC-39 | An order created from a routing | The Admin changes the routing | The order's operations, dependencies and lots are unchanged (A1) | API |
 
 ### F-MD-5 Plant calendar and holidays

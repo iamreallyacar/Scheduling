@@ -197,7 +197,7 @@ Made while building M1 (2026-11-10) and already followed by the code. Waiting fo
 - Decision: endpoints are minimal API route groups, one endpoints file per area of a module, not MVC controllers. Request bodies are checked by an endpoint filter over their data annotations. Module code rejects a request by throwing `ApiProblemException` with status, `code` and `detail`; one exception handler writes every problem details answer.
 - Reason: an unreadable body raises an exception in minimal APIs, which separates `request.malformed` from `validation.failed` cleanly (AC-21, AC-22); MVC reports both through the same model state. Throwing ends the request, so a transaction rolls back and nothing is saved (AC-17).
 - Alternatives: MVC controllers as first written in ARCHITECTURE §2, rejected for the reason above; result types instead of exceptions, rejected because every caller up the chain would have to pass them on.
-- Consequences: the filter checks only the body's own properties. Nested request objects (routing stages, M2-1) need the filter extended first.
+- Consequences: the filter checks the body's own properties and, since M2-1, nested objects and lists (routing stages), naming a nested field by its path (A24).
 
 ### DEC-26 Session end and lockout
 

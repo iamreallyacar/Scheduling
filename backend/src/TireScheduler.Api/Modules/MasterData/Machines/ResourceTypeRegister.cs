@@ -44,6 +44,16 @@ internal sealed class ResourceTypeRegister(MasterDataDbContext context)
             throw ApiProblemException.InUse($"Machine type '{resourceType.Name}' cannot be deleted because machine '{machineOfThisType}' has this type.");
         }
 
+        string? productRoutedOverThisType = await context.RoutingStages
+            .Where(stage => stage.ResourceTypeId == id)
+            .Join(context.Products, stage => stage.ProductId, product => product.Id, (stage, product) => product.Code)
+            .OrderBy(productCode => productCode)
+            .FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+        if (productRoutedOverThisType is not null)
+        {
+            throw ApiProblemException.InUse($"Machine type '{resourceType.Name}' cannot be deleted because the routing of product '{productRoutedOverThisType}' uses it.");
+        }
+
         context.ResourceTypes.Remove(resourceType);
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }

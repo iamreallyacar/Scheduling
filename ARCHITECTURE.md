@@ -117,7 +117,7 @@ Implements A2.
 
 - All errors use RFC 9457 problem details (`application/problem+json`) with `type`, `title`, `status`, `detail`, plus these fields:
   - `code`: stable machine-readable string (for example `rule.R2.overlap`, `rule.R4.dependency`, `slot.none`, `validation.failed`). [acceptance-criteria.md](REQUIREMENTS/acceptance-criteria.md) gives the code for every case it covers.
-  - `errors`: for validation failures, a map of field to messages.
+  - `errors`: for validation failures, a map of field to messages. A field inside a nested object or list is named by its path, for example `stages[0].cycleMinutes` (A24).
   - `rule` and `conflict`: for scheduling rule violations (R7), the rule id and the conflicting item as `{ "type": "placement", "id": 42 }`. Types: `placement`, `unavailability`, `lot`, `resource`. They hold the first violation in rule order.
   - `violations`: every broken rule with its conflicting item, because `Validate` reports all of them.
 - Status codes: 400 malformed request or validation failure, 401 not signed in, 403 wrong role, 404 not found, 409 duplicate or state conflict (for example cancelling an order with a lot In Progress, or committing a stale proposal), 422 scheduling rule violation or no slot found, 500 unexpected.
@@ -129,8 +129,9 @@ Implements A2.
 
 - EF Core migrations, one schema per module, each with its own context and migration history, applied at startup (DEC-24). Create one with `dotnet ef migrations add <Name> --context <Module>DbContext --output-dir Modules/<Module>/Migrations` (README.md).
 - Text that is unique without regard to case (A20) has a stored upper-case copy of the column, and the unique index is on the copy. A broken unique index is answered as 409 `conflict.duplicate`, so two requests at once cannot both save the same value.
-- Constraints back the domain rules where possible: unique `Product.code`, unique `(product, sequenceNo)`, unique `(version, lot)` on placements, positive quantities (A7).
+- Constraints back the domain rules where possible: unique `Product.code`, unique `(product, sequenceNo)`, routing duration values and lags within their ranges, unique `(version, lot)` on placements, positive quantities (A7).
 - R2 is also guarded by a PostgreSQL exclusion constraint on placements over `(version, resource, tstzrange(plannedStart, plannedEnd))`, so a race between two requests cannot double-book a resource. Touching ranges are allowed (half-open ranges).
+- A routing is replaced as a whole in one transaction that locks the product row (`SELECT ... FOR UPDATE`), so two saves of the same routing run one after the other. Its stages get new ids on every save; nothing outside the routing refers to them (A1, A24).
 - R3 and R4 span tables, so no single constraint covers them. A placement command locks the resource row and the order row (`SELECT ... FOR UPDATE`), builds the engine snapshot, validates and writes in one transaction. Open-ended unavailabilities are stored with an infinite upper bound.
 - Later facts never delete placements. A new unavailability or a calendar change can make existing placements break R3 or R6. The fact is saved anyway (it is true), affected `plannedEnd` values are recomputed, and the placements stay. `FindConflicts` lists them, and the timeline and dashboard flag them until the planner moves or removes them.
 - The live schedule version row is created by the first migration.

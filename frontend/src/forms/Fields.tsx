@@ -35,6 +35,33 @@ export function TextField({ label, name, problem, value, onChange, type = 'text'
   );
 }
 
+interface NumberFieldProps extends FieldProps {
+  /** The text in the field; empty when nothing is entered. */
+  value: string;
+  onChange: (value: string) => void;
+  min?: number;
+}
+
+export function NumberField({ label, name, problem, value, onChange, min }: NumberFieldProps) {
+  return (
+    <Field label={label} name={name} problem={problem}>
+      {(inputProps) => (
+        <input
+          {...inputProps}
+          type="number"
+          name={name}
+          min={min}
+          step={1}
+          value={value}
+          onChange={(event) => {
+            onChange(event.target.value);
+          }}
+        />
+      )}
+    </Field>
+  );
+}
+
 export interface SelectOption {
   value: string;
   label: string;

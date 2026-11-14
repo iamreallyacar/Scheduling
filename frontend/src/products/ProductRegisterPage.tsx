@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { deleteProduct, listProducts } from '../api/endpoints';
 import type { ProductResponse } from '../api/generated';
 import { problemOf } from '../api/problem';
@@ -35,6 +36,7 @@ export function ProductRegisterPage() {
                   <th scope="col">Code</th>
                   <th scope="col">Name</th>
                   <th scope="col">Size or spec</th>
+                  <th scope="col">Routing</th>
                   {canAdminister && <th scope="col">Actions</th>}
                 </tr>
               </thead>
@@ -44,6 +46,11 @@ export function ProductRegisterPage() {
                     <th scope="row">{product.code}</th>
                     <td>{product.name}</td>
                     <td>{product.spec}</td>
+                    <td>
+                      <Link to={`/products/${String(product.id)}/routing`} aria-label={`Routing of ${product.code}`}>
+                        {canAdminister ? 'Edit routing' : 'View routing'}
+                      </Link>
+                    </td>
                     {canAdminister && (
                       <td className="row-actions">
                         <button

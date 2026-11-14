@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using TireScheduler.Api.Modules.MasterData.Calendars;
 using TireScheduler.Api.Modules.MasterData.Machines;
 using TireScheduler.Api.Modules.MasterData.Products;
+using TireScheduler.Api.Modules.MasterData.Routings;
 
 namespace TireScheduler.Api.Modules.MasterData;
 
@@ -23,6 +24,10 @@ internal sealed class MasterDataDbContext(DbContextOptions<MasterDataDbContext> 
     public DbSet<Calendar> Calendars => Set<Calendar>();
 
     public DbSet<Product> Products => Set<Product>();
+
+    public DbSet<RoutingStage> RoutingStages => Set<RoutingStage>();
+
+    public DbSet<RoutingDependency> RoutingDependencies => Set<RoutingDependency>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -67,6 +72,29 @@ internal sealed class MasterDataDbContext(DbContextOptions<MasterDataDbContext> 
             product.Property(p => p.Name).HasMaxLength(Product.NameMaxLength);
             product.Property(p => p.Spec).HasMaxLength(Product.SpecMaxLength);
             UniqueWithoutRegardToCase(product, p => p.Code, ProductCodeIndex);
+        });
+
+        modelBuilder.Entity<RoutingStage>(stage =>
+        {
+            stage.HasIndex(s => new { s.ProductId, s.SequenceNo }).IsUnique();
+            // Cascade: a routing is deleted with its product (AC-33).
+            stage.HasOne<Product>().WithMany().HasForeignKey(s => s.ProductId).OnDelete(DeleteBehavior.Cascade);
+            // Restrict: a type that a routing stage references cannot be deleted (A14).
+            stage.HasOne(s => s.ResourceType).WithMany().HasForeignKey(s => s.ResourceTypeId).OnDelete(DeleteBehavior.Restrict);
+            stage.ToTable("RoutingStages", table => table.HasCheckConstraint(
+                "CK_RoutingStages_DurationValues",
+                "\"SequenceNo\" >= 1 AND \"SetupMinutes\" >= 0 AND \"CycleMinutes\" > 0 AND \"UnitsPerCycle\" >= 1"));
+        });
+
+        modelBuilder.Entity<RoutingDependency>(dependency =>
+        {
+            dependency.HasKey(d => new { d.PredecessorStageId, d.SuccessorStageId });
+            dependency.HasOne<Product>().WithMany().HasForeignKey(d => d.ProductId).OnDelete(DeleteBehavior.Cascade);
+            dependency.HasOne(d => d.PredecessorStage).WithMany().HasForeignKey(d => d.PredecessorStageId).OnDelete(DeleteBehavior.Cascade);
+            dependency.HasOne(d => d.SuccessorStage).WithMany().HasForeignKey(d => d.SuccessorStageId).OnDelete(DeleteBehavior.Cascade);
+            dependency.ToTable("RoutingDependencies", table => table.HasCheckConstraint(
+                "CK_RoutingDependencies_LagAndStages",
+                "\"MinLagMinutes\" >= 0 AND \"PredecessorStageId\" <> \"SuccessorStageId\""));
         });
     }
 

@@ -35,6 +35,7 @@ public sealed class ErrorHandlingTests : IAsyncLifetime
         host = builder.Build();
         host.UseSchedulerErrorHandling();
         host.MapPost("/machines", (MachineRequest request) => Results.Ok(request)).WithRequestValidation<MachineRequest>();
+        host.MapPost("/machine-groups", (MachineGroupRequest request) => Results.Ok(request)).WithRequestValidation<MachineGroupRequest>();
         host.MapGet("/machines/{id:int}", IResult (int id) => throw ApiProblemException.NotFound($"Machine {id}"));
         host.MapGet("/failing", IResult () => throw new InvalidOperationException(SecretFailureText));
 
@@ -62,6 +63,23 @@ public sealed class ErrorHandlingTests : IAsyncLifetime
         JsonElement errors = problem.GetProperty("errors");
         Assert.Equal(["capacity", "name"], errors.EnumerateObject().Select(field => field.Name).Order());
         Assert.NotEmpty(errors.GetProperty("name")[0].GetString()!);
+    }
+
+    [Fact]
+    public async Task AC_21_invalid_fields_of_nested_objects_and_list_items_are_reported_by_path()
+    {
+        var body = new
+        {
+            lead = new { capacity = 2 },
+            machines = new object?[] { new { name = "Press 1", capacity = 2 }, null, new { name = "Press 3", capacity = 11 } },
+        };
+
+        HttpResponseMessage response = await Client.PostAsJsonAsync("/machine-groups", body, TestContext.Current.CancellationToken);
+
+        JsonElement problem = await ProblemAssert.HasProblemAsync(response, HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
+        Assert.Equal(
+            ["lead.name", "machines[1]", "machines[2].capacity", "name"],
+            problem.GetProperty("errors").EnumerateObject().Select(field => field.Name).Order(StringComparer.Ordinal));
     }
 
     [Fact]
@@ -119,5 +137,15 @@ public sealed class ErrorHandlingTests : IAsyncLifetime
 
         [Range(1, 10)]
         public int Capacity { get; init; }
+    }
+
+    private sealed record MachineGroupRequest
+    {
+        [Required]
+        public string Name { get; init; } = string.Empty;
+
+        public MachineRequest? Lead { get; init; }
+
+        public IReadOnlyList<MachineRequest?> Machines { get; init; } = [];
     }
 }

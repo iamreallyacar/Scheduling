@@ -61,6 +61,44 @@ export type ResourceTypeResponse = {
     kind: ResourceKind;
 };
 
+export type RoutingDependencyRequest = {
+    predecessorSequenceNo: null | number;
+    successorSequenceNo: null | number;
+    minLagMinutes?: null | number;
+};
+
+export type RoutingDependencyResponse = {
+    predecessorSequenceNo: number;
+    successorSequenceNo: number;
+    minLagMinutes: number;
+};
+
+export type RoutingRequest = {
+    stages: null | Array<RoutingStageRequest>;
+    dependencies: null | Array<RoutingDependencyRequest>;
+};
+
+export type RoutingResponse = {
+    stages: Array<RoutingStageResponse>;
+    dependencies: Array<RoutingDependencyResponse>;
+};
+
+export type RoutingStageRequest = {
+    sequenceNo: null | number;
+    resourceTypeId: null | number;
+    setupMinutes?: null | number;
+    cycleMinutes: null | number;
+    unitsPerCycle?: null | number;
+};
+
+export type RoutingStageResponse = {
+    sequenceNo: number;
+    resourceType: NamedReference;
+    setupMinutes: number;
+    cycleMinutes: number;
+    unitsPerCycle: number;
+};
+
 export type SignInRequest = {
     email: string;
     password: string;
@@ -380,3 +418,39 @@ export type UpdateProductResponses = {
 };
 
 export type UpdateProductResponse = UpdateProductResponses[keyof UpdateProductResponses];
+
+export type GetRoutingData = {
+    body?: never;
+    path: {
+        productId: number;
+    };
+    query?: never;
+    url: '/api/v1/products/{productId}/routing';
+};
+
+export type GetRoutingResponses = {
+    /**
+     * OK
+     */
+    200: RoutingResponse;
+};
+
+export type GetRoutingResponse = GetRoutingResponses[keyof GetRoutingResponses];
+
+export type ReplaceRoutingData = {
+    body: RoutingRequest;
+    path: {
+        productId: number;
+    };
+    query?: never;
+    url: '/api/v1/products/{productId}/routing';
+};
+
+export type ReplaceRoutingResponses = {
+    /**
+     * OK
+     */
+    200: RoutingResponse;
+};
+
+export type ReplaceRoutingResponse = ReplaceRoutingResponses[keyof ReplaceRoutingResponses];

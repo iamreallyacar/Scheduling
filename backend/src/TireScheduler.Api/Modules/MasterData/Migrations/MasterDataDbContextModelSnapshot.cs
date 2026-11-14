@@ -178,6 +178,71 @@ namespace TireScheduler.Api.Modules.MasterData.Migrations
                     b.ToTable("Products", "master_data");
                 });
 
+            modelBuilder.Entity("TireScheduler.Api.Modules.MasterData.Routings.RoutingDependency", b =>
+                {
+                    b.Property<int>("PredecessorStageId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SuccessorStageId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MinLagMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("PredecessorStageId", "SuccessorStageId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("SuccessorStageId");
+
+                    b.ToTable("RoutingDependencies", "master_data", t =>
+                        {
+                            t.HasCheckConstraint("CK_RoutingDependencies_LagAndStages", "\"MinLagMinutes\" >= 0 AND \"PredecessorStageId\" <> \"SuccessorStageId\"");
+                        });
+                });
+
+            modelBuilder.Entity("TireScheduler.Api.Modules.MasterData.Routings.RoutingStage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CycleMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ResourceTypeId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SequenceNo")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SetupMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UnitsPerCycle")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResourceTypeId");
+
+                    b.HasIndex("ProductId", "SequenceNo")
+                        .IsUnique();
+
+                    b.ToTable("RoutingStages", "master_data", t =>
+                        {
+                            t.HasCheckConstraint("CK_RoutingStages_DurationValues", "\"SequenceNo\" >= 1 AND \"SetupMinutes\" >= 0 AND \"CycleMinutes\" > 0 AND \"UnitsPerCycle\" >= 1");
+                        });
+                });
+
             modelBuilder.Entity("TireScheduler.Api.Modules.MasterData.Calendars.CalendarShift", b =>
                 {
                     b.HasOne("TireScheduler.Api.Modules.MasterData.Calendars.Calendar", null)
@@ -202,6 +267,48 @@ namespace TireScheduler.Api.Modules.MasterData.Migrations
                         .IsRequired();
 
                     b.Navigation("Calendar");
+
+                    b.Navigation("ResourceType");
+                });
+
+            modelBuilder.Entity("TireScheduler.Api.Modules.MasterData.Routings.RoutingDependency", b =>
+                {
+                    b.HasOne("TireScheduler.Api.Modules.MasterData.Routings.RoutingStage", "PredecessorStage")
+                        .WithMany()
+                        .HasForeignKey("PredecessorStageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TireScheduler.Api.Modules.MasterData.Products.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TireScheduler.Api.Modules.MasterData.Routings.RoutingStage", "SuccessorStage")
+                        .WithMany()
+                        .HasForeignKey("SuccessorStageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PredecessorStage");
+
+                    b.Navigation("SuccessorStage");
+                });
+
+            modelBuilder.Entity("TireScheduler.Api.Modules.MasterData.Routings.RoutingStage", b =>
+                {
+                    b.HasOne("TireScheduler.Api.Modules.MasterData.Products.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TireScheduler.Api.Modules.MasterData.Machines.ResourceType", "ResourceType")
+                        .WithMany()
+                        .HasForeignKey("ResourceTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("ResourceType");
                 });

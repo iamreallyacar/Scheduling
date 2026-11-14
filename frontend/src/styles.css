@@ -195,3 +195,34 @@ button:disabled {
   display: flex;
   gap: 0.5rem;
 }
+
+.routing-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem;
+  max-width: 60rem;
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.9rem 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.routing-item legend {
+  padding: 0 0.3rem;
+  font-weight: 600;
+}
+
+.routing-item > button {
+  /* Lines the button up with the inputs, below the label line. */
+  margin-top: 1.5rem;
+}
+
+.routing-item input[type='number'] {
+  width: 8rem;
+}
+
+.section-actions {
+  margin-bottom: 1.5rem;
+}

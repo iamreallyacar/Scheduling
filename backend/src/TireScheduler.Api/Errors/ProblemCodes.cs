@@ -14,5 +14,6 @@ public static class ProblemCodes
     public const string AuthInvalidCredentials = "auth.invalid_credentials";
     public const string AuthLockedOut = "auth.locked_out";
     public const string AuthAntiforgery = "auth.antiforgery";
+    public const string RoutingInvalidDependency = "routing.invalid_dependency";
     public const string ServerError = "server.error";
 }
