@@ -1,0 +1,22 @@
+import type { Query } from '@tanstack/react-query';
+import type { MachineFilter } from '../machines/machineQueries';
+import type { OrderListQuery } from '../orders/orderListQuery';
+
+// Every query key of the app (DEC-36). A key starts with its area, so all queries of an area
+// share the first element.
+export const queryKeys = {
+  currentUser: ['current-user'],
+  resourceTypes: ['resource-types'],
+  resources: (filter: MachineFilter) => ['resources', filter],
+  products: ['products'],
+  product: (productId: number) => ['products', productId],
+  routing: (productId: number) => ['products', productId, 'routing'],
+  calendars: ['calendars'],
+  holidays: ['holidays'],
+  orderPage: (query: OrderListQuery) => ['orders', 'page', query],
+  order: (orderId: number) => ['orders', orderId],
+} as const;
+
+export function isCurrentUserQuery(query: Query): boolean {
+  return query.queryKey[0] === queryKeys.currentUser[0];
+}

@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Writes a generated plant through the HTTP API as an Admin (DEC-32). Never part of the API. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\TireScheduler.PlantGenerator\TireScheduler.PlantGenerator.csproj" />
+  </ItemGroup>
+</Project>

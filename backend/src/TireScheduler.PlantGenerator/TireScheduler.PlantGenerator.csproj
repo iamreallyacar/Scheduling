@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Pure core of the synthetic plant generator (DEC-32): parameters and a seed in, plain values
+       out. Depends only on the engine; the architecture tests enforce this. -->
+  <ItemGroup>
+    <ProjectReference Include="..\TireScheduler.Engine\TireScheduler.Engine.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,173 @@
+using System.ComponentModel.DataAnnotations;
+using System.Net;
+using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using TireScheduler.Api.Errors;
+
+namespace TireScheduler.Api.Tests.Errors;
+
+// The error handling baseline (F-NFR-2) on its own: a small host with the same error handling
+// setup as the API and test-only endpoints, so no database or session is involved.
+public sealed class ErrorHandlingTests : IAsyncLifetime
+{
+    private const string SecretFailureText = "connection string with password";
+
+    private readonly RecordingLoggerProvider recordedLogs = new();
+    private WebApplication? host;
+    private HttpClient? client;
+
+    private HttpClient Client => client ?? throw new InvalidOperationException("The test host is not started.");
+
+    public async ValueTask InitializeAsync()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Testing" });
+        builder.WebHost.UseTestServer();
+        builder.Logging.ClearProviders().AddProvider(recordedLogs);
+        builder.Services.AddSchedulerErrorHandling();
+
+        host = builder.Build();
+        host.UseSchedulerErrorHandling();
+        RouteGroupBuilder validated = host.MapGroup("/").ValidateRequestBodies();
+        validated.MapPost("/machines", (MachineRequest request) => Results.Ok(request));
+        validated.MapPost("/machine-groups", (MachineGroupRequest request) => Results.Ok(request));
+        validated.MapPut("/machines/{id:int}", (int id, MachineRequest request, HttpContext httpContext) => Results.Ok(new { id, request.Name }));
+        host.MapGet("/machines/{id:int}", IResult (int id) => throw ApiProblemException.NotFound($"Machine {id}"));
+        host.MapGet("/failing", IResult () => throw new InvalidOperationException(SecretFailureText));
+
+        await host.StartAsync(TestContext.Current.CancellationToken);
+        client = host.GetTestClient();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        client?.Dispose();
+        if (host is not null)
+        {
+            await host.DisposeAsync();
+        }
+
+        recordedLogs.Dispose();
+    }
+
+    [Fact]
+    public async Task AC_21_every_invalid_field_is_reported_in_one_validation_failed_answer()
+    {
+        HttpResponseMessage response = await Client.PostAsJsonAsync("/machines", new { capacity = 0 }, TestContext.Current.CancellationToken);
+
+        JsonElement problem = await ProblemAssert.HasProblemAsync(response, HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
+        JsonElement errors = problem.GetProperty("errors");
+        Assert.Equal(["capacity", "name"], errors.EnumerateObject().Select(field => field.Name).Order());
+        Assert.NotEmpty(errors.GetProperty("name")[0].GetString()!);
+    }
+
+    [Fact]
+    public async Task AC_21_invalid_fields_of_nested_objects_and_list_items_are_reported_by_path()
+    {
+        var body = new
+        {
+            lead = new { capacity = 2 },
+            machines = new object?[] { new { name = "Press 1", capacity = 2 }, null, new { name = "Press 3", capacity = 11 } },
+        };
+
+        HttpResponseMessage response = await Client.PostAsJsonAsync("/machine-groups", body, TestContext.Current.CancellationToken);
+
+        JsonElement problem = await ProblemAssert.HasProblemAsync(response, HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
+        Assert.Equal(
+            ["lead.name", "machines[1]", "machines[2].capacity", "name"],
+            problem.GetProperty("errors").EnumerateObject().Select(field => field.Name).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task AC_21_valid_request_reaches_the_endpoint()
+    {
+        HttpResponseMessage response = await Client.PostAsJsonAsync("/machines", new { name = "Press 1", capacity = 2 }, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AC_163_a_body_after_other_parameters_is_checked_before_the_endpoint_runs()
+    {
+        HttpResponseMessage response = await Client.PutAsJsonAsync("/machines/7", new { capacity = 0 }, TestContext.Current.CancellationToken);
+
+        JsonElement problem = await ProblemAssert.HasProblemAsync(response, HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
+        Assert.Equal(["capacity", "name"], problem.GetProperty("errors").EnumerateObject().Select(field => field.Name).Order());
+    }
+
+    [Fact]
+    public async Task AC_163_a_valid_body_after_other_parameters_reaches_the_endpoint()
+    {
+        HttpResponseMessage response = await Client.PutAsJsonAsync("/machines/7", new { name = "Press 7", capacity = 2 }, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        JsonElement answer = await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken);
+        Assert.Equal(7, answer.GetProperty("id").GetInt32());
+    }
+
+    [Theory]
+    [InlineData("{ \"name\": ")]
+    [InlineData("{ \"name\": 5, \"capacity\": 2 }")]
+    [InlineData("{ \"name\": \"Press 1\", \"capacity\": \"2\" }")]
+    public async Task AC_22_unreadable_json_or_wrong_value_types_are_request_malformed(string body)
+    {
+        using StringContent content = new(body, Encoding.UTF8, "application/json");
+
+        HttpResponseMessage response = await Client.PostAsync(new Uri("/machines", UriKind.Relative), content, TestContext.Current.CancellationToken);
+
+        await ProblemAssert.HasProblemAsync(response, HttpStatusCode.BadRequest, ProblemCodes.RequestMalformed);
+    }
+
+    [Theory]
+    [InlineData("/machines/7")]
+    [InlineData("/no-such-route")]
+    public async Task AC_23_unknown_id_or_route_is_not_found(string path)
+    {
+        HttpResponseMessage response = await Client.GetAsync(new Uri(path, UriKind.Relative), TestContext.Current.CancellationToken);
+
+        await ProblemAssert.HasProblemAsync(response, HttpStatusCode.NotFound, ProblemCodes.NotFound);
+    }
+
+    [Fact]
+    public async Task AC_25_unexpected_error_answers_generic_500_and_logs_details_under_the_same_correlation_id()
+    {
+        HttpResponseMessage response = await Client.GetAsync(new Uri("/failing", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        JsonElement problem = await ProblemAssert.HasProblemAsync(response, HttpStatusCode.InternalServerError, ProblemCodes.ServerError);
+        string correlationId = problem.GetProperty("correlationId").GetString()!;
+        Assert.NotEmpty(correlationId);
+        string body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        Assert.DoesNotContain(SecretFailureText, body, StringComparison.Ordinal);
+        Assert.DoesNotContain(nameof(InvalidOperationException), body, StringComparison.Ordinal);
+
+        RecordedLogEntry logEntry = Assert.Single(recordedLogs.Entries, entry => entry.Level == LogLevel.Error && entry.Exception is InvalidOperationException);
+        Assert.Contains(correlationId, logEntry.Message, StringComparison.Ordinal);
+        Assert.Equal(SecretFailureText, logEntry.Exception!.Message);
+    }
+
+    private sealed record MachineRequest
+    {
+        [Required]
+        public string Name { get; init; } = string.Empty;
+
+        [Range(1, 10)]
+        public int Capacity { get; init; }
+    }
+
+    private sealed record MachineGroupRequest
+    {
+        [Required]
+        public string Name { get; init; } = string.Empty;
+
+        public MachineRequest? Lead { get; init; }
+
+        public IReadOnlyList<MachineRequest?> Machines { get; init; } = [];
+    }
+}

@@ -1,0 +1,432 @@
+#!/usr/bin/env python3
+"""Consistency checks for the planning documents.
+
+Usage: python3 scripts/check_docs.py
+Exit code 0 when all checks pass, 1 when any check fails.
+
+Checks:
+  links      local Markdown links point to existing files
+  sections   "x.md section N" / "x §N" / bare "section N" point to existing numbered headings;
+             'x.md section "Heading"' points to an existing heading of x.md (any level)
+  features   every F-<AREA>-<n> used is defined once in features.md
+  p0         P0 count matches the stated count and the TASKS.md milestone table; every P0
+             feature is in exactly one milestone and milestone features are P0
+  milestones milestone headings in TASKS.md match its milestone table
+  ids        assumption (A#), rule (R#) and decision (DEC-#) references are defined
+  tasks      task IDs in "Depends on" columns and "task X" mentions exist; statuses are valid
+  decisions  decisions.md index statuses are valid; Accepted/Proposed entries have a section
+  questions  open question IDs (BQ#, WQ#) are defined once in the decisions.md Open table
+  criteria   acceptance criteria IDs are unique; every M1 and M2 feature, every active rule
+             and the engine search operations have a criteria section
+  coverage   every active acceptance criterion is assigned to at least one implementation
+             task in the TASKS.md Criteria column (ranges such as "AC-1 to AC-15" count)
+  coderefs   "x.md section N" and 'x.md section "Heading"' in code comments and config files
+             point to existing headings
+  style      CLAUDE.md documentation style guide: no bold or strike through, blank line
+             before and after headings, lists and tables
+"""
+
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+REQUIREMENTS = ROOT / "REQUIREMENTS"
+# Documents that section references ("x.md section N", "x §N") can point to, by the name used in the text.
+DOC_PATHS = {
+    **{name: ROOT / f"{name}.md" for name in ("ARCHITECTURE", "TASKS", "README", "GUIDE", "API", "TESTING")},
+    **{name: REQUIREMENTS / f"{name}.md"
+       for name in ("features", "domain-model", "decisions", "acceptance-criteria", "wireframes", "BACKLOG")},
+    "REQUIREMENTS/README": REQUIREMENTS / "README.md",
+}
+DOC_NAMES = sorted(DOC_PATHS, key=len, reverse=True)  # longest first so REQUIREMENTS/README wins over README
+FILES = list(DOC_PATHS.values()) + [
+    ROOT / "CLAUDE.md",
+    ROOT / "backend" / "src" / "TireScheduler.Engine" / "README.md",
+]
+
+errors: list[str] = []
+
+
+def err(check: str, path: Path, line: int, msg: str) -> None:
+    where = f"{path.relative_to(ROOT)}:{line}" if line else str(path.relative_to(ROOT))
+    errors.append(f"[{check}] {where}: {msg}")
+
+
+def read(path: Path) -> list[str]:
+    return path.read_text(encoding="utf-8").splitlines()
+
+
+for missing_file in (p for p in FILES if not p.exists()):
+    err("files", missing_file, 0, "expected document is missing")
+TEXT = {p: read(p) for p in FILES if p.exists()}
+
+
+def lines(path: Path):
+    for i, line in enumerate(TEXT.get(path, []), 1):
+        yield i, line
+
+
+def table_rows(path: Path, first_cell: str):
+    """Yield (line_no, cells) for table rows whose first cell matches the regex."""
+    for i, line in lines(path):
+        if not line.startswith("|"):
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if cells and re.fullmatch(first_cell, cells[0]):
+            yield i, cells
+
+
+# ---------------------------------------------------------------- links
+def check_links() -> None:
+    for path in TEXT:
+        for i, line in lines(path):
+            for target in re.findall(r"\]\(([^)\s]+)\)", line):
+                if re.match(r"[a-z]+:", target) or target.startswith("#"):
+                    continue
+                file_part = target.split("#", 1)[0]
+                if not (path.parent / file_part).exists():
+                    err("links", path, i, f"broken link: {target}")
+
+
+# ---------------------------------------------------------------- sections
+def headings(path: Path) -> set[str]:
+    nums = set()
+    for _, line in lines(path):
+        m = re.match(r"#{2,6} (\d+(?:\.\d+)*)\.? ", line)
+        if m:
+            nums.add(m.group(1))
+    return nums
+
+
+def heading_titles(path: Path) -> set[str]:
+    """Heading texts of any level, with a leading section number removed."""
+    titles = set()
+    in_code = False
+    for _, line in lines(path):
+        if line.startswith("```"):
+            in_code = not in_code
+        m = None if in_code else re.match(r"#{1,6} (?:\d+(?:\.\d+)*\.? )?(.+)", line)
+        if m:
+            titles.add(m.group(1).strip())
+    return titles
+
+
+HEADINGS = {name: headings(path) for name, path in DOC_PATHS.items()}
+TITLES = {name: heading_titles(path) for name, path in DOC_PATHS.items()}
+NAME_OF = {path: name for name, path in DOC_PATHS.items()}
+QUALIFIED = re.compile(
+    r"(?<![\w/])`?(" + "|".join(DOC_NAMES) + r")(?:\.md)?`?\s+(?:section|§)\s*(\d+(?:\.\d+)*)(?:-(\d+(?:\.\d+)*))?"
+)
+BY_TITLE = re.compile(
+    r"(?<![\w/])(" + "|".join(re.escape(n) for n in DOC_NAMES) + r")(?:\.md)?`?\s+sections?\s+\"([^\"]+)\"(?:\s+and\s+\"([^\"]+)\")?"
+)
+BARE = re.compile(r"\bsections?\s+(\d+(?:\.\d+)*)")
+
+
+def check_sections() -> None:
+    for path in TEXT:
+        own = NAME_OF.get(path)
+        for i, line in lines(path):
+            spans = []
+            for m in QUALIFIED.finditer(line):
+                spans.append(m.span())
+                for num in filter(None, (m.group(2), m.group(3))):
+                    if num not in HEADINGS[m.group(1)]:
+                        err("sections", path, i, f"{m.group(1)}.md has no section {num}")
+            for m in BY_TITLE.finditer(line):
+                spans.append(m.span())
+                for title in filter(None, (m.group(2), m.group(3))):
+                    if title not in TITLES[m.group(1)]:
+                        err("sections", path, i, f'{m.group(1)}.md has no heading "{title}"')
+            for m in BARE.finditer(line):
+                if any(a <= m.start() < b for a, b in spans) or own is None:
+                    continue
+                if m.group(1) not in HEADINGS[own]:
+                    err("sections", path, i, f"{own}.md has no section {m.group(1)}")
+
+
+# ---------------------------------------------------------------- code references
+CODE_ROOTS = [ROOT / "backend" / "src", ROOT / "backend" / "tests", ROOT / "frontend" / "src"]
+CODE_SUFFIXES = {".cs", ".csproj", ".props", ".ts", ".tsx"}
+SKIPPED_DIRS = {"bin", "obj", "node_modules", "generated"}
+
+
+def code_files() -> list[Path]:
+    found = [ROOT / "compose.yaml", ROOT / "frontend" / "openapi-ts.config.ts"]
+    for code_root in CODE_ROOTS:
+        for path in code_root.rglob("*"):
+            if path.suffix in CODE_SUFFIXES and not SKIPPED_DIRS & set(path.relative_to(ROOT).parts):
+                found.append(path)
+    return [path for path in found if path.exists()]
+
+
+def check_code_refs() -> None:
+    for path in code_files():
+        for i, line in enumerate(read(path), 1):
+            for m in QUALIFIED.finditer(line):
+                for num in filter(None, (m.group(2), m.group(3))):
+                    if num not in HEADINGS[m.group(1)]:
+                        err("coderefs", path, i, f"{m.group(1)}.md has no section {num}")
+            for m in BY_TITLE.finditer(line):
+                for title in filter(None, (m.group(2), m.group(3))):
+                    if title not in TITLES[m.group(1)]:
+                        err("coderefs", path, i, f'{m.group(1)}.md has no heading "{title}"')
+
+
+# ---------------------------------------------------------------- features
+FEATURES_MD = DOC_PATHS["features"]
+TASKS_MD = DOC_PATHS["TASKS"]
+FEATURE_DEFS: dict[str, str] = {}
+
+
+def check_features() -> None:
+    for i, cells in table_rows(FEATURES_MD, r"F-[A-Z]+-\d+"):
+        fid, pri = cells[0], cells[-1]
+        if fid in FEATURE_DEFS:
+            err("features", FEATURES_MD, i, f"{fid} defined twice")
+        if not re.fullmatch(r"P[0-3]", pri):
+            err("features", FEATURES_MD, i, f"{fid} has invalid priority '{pri}'")
+        FEATURE_DEFS[fid] = pri
+    for path in TEXT:
+        for i, line in lines(path):
+            for fid in re.findall(r"\bF-[A-Z]+-\d+\b", line):
+                if fid not in FEATURE_DEFS:
+                    err("features", path, i, f"{fid} is not defined in features.md")
+
+
+# ---------------------------------------------------------------- p0 and milestones
+def milestone_table(path: Path) -> dict[str, tuple[int, list[str]]]:
+    """Milestone rows: 'M1 Foundation' -> (line, cells)."""
+    return {cells[0]: (i, cells) for i, cells in table_rows(path, r"M\d+ .+")}
+
+
+def check_p0_and_milestones() -> None:
+    p0 = {f for f, p in FEATURE_DEFS.items() if p == "P0"}
+    ms = milestone_table(TASKS_MD)
+    seen: dict[str, str] = {}
+    for name, (i, cells) in ms.items():
+        for fid in re.findall(r"F-[A-Z]+-\d+", cells[-1]):
+            if fid in seen:
+                err("p0", TASKS_MD, i, f"{fid} is in both {seen[fid]} and {name}")
+            seen[fid] = name
+            if FEATURE_DEFS.get(fid) != "P0":
+                err("p0", TASKS_MD, i, f"{fid} is in {name} but is not P0")
+    for fid in sorted(p0 - seen.keys()):
+        err("p0", TASKS_MD, 0, f"P0 feature {fid} is in no milestone")
+
+    for path in TEXT:
+        for i, line in lines(path):
+            for m in re.finditer(r"P0 count:\s*(\d+)|(\d+) P0 features", line):
+                n = int(m.group(1) or m.group(2))
+                if n != len(p0):
+                    err("p0", path, i, f"says {n} P0 features, features.md defines {len(p0)}")
+
+    names = set(ms)
+    if not names:
+        err("milestones", TASKS_MD, 0, "no milestone table found")
+    task_ms = {line[4:].strip() for _, line in lines(TASKS_MD) if re.match(r"### M\d+ ", line)}
+    if task_ms != names:
+        err("milestones", TASKS_MD, 0,
+            f"milestone headings {sorted(task_ms)} differ from the milestone table {sorted(names)}")
+
+
+# ---------------------------------------------------------------- A#, R#, DEC-#
+def check_ids() -> None:
+    dm = DOC_PATHS["domain-model"]
+    dec = DOC_PATHS["decisions"]
+    defined = {
+        "A": {c[0] for _, c in table_rows(dm, r"A\d+")},
+        "R": {c[0] for _, c in table_rows(dm, r"R\d+")},
+        "DEC-": {c[0] for _, c in table_rows(dec, r"DEC-\d+")},
+    }
+    patterns = {"A": r"\bA\d+\b", "R": r"\bR\d+\b", "DEC-": r"\bDEC-\d+\b"}
+    for path in TEXT:
+        for i, line in lines(path):
+            for kind, pat in patterns.items():
+                for ref in re.findall(pat, line):
+                    if ref not in defined[kind]:
+                        err("ids", path, i, f"{ref} is not defined")
+
+
+# ---------------------------------------------------------------- tasks
+TASK_STATUSES = {"Todo", "Doing", "Done"}
+
+
+def check_tasks() -> None:
+    tasks_md = TASKS_MD
+    rows = list(table_rows(tasks_md, r"(?:P|D)\d+|M\d+-\d+"))
+    ids = {cells[0] for _, cells in rows}
+    for i, cells in rows:
+        if cells[-1] not in TASK_STATUSES:
+            err("tasks", tasks_md, i, f"{cells[0]} has invalid status '{cells[-1]}'")
+        # Only implementation rows have a "Depends on" column; completed planning rows do not.
+        if not re.fullmatch(r"M\d+-\d+", cells[0]):
+            continue
+        for dep in re.findall(r"\b(?:P|D|M)\d+(?:-\d+)?\b", cells[-2]):
+            if dep not in ids:
+                err("tasks", tasks_md, i, f"{cells[0]} depends on unknown task {dep}")
+    for path in TEXT:
+        for i, line in lines(path):
+            refs = re.findall(r"\b[Tt]asks?\s+((?:P|D|M)\d+(?:-\d+)?)", line)
+            refs += re.findall(r"\bM\d+-\d+\b", line)
+            for ref in refs:
+                if ref not in ids:
+                    err("tasks", path, i, f"unknown task {ref}")
+
+
+# ---------------------------------------------------------------- decisions
+DEC_STATUSES = {"Accepted", "Proposed", "Open", "Superseded"}
+
+
+def check_decisions() -> None:
+    dec = DOC_PATHS["decisions"]
+    sections = {m.group(1) for _, line in lines(dec) if (m := re.match(r"### (DEC-\d+) ", line))}
+    seen = set()
+    for i, cells in table_rows(dec, r"DEC-\d+"):
+        if len(cells) < 3:  # rows of the Open table have no status column
+            continue
+        did, status = cells[0], cells[2]
+        if did in seen:
+            continue
+        seen.add(did)
+        if status not in DEC_STATUSES:
+            err("decisions", dec, i, f"{did} has invalid status '{status}'")
+        if status in ("Accepted", "Proposed") and did not in sections:
+            err("decisions", dec, i, f"{did} is {status} but has no ### section")
+
+
+# ---------------------------------------------------------------- open questions
+def check_questions() -> None:
+    dec = DOC_PATHS["decisions"]
+    defined: set[str] = set()
+    for i, cells in table_rows(dec, r"[BW]Q\d+"):
+        if cells[0] in defined:
+            err("questions", dec, i, f"{cells[0]} defined twice")
+        defined.add(cells[0])
+    for path in TEXT:
+        for i, line in lines(path):
+            for ref in re.findall(r"\b[BW]Q\d+\b", line):
+                if ref not in defined:
+                    err("questions", path, i, f"{ref} is not in the decisions.md Open table")
+            for ref in re.findall(r"\bQ\d+\b", line):
+                err("questions", path, i, f"{ref} has no prefix; open questions are BQ# or WQ#")
+
+
+# ---------------------------------------------------------------- acceptance criteria
+def check_criteria() -> None:
+    criteria_md = DOC_PATHS["acceptance-criteria"]
+    seen: set[str] = set()
+    for i, cells in table_rows(criteria_md, r"AC-\d+"):
+        if cells[0] in seen:
+            err("criteria", criteria_md, i, f"{cells[0]} defined twice")
+        seen.add(cells[0])
+    sections = {line[4:].split(" ", 1)[0] for _, line in lines(criteria_md) if line.startswith("### ")}
+    milestones = milestone_table(TASKS_MD)
+    required = set()
+    for name in ("M1 Foundation", "M2 Orders"):
+        if name not in milestones:
+            err("criteria", TASKS_MD, 0, f"milestone {name} not found")
+            continue
+        required |= set(re.findall(r"F-[A-Z]+-\d+", milestones[name][1][-1]))
+    rules = {c[0] for _, c in table_rows(DOC_PATHS["domain-model"], r"R\d+") if "Retired" not in c[1]}
+    required |= rules | {"EarliestSlot", "ScheduleOrderAsap"}
+    for missing in sorted(required - sections):
+        err("criteria", criteria_md, 0, f"no acceptance criteria section for {missing}")
+    for path in TEXT:
+        for i, line in lines(path):
+            for ref in re.findall(r"\bAC-\d+\b", line):
+                if ref not in seen:
+                    err("criteria", path, i, f"{ref} is not defined")
+
+
+# ---------------------------------------------------------------- coverage
+def criteria_ids_in(cell: str) -> set[int]:
+    ids: set[int] = set()
+    for m in re.finditer(r"AC-(\d+)(?:\s+to\s+AC-(\d+))?", cell):
+        first, last = int(m.group(1)), int(m.group(2) or m.group(1))
+        ids.update(range(first, last + 1))
+    return ids
+
+
+def check_coverage() -> None:
+    criteria_md = DOC_PATHS["acceptance-criteria"]
+    tasks_md = TASKS_MD
+    active = {int(c[0][3:]) for _, c in table_rows(criteria_md, r"AC-\d+") if "Retired" not in c[3]}
+    covered: set[int] = set()
+    # Implementation task rows: ID | Task | Features | Criteria | Depends on | Status
+    for i, cells in table_rows(tasks_md, r"M\d+-\d+"):
+        if len(cells) != 6:
+            err("coverage", tasks_md, i, f"{cells[0]} should have 6 columns, has {len(cells)}")
+            continue
+        for m in re.finditer(r"AC-(\d+)\s+to\s+AC-(\d+)", cells[3]):
+            if int(m.group(1)) >= int(m.group(2)):
+                err("coverage", tasks_md, i, f"{cells[0]} has an empty or reversed range {m.group(0)}")
+        covered |= criteria_ids_in(cells[3])
+    for missing in sorted(active - covered):
+        err("coverage", tasks_md, 0, f"AC-{missing} is assigned to no implementation task")
+
+
+# ---------------------------------------------------------------- style
+def is_bullet(line: str) -> bool:
+    return re.match(r"\s*(?:- |\d+\. )", line) is not None
+
+
+def block_kind(line: str) -> str:
+    """Classify a line so a change of kind between neighbours needs a blank line."""
+    if line.startswith("#"):
+        return "heading"
+    if line.startswith("|"):
+        return "table"
+    if is_bullet(line) or line.startswith("  "):
+        return "list"
+    return "text"
+
+
+def check_style() -> None:
+    for path in TEXT:
+        in_code = False
+        previous = ""
+        for i, line in lines(path):
+            if line.startswith("```"):
+                in_code = not in_code
+                previous = line
+                continue
+            if in_code:
+                continue
+            outside_code = re.sub(r"`[^`]*`", "", line)
+            if "**" in outside_code or "__" in outside_code:
+                err("style", path, i, "bold is not allowed")
+            if "~~" in outside_code:
+                err("style", path, i, "strike through is not allowed")
+            if line and previous and i > 2:
+                kinds = {block_kind(previous), block_kind(line)}
+                if "heading" in kinds or len(kinds) == 2:
+                    err("style", path, i, "missing blank line between heading, text, list or table")
+            previous = line
+
+
+def main() -> int:
+    check_links()
+    check_sections()
+    check_code_refs()
+    check_features()
+    check_p0_and_milestones()
+    check_ids()
+    check_tasks()
+    check_decisions()
+    check_questions()
+    check_criteria()
+    check_coverage()
+    check_style()
+    for e in errors:
+        print(e)
+    if errors:
+        print(f"\n{len(errors)} problem(s) found.")
+        return 1
+    print(f"All checks passed ({len(FEATURE_DEFS)} features, {len(TEXT)} files).")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
