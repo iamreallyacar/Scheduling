@@ -14,6 +14,7 @@ Each completed finding was fixed by a task; the decision it names gives the reas
 | 4 | Frontend cache refreshes were decided separately in every form | Task M2-11, DEC-36 |
 | 5 | The frontend endpoint list was written by hand, so the method and response type of a call were not checked against the OpenAPI document | Task M2-12, DEC-37 |
 | 6 | API test data builders lived in test classes and were copied between them | Task M2-13, DEC-38 |
+| 7 | The engine had no rule check a search could call per candidate | Task M3-7, DEC-47 |
 
 ## Second audit
 
@@ -22,14 +23,6 @@ The code was reviewed in four parts: the API project, the engine with the plant 
 The M3 code follows the rules the first audit set up. Records use named required properties, transactions and locks go through `RequestTransaction` and the lock ports, modules talk only through ports, no code reads the system clock, every frontend read uses `queryKeys` and the generated endpoints, the frontend decides no rule, and there are no unexplained escape hatches. The open findings are about what M4 and M5 will build on: the engine's entry points, how engine inputs and lot context are loaded, the schedule page, and the test setup that every new test class copies.
 
 ### Open
-
-#### 7. The engine has no rule check a search can call per candidate
-
-- Where: `backend/src/TireScheduler.Engine/PlacementRules.cs` lines 8 to 61; `SnapshotIndex` (`SnapshotIndex.cs` line 6) and `RuleViolations` (`PlacementRules.cs` line 97) are not public.
-- Problem: each public method (`ComputeEnd`, `RecomputeEnds`, `Validate`, `ValidateRemoval`, `FindConflicts`) builds a new `SnapshotIndex` from the whole snapshot, which also looks up the time zone. The only public way to test one start is `Validate`, so it repeats all that work for every candidate.
-- Why it matters: the M4 earliest-slot search tries many starts per resource. Its author must call `Validate` in a loop over a large snapshot, or write a second copy of R2 to R4 and R6 inside the search. If there are two copies, the M4 property tests end up comparing two versions of the rules.
-- What to do: as the first step of M4-1, let a caller build the index once and check many requests against it, for example a public `PlacementContext` built from a snapshot with `Validate(request)` and `EndAfter(resourceId, start, duration)`. The existing static methods then call it. The search reuses `RuleViolations` unchanged.
-- Task: M3-7.
 
 #### 8. Each caller of the snapshot loader has its own hand-written loading scope
 

@@ -54,6 +54,7 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 | DEC-44 | A shift or holiday change recomputes the planned ends through a MasterData write port, in its own transaction | Proposed | 2026-11-18 (M3-5) | ARCHITECTURE.md sections "Module rules" and "Persistence rules", AC-182 |
 | DEC-45 | The timeline read takes a required plant-local date range and carries the working periods the engine computes | Proposed | 2026-11-18 (M3-6) | API.md section "Scheduling calls", AC-185 to AC-187, WQ3 |
 | DEC-46 | The timeline marks conflicts from the conflict list, which stays on the schedule page | Proposed | 2026-11-18 (M3-6) | wireframes.md section 2, AC-189 to AC-191 |
+| DEC-47 | One placement context per snapshot checks any number of requests, and the static rule calls build one each | Proposed | 2026-11-18 (M3-7) | [engine README](../backend/src/TireScheduler.Engine/README.md), AUDIT.md item 7 |
 
 ## Accepted
 
@@ -370,6 +371,13 @@ Made while building M1 (2026-11-10) and M2 (2026-11-18) and already followed by 
 - Alternatives: violations on each timeline placement, rejected because each timeline read would build the version's snapshot again; dropping the list once the bars are marked, rejected because a conflict outside the range would then be invisible; links that read their item when it is not on the timeline, deferred until planners ask for them.
 - Concern: the page combines two answers, read at slightly different times; after a write both are read again (DEC-36), so they differ only while one of them loads.
 - Consequences: an item that is not on the shown timeline has no link, so the conflict list links only the items of the shown range. The dashboard (task M5-3) can reuse the conflict list.
+
+### DEC-47 One placement context checks many requests
+
+- Decision: the rules R1 to R4, R6 and R8 live in the engine's public `PlacementContext`, built once from a `ScheduleSnapshot`, which indexes the snapshot in its constructor and keeps no state between calls. `Validate(request)` checks one request and `EndAfter(resource, start, duration)` gives a planned end. Each static `PlacementRules` method builds a context for its one call. A search, such as `EarliestSlot` (task M4-1), checks its candidates with one context's `Validate` and never copies a rule.
+- Reason: building the index looks up the time zone and groups every row of the snapshot, so a search that called `PlacementRules.Validate` per candidate would repeat that for every start, and a copy of the rules inside the search would let the M4-1 property tests compare two versions of the rules (AUDIT.md item 7).
+- Alternatives: drop the static methods so every caller builds a context, rejected because each one-off call in the API would then repeat the construction for no gain; make `SnapshotIndex` and the violation list public, rejected because callers would then put the rules together themselves.
+- Consequences: a check that must count earlier proposals as placed (`ScheduleOrderAsap`, task M4-3) builds its context from a snapshot that holds them.
 
 ## Open
 
