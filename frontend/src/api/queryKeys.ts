@@ -18,6 +18,7 @@ export const queryKeys = {
   orderPage: (query: OrderListQuery) => ['orders', 'page', query],
   order: (orderId: number) => ['orders', orderId],
   unscheduledLots: (versionId: string) => ['versions', versionId, 'unscheduled-lots'],
+  conflictedPlacements: (versionId: string) => ['versions', versionId, 'conflicts'],
 } as const;
 
 export function isCurrentUserQuery(query: Query): boolean {

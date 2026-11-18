@@ -115,3 +115,6 @@ export const removeLotPlacement = (versionId: Api.RemoveLotPlacementData['path']
 
 export const listUnscheduledLots = (versionId: Api.ListUnscheduledLotsData['path']['versionId']) =>
   requestApi<Api.ListUnscheduledLotsResponse>('GET', { url: '/api/v1/versions/{versionId}/unscheduled-lots', path: { versionId } } satisfies Api.ListUnscheduledLotsData);
+
+export const listConflictedPlacements = (versionId: Api.ListConflictedPlacementsData['path']['versionId']) =>
+  requestApi<Api.ListConflictedPlacementsResponse>('GET', { url: '/api/v1/versions/{versionId}/conflicts', path: { versionId } } satisfies Api.ListConflictedPlacementsData);

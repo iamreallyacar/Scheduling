@@ -32,6 +32,7 @@ Planned route areas for v1. Routes that are built are in the OpenAPI document.
 
 - A version path takes `live` or a version id (A41).
 - Placing a lot is `PUT /versions/live/lots/{id}/placement` with `{ resourceId, plannedStart }`. The server computes `plannedEnd` and answers the placement (`lotId`, `resourceId`, `plannedStart`, `plannedEnd`). Sending it again for a placed lot moves that placement (A40). Removing is `DELETE` on the same URL, answered 204. The order reads carry each lot's live placement (AC-71).
+- Conflicts is `GET /versions/live/conflicts`: every placement of the version that breaks a rule after a later fact, returned whole, each with its lot, order and machine and its `violations` in the shape of a rejection (see Error format). Queries serves it from the engine's `FindConflicts` over the stored planned ends (AC-183).
 - Earliest slot is `GET /versions/live/lots/{id}/earliest-slot?resourceId=&notBefore=`. It changes nothing; the planner then places the lot with the returned values.
 - Schedule order as soon as possible has two steps: `POST /versions/live/orders/{id}/asap-proposal` returns proposed placements without saving them; `POST .../asap-proposal/commit` with the same proposal saves all of them in one transaction. The commit validates again and fails as a whole if anything changed in between.
 - Marking a machine down is `POST /resources/{id}/unavailabilities` with `kind: Breakdown`, a start and an optional end. Bringing it back is `PUT` on that unavailability with its end set.

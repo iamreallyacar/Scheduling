@@ -33,6 +33,27 @@ export type CalendarShiftsRequest = {
     shifts: null | Array<CalendarShiftRequest>;
 };
 
+export type ConflictedPlacementResponse = {
+    placementId: number;
+    plannedStart: string;
+    plannedEnd: string;
+    resource: NamedReference;
+    lotId: number;
+    lotNo: number;
+    quantity: number;
+    durationMinutes: number;
+    orderId: number;
+    orderNo: string;
+    sequenceNo: number;
+    resourceType: NamedReference;
+    violations: Array<RuleViolationResponse>;
+};
+
+export type ConflictResponse = {
+    type: string;
+    id: number;
+};
+
 export type CreateResourceRequest = {
     name: string;
     resourceTypeId: null | number;
@@ -263,6 +284,14 @@ export type RoutingStageResponse = {
     setupMinutes: number;
     cycleMinutes: number;
     unitsPerCycle: number;
+};
+
+export type RuleViolationResponse = {
+    rule: string;
+    code: string;
+    conflict: ConflictResponse;
+    detail: string;
+    earliestAllowedStart: null | string;
 };
 
 export type SignInRequest = {
@@ -980,3 +1009,21 @@ export type ListUnscheduledLotsResponses = {
 };
 
 export type ListUnscheduledLotsResponse = ListUnscheduledLotsResponses[keyof ListUnscheduledLotsResponses];
+
+export type ListConflictedPlacementsData = {
+    body?: never;
+    path: {
+        versionId: string;
+    };
+    query?: never;
+    url: '/api/v1/versions/{versionId}/conflicts';
+};
+
+export type ListConflictedPlacementsResponses = {
+    /**
+     * OK
+     */
+    200: Array<ConflictedPlacementResponse>;
+};
+
+export type ListConflictedPlacementsResponse = ListConflictedPlacementsResponses[keyof ListConflictedPlacementsResponses];

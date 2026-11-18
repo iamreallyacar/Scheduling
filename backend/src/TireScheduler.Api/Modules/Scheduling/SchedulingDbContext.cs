@@ -6,9 +6,6 @@ internal sealed class SchedulingDbContext(DbContextOptions<SchedulingDbContext> 
 {
     public const string Schema = "scheduling";
 
-    // Named in the migration's hand-written exclusion constraint (R2).
-    public const string PlacementOverlapConstraint = "EX_Placements_NoOverlap";
-
     public DbSet<Unavailability> Unavailabilities => Set<Unavailability>();
 
     public DbSet<ScheduleVersion> ScheduleVersions => Set<ScheduleVersion>();
@@ -38,8 +35,8 @@ internal sealed class SchedulingDbContext(DbContextOptions<SchedulingDbContext> 
             version.HasIndex(v => v.IsLive).IsUnique().HasFilter("\"IsLive\"");
         });
 
-        // The exclusion constraint over (version, resource, planned span) cannot be expressed
-        // here; the migration adds it (ARCHITECTURE.md section "Persistence rules").
+        // No constraint keeps placements apart: recomputed ends may overlap, and the resource row
+        // lock keeps R2 across requests (DEC-43).
         modelBuilder.Entity<Placement>(placement =>
         {
             placement.HasOne<ScheduleVersion>().WithMany().HasForeignKey(p => p.VersionId).OnDelete(DeleteBehavior.Cascade);

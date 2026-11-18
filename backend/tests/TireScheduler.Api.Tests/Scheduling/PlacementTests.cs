@@ -4,11 +4,11 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Npgsql;
 using TireScheduler.Api.Errors;
 using TireScheduler.Api.Modules.Scheduling;
 using TireScheduler.Api.Security;
 using TireScheduler.Api.Tests.Orders;
+using TireScheduler.Api.Tests.TestData;
 using static TireScheduler.Api.Tests.TestData.MasterDataTestData;
 using static TireScheduler.Api.Tests.TestData.OrderTestData;
 using static TireScheduler.Api.Tests.TestData.SchedulingTestData;
@@ -286,7 +286,7 @@ public sealed class PlacementTests(PostgresFixture postgres) : IAsyncLifetime
         int lotA = LotIds(await CreateOrderAsync(planner, NewOrder("SO-82-A", plant.ProductId, quantity: OrderQuantity)))[1];
         int lotB = LotIds(await CreateOrderAsync(planner, NewOrder("SO-82-B", plant.ProductId, quantity: OrderQuantity)))[1];
         // Scenarios have no API before F-SCH-12, so the scenario and its placement are written directly.
-        int scenarioId = await AddScenarioPlacementAsync(lotA, plant.Press1, Berlin(16, 8), Berlin(16, 12));
+        int scenarioId = await AddScenarioPlacementAsync(factory, lotA, plant.Press1, Berlin(16, 8), Berlin(16, 12));
 
         HttpResponseMessage live = await planner.PutAsync(PlacementPath(LiveVersion, lotB), Placement(plant.Press1, Berlin(16, 8)));
         HttpResponseMessage inScenario = await planner.PutAsync(PlacementPath(scenarioId.ToString(CultureInfo.InvariantCulture), lotB), Placement(plant.Press1, Berlin(16, 8)));
@@ -315,22 +315,6 @@ public sealed class PlacementTests(PostgresFixture postgres) : IAsyncLifetime
     }
 
     [Fact]
-    public async Task AC_83_the_database_never_holds_two_overlapping_placements_on_a_resource_in_one_version()
-    {
-        await using AsyncServiceScope scope = factory.Services.CreateAsyncScope();
-        SchedulingDbContext context = scope.ServiceProvider.GetRequiredService<SchedulingDbContext>();
-        int liveVersionId = await context.ScheduleVersions.Where(version => version.IsLive).Select(version => version.Id).SingleAsync(TestContext.Current.CancellationToken);
-        context.Placements.Add(new Placement { VersionId = liveVersionId, LotId = 900_001, ResourceId = 900_000, PlannedStart = Berlin(16, 8), PlannedEnd = Berlin(16, 12) });
-        context.Placements.Add(new Placement { VersionId = liveVersionId, LotId = 900_002, ResourceId = 900_000, PlannedStart = Berlin(16, 12), PlannedEnd = Berlin(16, 14) });
-        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
-
-        context.Placements.Add(new Placement { VersionId = liveVersionId, LotId = 900_003, ResourceId = 900_000, PlannedStart = Berlin(16, 11), PlannedEnd = Berlin(16, 13) });
-        DbUpdateException failure = await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync(TestContext.Current.CancellationToken));
-
-        Assert.Equal(SchedulingDbContext.PlacementOverlapConstraint, Assert.IsType<PostgresException>(failure.InnerException).ConstraintName);
-    }
-
-    [Fact]
     public async Task AC_50_cancelling_removes_the_placements_of_unstarted_lots_in_every_version_and_keeps_started_ones()
     {
         TestPlant plant = await CreatePlantAsync("AC50");
@@ -340,7 +324,7 @@ public sealed class PlacementTests(PostgresFixture postgres) : IAsyncLifetime
         int unstartedLot = LotIds(order)[1];
         await PlaceLotAsync(planner, completedLot, plant.Builder1, Berlin(16, 8));
         await PlaceLotAsync(planner, unstartedLot, plant.Press1, Berlin(16, 10));
-        await AddScenarioPlacementAsync(unstartedLot, plant.Press2, Berlin(17, 8), Berlin(17, 12));
+        await AddScenarioPlacementAsync(factory, unstartedLot, plant.Press2, Berlin(17, 8), Berlin(17, 12));
         lotActivity.StartedLotIds.Add(completedLot);
         lotActivity.CompletedLotIds.Add(completedLot);
 
@@ -357,7 +341,7 @@ public sealed class PlacementTests(PostgresFixture postgres) : IAsyncLifetime
         int lotId;
         await using (SchedulerApiFactory placing = new(connectionString))
         {
-            TestPlant plant = await CreatePlantAsync(placing, "AC161");
+            TestPlant plant = await SchedulingTestData.CreatePlantAsync(placing, "AC161");
             using ApiSession planner = await placing.SignInAsRoleAsync(UserRole.Planner);
             JsonElement created = await CreateOrderAsync(planner, NewOrder("SO-161", plant.ProductId, quantity: OrderQuantity));
             orderId = created.GetProperty("id").GetInt32();
@@ -401,57 +385,7 @@ public sealed class PlacementTests(PostgresFixture postgres) : IAsyncLifetime
         Assert.Equal((plant.CuringTypeId, false), (press.GetProperty("resourceType").GetProperty("id").GetInt32(), press.GetProperty("isActive").GetBoolean()));
     }
 
-    private sealed record TestPlant
-    {
-        public required int BuildingTypeId { get; init; }
-
-        public required int CuringTypeId { get; init; }
-
-        public required int ProductId { get; init; }
-
-        public required int Builder1 { get; init; }
-
-        public required int Press1 { get; init; }
-
-        public required int Press2 { get; init; }
-    }
-
-    // Plant-local times of the week of Mon 2026-11-16 in Berlin (UTC+1), as the UTC instants the
-    // API and the database take.
-    private static DateTimeOffset Berlin(int day, int hour) => new DateTimeOffset(2026, 11, day, hour, 0, 0, TimeSpan.FromHours(1)).ToUniversalTime();
-
-    private Task<TestPlant> CreatePlantAsync(string prefix) => CreatePlantAsync(factory, prefix);
-
-    // Building, then curing with no lag, each on machine types of its own (acceptance-criteria.md section 4).
-    private static async Task<TestPlant> CreatePlantAsync(SchedulerApiFactory apiFactory, string prefix)
-    {
-        using ApiSession admin = await apiFactory.SignInAsRoleAsync(UserRole.Admin);
-        int buildingTypeId = await CreateResourceTypeAsync(admin, $"{prefix} building");
-        int curingTypeId = await CreateResourceTypeAsync(admin, $"{prefix} curing");
-        int productId = await CreateProductAsync(admin, prefix);
-        await SaveRoutingAsync(admin, productId, [Stage(1, buildingTypeId, cycleMinutes: 12), Stage(2, curingTypeId, cycleMinutes: 24)], [Dependency(1, 2)]);
-        return new TestPlant
-        {
-            BuildingTypeId = buildingTypeId,
-            CuringTypeId = curingTypeId,
-            ProductId = productId,
-            Builder1 = await CreateResourceAsync(admin, $"{prefix} Builder 1", buildingTypeId),
-            Press1 = await CreateResourceAsync(admin, $"{prefix} Press 1", curingTypeId),
-            Press2 = await CreateResourceAsync(admin, $"{prefix} Press 2", curingTypeId),
-        };
-    }
-
-    private async Task<int> AddScenarioPlacementAsync(int lotId, int resourceId, DateTimeOffset start, DateTimeOffset end)
-    {
-        await using AsyncServiceScope scope = factory.Services.CreateAsyncScope();
-        SchedulingDbContext context = scope.ServiceProvider.GetRequiredService<SchedulingDbContext>();
-        ScheduleVersion scenario = new() { Name = $"Scenario for lot {lotId}", IsLive = false };
-        context.ScheduleVersions.Add(scenario);
-        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
-        context.Placements.Add(new Placement { VersionId = scenario.Id, LotId = lotId, ResourceId = resourceId, PlannedStart = start, PlannedEnd = end });
-        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
-        return scenario.Id;
-    }
+    private Task<TestPlant> CreatePlantAsync(string prefix) => SchedulingTestData.CreatePlantAsync(factory, prefix);
 
     private async Task<List<Placement>> StoredPlacementsOfAsync(int[] lotIds)
     {

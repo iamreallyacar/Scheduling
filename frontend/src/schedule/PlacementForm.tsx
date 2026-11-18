@@ -2,14 +2,15 @@ import { useMutation } from '@tanstack/react-query';
 import { useState, type SyntheticEvent } from 'react';
 import { placeLot, removeLotPlacement } from '../api/generated/endpoints.gen';
 import type { NamedReference } from '../api/generated';
-import { problemOf, type RuleViolation } from '../api/problem';
+import { problemOf } from '../api/problem';
 import { SCHEDULE_VERSION } from '../api/scheduleVersion';
-import { useCalendars } from '../calendar/calendarQueries';
-import { formatPlantTime, plantLocalToUtc, utcToPlantLocal } from '../calendar/plantClock';
+import { plantLocalToUtc, utcToPlantLocal } from '../calendar/plantClock';
+import { WithPlantTimeZone } from '../calendar/WithPlantTimeZone';
 import { SelectField, TextField } from '../forms/Fields';
 import { ProblemSummary } from '../forms/ProblemSummary';
 import { QueryResult } from '../forms/QueryResult';
 import { useMachines } from '../machines/machineQueries';
+import { ViolationList } from './ViolationList';
 
 /** The lot the form places, as the queue or the order page shows it. */
 export interface PlacementTarget {
@@ -34,18 +35,7 @@ const NO_MACHINE_CHOSEN = '';
 // F-SCH-1 (wireframes.md section 3). The server checks every rule and computes the planned end,
 // so the form shows "Calculated when saved" (WQ1) and lists the rules a rejected save broke (R7).
 export function PlacementForm({ target, onClose }: PlacementFormProps) {
-  const calendars = useCalendars();
-  return (
-    <QueryResult query={calendars}>
-      {(loadedCalendars) => {
-        const timeZone = loadedCalendars[0]?.timeZone;
-        if (timeZone === undefined) {
-          throw new Error('The API returned no calendar, so the plant time zone is unknown.');
-        }
-        return <LoadedPlacementForm target={target} timeZone={timeZone} onClose={onClose} />;
-      }}
-    </QueryResult>
-  );
+  return <WithPlantTimeZone>{(timeZone) => <LoadedPlacementForm target={target} timeZone={timeZone} onClose={onClose} />}</WithPlantTimeZone>;
 }
 
 function LoadedPlacementForm({ target, timeZone, onClose }: PlacementFormProps & { timeZone: string }) {
@@ -119,22 +109,5 @@ function LoadedPlacementForm({ target, timeZone, onClose }: PlacementFormProps &
         </button>
       </div>
     </form>
-  );
-}
-
-function ViolationList({ violations, timeZone }: { violations: readonly RuleViolation[]; timeZone: string }) {
-  if (violations.length === 0) {
-    return null;
-  }
-  return (
-    <ul aria-label="Broken rules" className="field-errors">
-      {violations.map((violation) => (
-        <li key={`${violation.code}-${violation.conflict.type}-${String(violation.conflict.id)}`}>
-          {violation.detail}
-          {violation.earliestAllowedStart !== null && ` Earliest allowed start: ${formatPlantTime(violation.earliestAllowedStart, timeZone)}.`}{' '}
-          <code>{violation.code}</code>
-        </li>
-      ))}
-    </ul>
   );
 }

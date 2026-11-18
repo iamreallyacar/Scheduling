@@ -1,6 +1,6 @@
 # Acceptance Criteria
 
-Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules and engine search) on 2026-11-06; section 6 in task M2-7 and section 7 in task M3-2 and section 8 in tasks M3-3 and M3-4 on 2026-11-18. Sources: [features.md](features.md), [domain-model.md](domain-model.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [decisions.md](decisions.md).
+Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules and engine search) on 2026-11-06; section 6 in task M2-7 and section 7 in task M3-2 and section 8 in tasks M3-3, M3-4 and M3-5 on 2026-11-18. Sources: [features.md](features.md), [domain-model.md](domain-model.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [decisions.md](decisions.md).
 
 ## 1. How to read this
 
@@ -195,7 +195,7 @@ Applies to `Validate`, `ComputeEnd` and `FindConflicts` in the engine (task M3-1
 | AC-80 | Lot A on Press 1, Mon 08:00-12:00 | Lot B on Press 2 starts Mon 11:00 | Accepted (worked example) | Engine |
 | AC-81 | Lot A on Press 1, Mon 08:00-12:00 | Lot A is moved to Press 1, Mon 10:00 | Accepted; a lot never conflicts with its own current placement | Engine |
 | AC-82 | Lot A on Press 1, Mon 08:00-12:00 in a scenario version | Lot B is placed on Press 1, Mon 08:00 in the live version | Accepted; rules compare placements within one version only (DEC-11). The engine is given the placements of one version, so this is tested where the Scheduling module loads them | Integration |
-| AC-83 | Two requests at the same moment placing different lots on Press 1 with overlapping times | Both are processed | Exactly one succeeds; the other is rejected, 422 `rule.R2.overlap`. The database never holds both (exclusion constraint, `ARCHITECTURE.md` section "Persistence rules") | Integration |
+| AC-83 | Two requests at the same moment placing different lots on Press 1 with overlapping times | Both are processed | Exactly one succeeds; the other is rejected, 422 `rule.R2.overlap`. The database never holds both, because every command that writes a placement locks the resource row before it checks the rules (DEC-43, `ARCHITECTURE.md` section "Persistence rules") | Integration |
 
 ### R3 No overlap with unavailability
 
@@ -356,3 +356,13 @@ The rules a placement must keep are in section 4; their API-level rows (AC-74, A
 | AC-179 | A rejected placement (AC-109) | The response is read | `detail` is the text of the first violation. Each entry of `violations` has `rule`, `code`, `conflict` and a `detail` text, and an R4 violation held back by a placed predecessor lot also has `earliestAllowedStart` (AC-91); the others have it null | API |
 | AC-180 | The unscheduled-lots queue on the schedule page and the lots on the order page, and a Planner | The Planner chooses [Place...] on an unplaced lot or [Move...] on a placed one (`wireframes.md` section 3) | The placement form opens with the lot's order, stage with its resource type, lot number, quantity and duration. Its machine list holds the active machines of that resource type, as the API returns them for that filter. The start is typed on the plant's wall clock and sent in UTC (A38), and the planned end reads "Calculated when saved" (WQ1). After a save the form closes and the page shows what the API then returns. For a placed lot the form opens filled in and also offers [Remove placement]. A Viewer sees neither button | UI |
 | AC-181 | The placement form | The server rejects a save or a removal | The form shows the `detail`, the field errors next to their fields, and every entry of `violations` with its text and code and, when given, the earliest allowed start on the plant's wall clock. It keeps the entered values (AC-26) | UI |
+
+### F-SCH-4 Conflicts from later facts
+
+The engine rows of the later facts (AC-76, AC-88, AC-107, AC-108) are tested at API level through the endpoints below.
+
+| ID | Given | When | Then | Level |
+|---|---|---|---|---|
+| AC-182 | Placements in the live version | The Admin replaces the plant calendar's shifts, or adds or deletes a holiday | Saved. In every version, the `plannedEnd` of each placement whose lot has not completed is recomputed from the new working time (R6), later or earlier, and the order reads and late flag follow it. A placement whose start is no longer in working time keeps its stored end (A42). The change and the recomputed ends are saved together or not at all (DEC-44) | Engine, API |
+| AC-183 | Placements in the live version, some of which break a rule after a later fact | A signed-in user of any role reads `GET /api/v1/versions/live/conflicts` | Every placement `FindConflicts` lists, sorted by planned start, then placement id, and returned whole. Each with its placement id, planned start and end, and machine (id and name); its lot's id, lot number, quantity and `durationMinutes`; its order's id and order number; its operation's sequence number and resource type; and `violations`, each with `rule`, `code`, `conflict`, `detail` and `earliestAllowedStart` as in a rejection (AC-179). An empty list when nothing conflicts. The answer comes from Queries. A version that does not exist answers as in AC-23 | API |
+| AC-184 | The schedule page (`/schedule`, `wireframes.md` section 2) | Anyone opens it | Above the unscheduled-lots queue it lists the conflicted placements the API returns, in that order, with their count: the order number linking to the order page, the stage with its resource type, lot number, machine, planned start and end on the plant's wall clock, and each violation with its text and code. It says when nothing conflicts. A Planner's [Move...] opens the placement form for that lot filled in with its placement (AC-180); a Viewer sees no button | UI |

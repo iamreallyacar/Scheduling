@@ -17,6 +17,7 @@ public static class MasterDataModule
         services.AddModuleDbContext<MasterDataDbContext>(MasterDataDbContext.Schema);
         services.AddScoped<CalendarRegister>();
         services.AddScoped<HolidayRegister>();
+        services.AddScoped<WorkingTimeChange>();
         services.AddScoped<ResourceTypeRegister>();
         services.AddScoped<MachineRegister>();
         services.AddScoped<ProductRegister>();

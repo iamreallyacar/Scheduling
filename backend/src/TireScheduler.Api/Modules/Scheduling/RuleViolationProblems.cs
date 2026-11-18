@@ -16,16 +16,19 @@ internal static class RuleViolationProblems
         {
             ["rule"] = first.Rule,
             ["conflict"] = ConflictOf(first.Conflict),
-            ["violations"] = violations.Select(violation => new RuleViolationResponse
-            {
-                Rule = violation.Rule,
-                Code = violation.Code,
-                Conflict = ConflictOf(violation.Conflict),
-                Detail = DetailOf(violation),
-                EarliestAllowedStart = violation.EarliestAllowedStart,
-            }).ToList(),
+            ["violations"] = violations.Select(ToResponse).ToList(),
         });
     }
+
+    // Also the shape of each violation of a conflicted placement (AC-183).
+    public static RuleViolationResponse ToResponse(RuleViolation violation) => new()
+    {
+        Rule = violation.Rule,
+        Code = violation.Code,
+        Conflict = ConflictOf(violation.Conflict),
+        Detail = DetailOf(violation),
+        EarliestAllowedStart = violation.EarliestAllowedStart,
+    };
 
     private static ConflictResponse ConflictOf(ConflictItem conflict) => new()
     {
@@ -55,24 +58,4 @@ internal static class RuleViolationProblems
         RuleCodes.Cancelled => "The lot's order is cancelled, so the lot cannot be placed.",
         _ => throw new ArgumentOutOfRangeException(nameof(violation), violation.Code, "Unknown rule code."),
     };
-
-    private sealed record ConflictResponse
-    {
-        public required string Type { get; init; }
-
-        public required int Id { get; init; }
-    }
-
-    private sealed record RuleViolationResponse
-    {
-        public required string Rule { get; init; }
-
-        public required string Code { get; init; }
-
-        public required ConflictResponse Conflict { get; init; }
-
-        public required string Detail { get; init; }
-
-        public required DateTimeOffset? EarliestAllowedStart { get; init; }
-    }
 }

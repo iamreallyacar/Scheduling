@@ -23,6 +23,10 @@ public interface IOrderReader
 
     // What the scheduling rules need of an order (R4, R8); null when it does not exist or is deleted.
     Task<OrderSchedulingFacts?> FindSchedulingFactsAsync(int orderId, CancellationToken cancellationToken);
+
+    // The scheduling facts of every order that holds one of the lots, for the rules over a whole
+    // version (FindConflicts). Lots of deleted orders are not found.
+    Task<IReadOnlyList<OrderSchedulingFacts>> ListSchedulingFactsOfLotsAsync(IReadOnlyCollection<int> lotIds, CancellationToken cancellationToken);
 }
 
 public sealed record OrderSchedulingFacts

@@ -1218,6 +1218,39 @@
           }
         }
       }
+    },
+    "/api/v1/versions/{versionId}/conflicts": {
+      "get": {
+        "tags": [
+          "Schedule"
+        ],
+        "operationId": "ListConflictedPlacements",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConflictedPlacementResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1335,6 +1368,93 @@
             "items": {
               "$ref": "#/components/schemas/CalendarShiftRequest"
             }
+          }
+        }
+      },
+      "ConflictedPlacementResponse": {
+        "required": [
+          "placementId",
+          "plannedStart",
+          "plannedEnd",
+          "resource",
+          "lotId",
+          "lotNo",
+          "quantity",
+          "durationMinutes",
+          "orderId",
+          "orderNo",
+          "sequenceNo",
+          "resourceType",
+          "violations"
+        ],
+        "type": "object",
+        "properties": {
+          "placementId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "plannedStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "plannedEnd": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resource": {
+            "$ref": "#/components/schemas/NamedReference"
+          },
+          "lotId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "lotNo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "durationMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "orderId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "orderNo": {
+            "type": "string"
+          },
+          "sequenceNo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "resourceType": {
+            "$ref": "#/components/schemas/NamedReference"
+          },
+          "violations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RuleViolationResponse"
+            }
+          }
+        }
+      },
+      "ConflictResponse": {
+        "required": [
+          "type",
+          "id"
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -2298,6 +2418,37 @@
           "unitsPerCycle": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "RuleViolationResponse": {
+        "required": [
+          "rule",
+          "code",
+          "conflict",
+          "detail",
+          "earliestAllowedStart"
+        ],
+        "type": "object",
+        "properties": {
+          "rule": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "conflict": {
+            "$ref": "#/components/schemas/ConflictResponse"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "earliestAllowedStart": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },

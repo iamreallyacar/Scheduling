@@ -83,11 +83,12 @@ namespace TireScheduler.Api.Modules.Scheduling.Migrations
             // Hand-written step: R2 as an exclusion constraint, so two requests at once cannot
             // double-book a resource within a version (AC-83). Half-open ranges let placements
             // touch. btree_gist lets the integer columns take part in the GiST index.
+            // Dropped again by DropPlacementOverlapConstraint (DEC-43).
             migrationBuilder.Sql(
-                $"""
+                """
                 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
-                ALTER TABLE scheduling."Placements" ADD CONSTRAINT "{SchedulingDbContext.PlacementOverlapConstraint}"
+                ALTER TABLE scheduling."Placements" ADD CONSTRAINT "EX_Placements_NoOverlap"
                 EXCLUDE USING gist ("VersionId" WITH =, "ResourceId" WITH =, tstzrange("PlannedStart", "PlannedEnd", '[)') WITH &&);
                 """);
 

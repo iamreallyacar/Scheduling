@@ -12,6 +12,7 @@ public static class QueriesRegistration
         services.AddScoped<OrderViewReader>();
         services.AddScoped<MachineViewReader>();
         services.AddScoped<UnscheduledLotReader>();
+        services.AddScoped<ConflictedPlacementReader>();
         return services;
     }
 

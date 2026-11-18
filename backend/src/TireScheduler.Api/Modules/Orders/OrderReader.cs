@@ -156,33 +156,38 @@ internal sealed class OrderReader(OrdersDbContext context, IMasterDataReader mas
     public async Task<OrderSchedulingFacts?> FindSchedulingFactsAsync(int orderId, CancellationToken cancellationToken)
     {
         Order? order = await WithOperationsAndDependencies(context.Orders).FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
-        if (order is null)
-        {
-            return null;
-        }
-
-        return new OrderSchedulingFacts
-        {
-            IsCancelled = order.CancelledAt is not null,
-            Lots = order.Operations
-                .SelectMany(operation => operation.Lots.Select(lot => new SchedulingLotFacts
-                {
-                    Id = lot.Id,
-                    OperationId = operation.Id,
-                    ResourceTypeId = operation.ResourceTypeId,
-                    DurationMinutes = lot.DurationMinutes,
-                }))
-                .ToList(),
-            Dependencies = order.Dependencies
-                .Select(dependency => new SchedulingDependencyFacts
-                {
-                    PredecessorOperationId = dependency.PredecessorOperationId,
-                    SuccessorOperationId = dependency.SuccessorOperationId,
-                    MinLagMinutes = dependency.MinLagMinutes,
-                })
-                .ToList(),
-        };
+        return order is null ? null : ToSchedulingFacts(order);
     }
+
+    public async Task<IReadOnlyList<OrderSchedulingFacts>> ListSchedulingFactsOfLotsAsync(IReadOnlyCollection<int> lotIds, CancellationToken cancellationToken)
+    {
+        List<Order> orders = await WithOperationsAndDependencies(context.Orders)
+            .Where(o => o.Operations.Any(operation => operation.Lots.Any(lot => lotIds.Contains(lot.Id))))
+            .ToListAsync(cancellationToken);
+        return orders.Select(ToSchedulingFacts).ToList();
+    }
+
+    private static OrderSchedulingFacts ToSchedulingFacts(Order order) => new()
+    {
+        IsCancelled = order.CancelledAt is not null,
+        Lots = order.Operations
+            .SelectMany(operation => operation.Lots.Select(lot => new SchedulingLotFacts
+            {
+                Id = lot.Id,
+                OperationId = operation.Id,
+                ResourceTypeId = operation.ResourceTypeId,
+                DurationMinutes = lot.DurationMinutes,
+            }))
+            .ToList(),
+        Dependencies = order.Dependencies
+            .Select(dependency => new SchedulingDependencyFacts
+            {
+                PredecessorOperationId = dependency.PredecessorOperationId,
+                SuccessorOperationId = dependency.SuccessorOperationId,
+                MinLagMinutes = dependency.MinLagMinutes,
+            })
+            .ToList(),
+    };
 
     private async Task<IReadOnlyList<OrderSummary>> SummarizeAsync(IReadOnlyList<Order> orders, CancellationToken cancellationToken)
     {

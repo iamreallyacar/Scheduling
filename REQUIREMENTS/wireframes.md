@@ -1,6 +1,6 @@
 # Wireframes
 
-Status: DRAFT, written in task P8 on 2026-11-10; section 5 in task M3-2 and the built parts of section 3 in task M3-4 on 2026-11-18. Low-fidelity sketches of the three scheduling screens and the machine page: layout, content and states, not visual design. Sources: [features.md](features.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [acceptance-criteria.md](acceptance-criteria.md), [domain-model.md](domain-model.md).
+Status: DRAFT, written in task P8 on 2026-11-10; section 5 in task M3-2, the built parts of section 3 in task M3-4 and the conflict list of section 2 in task M3-5 on 2026-11-18. Low-fidelity sketches of the three scheduling screens and the machine page: layout, content and states, not visual design. Sources: [features.md](features.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [acceptance-criteria.md](acceptance-criteria.md), [domain-model.md](domain-model.md).
 
 ## 1. Conventions
 
@@ -72,6 +72,7 @@ Behavior:
 - Machine status is the derived display status at the current time (`domain-model.md` section 6). It is not editable here; breakdowns and maintenance are recorded on the machine page (F-MNT-1).
 - Non-working time and holidays are shaded. Unavailabilities are hatched and labelled with their kind; an open-ended breakdown runs to the right edge.
 - A bar shows the order number and lot number. Conflicted placements carry a `!` marker and a distinct outline, and the "conflicted placements" button filters the view to them (F-SCH-4, AC-88). A placement listed by `FindConflicts` is never hidden or moved by the UI (DEC-18).
+- Until the timeline exists, task M3-5 lists the conflicted placements above the queue, each with its order, stage, lot, machine, planned times and violations, and [Move...] for a Planner (AC-184). Task M3-6 decides whether the list stays next to the timeline's markers.
 - The timeline is read-only (F-SCH-2): no drag, no resize. Changes go through the placement form (section 3), opened from "Place..." in the queue or "Move..." in the popover.
 - The default range is two weeks from the Monday of the current week, the F-NFR-5 size (~25 machines x 2 weeks).
 - The unscheduled-lots queue shows the lots the API returns, in its order (AC-174, AC-175); lots of cancelled orders never appear there. It names the stages a lot depends on with their lag; the earliest start that the placed predecessors allow is shown in the placement form (section 3). Task M3-3 builds the queue on its own on `/schedule`; the timeline above it and the [Hide queue] button come with task M3-6. The [Place...] buttons are Planner only and open the placement form (section 3, task M3-4).

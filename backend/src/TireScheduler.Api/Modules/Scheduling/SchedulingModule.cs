@@ -21,6 +21,8 @@ public static class SchedulingModule
         services.AddScoped<IResourceReferences>(provider => provider.GetRequiredService<PlacementReferences>());
         services.AddScoped<IResourcePlacementReferences>(provider => provider.GetRequiredService<PlacementReferences>());
         services.AddScoped<ILotPlacements, LotPlacements>();
+        services.AddScoped<IPlannedEndRecompute, PlannedEndRecompute>();
+        services.AddScoped<IPlacementConflictReader, PlacementConflictReader>();
         return services;
     }
 

@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import type { LotPredecessorResponse, UnscheduledLotResponse } from '../api/generated';
+import type { LotPredecessorResponse } from '../api/generated';
 import { useSignedInUser } from '../auth/signedInUser';
 import { QueryResult } from '../forms/QueryResult';
-import { PlacementForm } from './PlacementForm';
+import { ConflictList } from './ConflictList';
+import { PlacementForm, type PlacementTarget } from './PlacementForm';
 import { useUnscheduledLots } from './scheduleQueries';
 
-/** The schedule of the live version: for now the lots that wait for placement (F-SCH-7, wireframes.md section 2). A Planner places them (F-SCH-1). */
+/** The schedule of the live version: for now the conflicted placements (F-SCH-4) and the lots that wait for placement (F-SCH-7, wireframes.md section 2). A Planner places and moves them (F-SCH-1). */
 export function SchedulePage() {
   const unscheduledLots = useUnscheduledLots();
   const { canPlan } = useSignedInUser();
-  const [lotInForm, setLotInForm] = useState<UnscheduledLotResponse | null>(null);
+  const [lotInForm, setLotInForm] = useState<PlacementTarget | null>(null);
 
   return (
     <section aria-labelledby="schedule-heading">
@@ -19,13 +20,14 @@ export function SchedulePage() {
       {lotInForm !== null && (
         <PlacementForm
           // A new key gives the form fresh state when another lot is chosen.
-          key={lotInForm.id}
-          target={{ ...lotInForm, lotId: lotInForm.id, placement: null }}
+          key={lotInForm.lotId}
+          target={lotInForm}
           onClose={() => {
             setLotInForm(null);
           }}
         />
       )}
+      <ConflictList onMove={canPlan ? setLotInForm : null} />
       <QueryResult query={unscheduledLots}>
         {(lots) => (
           <>
@@ -63,7 +65,7 @@ export function SchedulePage() {
                           <button
                             type="button"
                             onClick={() => {
-                              setLotInForm(lot);
+                              setLotInForm({ ...lot, lotId: lot.id, placement: null });
                             }}
                           >
                             Place...

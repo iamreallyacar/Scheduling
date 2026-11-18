@@ -50,7 +50,7 @@ flowchart LR
 | Orders | Order, Operation, OperationDependency, Lot | MasterData (routing at order creation), Engine (lot duration, DEC-28) |
 | Scheduling | ScheduleVersion, Placement, Unavailability; calls the engine | MasterData (resources, calendars), Orders (lots, dependencies), Engine |
 | Progress | LotProgress | Orders, Scheduling (a lot must be placed in the live version before it starts) |
-| Queries | Read models only, including all derived statuses and `isLate`; serves the order reads (DEC-29), the machine reads (DEC-39) and the unscheduled-lots queue | All modules, read-only; Engine (late flag, DEC-30) |
+| Queries | Read models only, including all derived statuses and `isLate`; serves the order reads (DEC-29), the machine reads (DEC-39), the unscheduled-lots queue and the conflicted placements | All modules, read-only; Engine (late flag, DEC-30) |
 | Engine | Scheduling rules and search over plain values | Nothing |
 | Plant generator (`TireScheduler.PlantGenerator`) | Parameters, presets and a seeded synthetic plant as plain values | Engine (lot duration) |
 | Plant loader (`TireScheduler.PlantLoader`) | Writing a generated plant into a running API as an Admin | Plant generator; the API over HTTP only |
@@ -65,7 +65,7 @@ Rules every part must follow, each with its reason.
 - One API instance, one app, one database, no services. Reason: 2-5 planners and 15-25 machines do not justify more.
 - Each module owns its tables, in its own database schema, and no module reads another module's tables. Reason: modules are used only through their public interface, which keeps them replaceable.
 - Dependencies point downward in the parts table and never form a cycle. Reason: a convention the compiler cannot check, so an architecture test enforces it on every commit (DEC-23).
-- Reading upward goes through ports (DEC-16). Orders, to change, cancel or delete an order, needs "is any lot placed in the live version?" (`ILotPlacements`, implemented by Scheduling) and "has any lot started?" (`ILotProgress`, implemented by Progress). MasterData, before deleting a product, resource type or resource, asks the modules above it which of their rows use it (`IProductReferences`, `IResourceTypeReferences`, implemented by Orders; `IResourceReferences`, implemented by Scheduling; A14), and before changing a resource's type, which placement is on it (`IResourcePlacementReferences`, Scheduling). Scheduling, for R8 and for removing the placements of a cancelled order, needs "which lots have started?" (`ILotProgressStates`, implemented by Progress). The lower module declares the interface; the higher module implements it and registers it in dependency injection. Reason: source-code dependencies still point downward. Keep these ports few and read-only. The one write port is `ILotPlacements.RemoveUnstartedAsync`, with which cancelling an order removes its placements in the same transaction (DEC-33).
+- Reading upward goes through ports (DEC-16). Orders, to change, cancel or delete an order, needs "is any lot placed in the live version?" (`ILotPlacements`, implemented by Scheduling) and "has any lot started?" (`ILotProgress`, implemented by Progress). MasterData, before deleting a product, resource type or resource, asks the modules above it which of their rows use it (`IProductReferences`, `IResourceTypeReferences`, implemented by Orders; `IResourceReferences`, implemented by Scheduling; A14), and before changing a resource's type, which placement is on it (`IResourcePlacementReferences`, Scheduling). Scheduling, for R8 and for removing the placements of a cancelled order, needs "which lots have started?" (`ILotProgressStates`, implemented by Progress). MasterData, after a shift or holiday change, has the planned ends recomputed (`IPlannedEndRecompute`, implemented by Scheduling, DEC-44). The lower module declares the interface; the higher module implements it and registers it in dependency injection. Reason: source-code dependencies still point downward. Keep these ports few and read-only. The two write ports are `ILotPlacements.RemoveUnstartedAsync`, with which cancelling an order removes its placements in the same transaction (DEC-33), and `IPlannedEndRecompute`, with which a shift or holiday change rewrites the planned ends in its transaction (DEC-44).
 - Statuses are derived, never stored, and computed in Queries (`domain-model.md` section 6). Reason: lot, operation and order status need placements (Scheduling) and progress (Progress), and no module may write another module's status.
 - Each module registers its services with one extension method and maps its own endpoints with another, into the `/api/v1` group that `Program.cs` passes in; endpoints are minimal API route groups (DEC-25, DEC-35). Reason: one place per module that the startup code calls.
 - Errors, Security and Database depend on no module. Reason: every module uses them.
@@ -105,9 +105,9 @@ Implements A2.
 - Rows are locked with `LockRowAsync` (`SELECT ... FOR UPDATE`), which names the table and key column from the EF model and works only inside a transaction. Reason: no hand-written table names that a migration could leave stale.
 - Text that is unique without regard to case (A20) has a stored upper-case copy of the column, and the unique index is on the copy. A broken unique index is answered as 409 `conflict.duplicate`. Reason: two requests at once cannot both save the same value.
 - Constraints back the domain rules where possible: unique `Product.code`, unique `(product, sequenceNo)`, routing duration values and lags within their ranges, unique `(version, lot)` on placements, positive quantities (A7).
-- R2 is also guarded by a PostgreSQL exclusion constraint on placements over `(version, resource, tstzrange(plannedStart, plannedEnd))`, which needs the `btree_gist` extension; touching ranges are allowed (half-open ranges). Reason: a race between two requests cannot double-book a resource. How it fits the recomputed ends of later facts is open question WQ4 in `decisions.md`.
+- R2 across requests is kept by the resource row lock below: every command that writes a placement locks the resource before it checks the rules, so a second placement on the machine waits and then sees the first. Reason: an exclusion constraint on the planned ranges, which guarded R2 until task M3-5, would refuse the recomputed ends of later facts that `FindConflicts` must list instead (DEC-43).
 - A routing is replaced as a whole in one transaction that locks the product row. Reason: two saves of the same routing run one after the other. Its stages get new ids on every save; nothing outside the routing refers to them (A1, A24).
-- R3 and R4 span tables, so no single constraint covers them. A placement command locks the resource row and then the order row, builds the engine snapshot, validates and writes in one transaction; MasterData and Orders lock their own row when Scheduling calls them (`IMasterDataLocks`, `IOrderLocks`, DEC-33). Every command that takes both locks takes them in that order, so two commands never wait on each other; removing a placement and cancelling an order lock only the order, and changing a resource's type or deleting it only the resource. An open-ended unavailability is stored without an end, which every overlap check reads as infinite (DEC-41).
+- R3 and R4 span tables, so no single constraint covers them. A placement command locks the resource row and then the order row, builds the engine snapshot, validates and writes in one transaction; MasterData and Orders lock their own row when Scheduling calls them (`IMasterDataLocks`, `IOrderLocks`, DEC-33). Every command that takes both locks takes them in that order, so two commands never wait on each other; removing a placement and cancelling an order lock only the order, and changing a resource's type or deleting it only the resource. A shift or holiday change locks every resource in ascending id order before it saves, and recomputes the planned ends in the same transaction (DEC-44). An open-ended unavailability is stored without an end, which every overlap check reads as infinite (DEC-41).
 - Later facts never delete placements (domain-model.md section 5, DEC-18). The fact is saved anyway (it is true), affected `plannedEnd` values are recomputed, and `FindConflicts` lists the placements that now break a rule.
 - Soft-deleted orders are excluded by a global query filter (F-NFR-1), and the unique index on the order number leaves them out, so a deleted order frees its number (A25). Cancel is a state change, not a delete.
 - An order is changed, cancelled or deleted in one transaction that locks its row first, like a placement command, so the checks on its lots and the change cannot interleave with a placement of those lots.
@@ -134,7 +134,7 @@ Implements A2.
 
 ## Data flow
 
-Place a lot. The server computes the end, and the engine and the database both guard the rules.
+Place a lot. The server computes the end, and the engine checks the rules under the row locks.
 
 ```mermaid
 sequenceDiagram
@@ -162,7 +162,7 @@ sequenceDiagram
 - It reads the version's snapshot (calendars, resources, unavailabilities, placements, lots, dependencies) from the owning modules through their public interfaces and passes it to the engine.
 - The engine returns `plannedEnd` or every violated rule.
 - A violation is thrown as `ApiProblemException` and answered as 422; nothing is saved.
-- Otherwise the placement is written. The exclusion constraint on placements is the last guard against a concurrent double booking.
+- Otherwise the placement is written. A concurrent placement on the same machine waits for the resource lock and is then checked against this one (DEC-43).
 
 Schedule an order as soon as possible. Two steps, so the planner reviews before anything is saved.
 
@@ -197,7 +197,7 @@ flowchart LR
     Fact["Planner records a breakdown or changes a calendar"] --> Save["API saves the fact"]
     Save --> Recompute["plannedEnd recomputed for affected placements"]
     Recompute --> Find["FindConflicts lists placements that break a rule"]
-    Find --> Flag["Timeline and dashboard flag them"]
+    Find --> Flag["Schedule page, timeline and dashboard flag them"]
     Flag --> Fix["Planner moves or removes them"]
 ```
 

@@ -37,3 +37,5 @@ public sealed record PlacementCheck(DateTimeOffset? PlannedEnd, IReadOnlyList<Ru
 public sealed record PlacementRequest(int LotId, int ResourceId, DateTimeOffset PlannedStart);
 
 public sealed record PlacementConflict(int PlacementId, int LotId, IReadOnlyList<RuleViolation> Violations);
+
+public sealed record RecomputedEnd(int PlacementId, DateTimeOffset PlannedEnd);

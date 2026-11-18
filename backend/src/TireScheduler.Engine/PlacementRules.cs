@@ -11,6 +11,31 @@ public static class PlacementRules
         return index.WorkingTimeOf(index.Resource(resourceId)).EndAfter(plannedStart, durationMinutes);
     }
 
+    // After a shift or holiday change (DEC-44): only the ends that change. A completed lot keeps the
+    // end it ran to, and a start outside working time has no new end, so it keeps its stored one
+    // and FindConflicts lists it under R6 (A42).
+    public static IReadOnlyList<RecomputedEnd> RecomputeEnds(ScheduleSnapshot snapshot)
+    {
+        SnapshotIndex index = new(snapshot);
+        List<RecomputedEnd> changedEnds = [];
+        foreach (SnapshotPlacement placement in index.Placements)
+        {
+            SnapshotLot lot = index.Lot(placement.LotId);
+            if (lot.Progress == LotProgressState.Completed)
+            {
+                continue;
+            }
+
+            DateTimeOffset? plannedEnd = index.WorkingTimeOf(index.Resource(placement.ResourceId)).EndAfter(placement.PlannedStart, lot.DurationMinutes);
+            if (plannedEnd is { } newEnd && newEnd != placement.PlannedEnd)
+            {
+                changedEnds.Add(new RecomputedEnd(placement.Id, newEnd));
+            }
+        }
+
+        return changedEnds;
+    }
+
     // Places or moves a lot. The lot's own current placement is ignored (AC-81); nothing is adjusted (R7).
     public static PlacementCheck Validate(ScheduleSnapshot snapshot, PlacementRequest request)
     {

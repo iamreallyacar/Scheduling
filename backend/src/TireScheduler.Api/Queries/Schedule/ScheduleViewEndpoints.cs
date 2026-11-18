@@ -13,5 +13,9 @@ internal static class ScheduleViewEndpoints
                 TypedResults.Ok(await reader.ListAsync(versionId, cancellationToken)))
             .WithName("ListUnscheduledLots")
             .RequireAuthorization(AccessPolicies.Read);
+        version.MapGet("/conflicts", async (string versionId, ConflictedPlacementReader reader, CancellationToken cancellationToken) =>
+                TypedResults.Ok(await reader.ListAsync(versionId, cancellationToken)))
+            .WithName("ListConflictedPlacements")
+            .RequireAuthorization(AccessPolicies.Read);
     }
 }

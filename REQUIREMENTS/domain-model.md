@@ -223,6 +223,7 @@ Order progress (F-PRG-2) = completed quantity / total quantity over the lots of 
 | A39 | The unscheduled-lots queue holds only the open lots that wait for placement, which planners place within days or weeks, so it is returned whole like the master data lists (A22). It is derived from the lots of every order, so its cost grows with the order history, which A28 bounds to a few thousand orders. |
 | A40 | A lot has at most one placement per schedule version, so placing a placed lot again moves that placement, which keeps its id. A placement start is a whole minute (A2); the 15-minute grid is the UI's only. The placement form lists only the active machines of the lot's resource type, but the API takes any machine and rejects a wrong one under R1, because the rules live on the server |
 | A41 | Until scenarios (F-SCH-12, P2), the live version is the only version the application creates; it comes with the migration that adds the version table. A version path also takes a version's id, so scenarios need no URL change (DEC-17) |
+| A42 | When the shifts or holidays change, a placement whose start is no longer in working time keeps its stored planned end, because no new end exists (A35), and `FindConflicts` lists it under R6 (AC-108) until the planner moves it. The ends of completed lots are not recomputed, because their placement is the record of where they ran (A36) |
 
 ## 8. Out of the model for v1
 

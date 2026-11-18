@@ -23,3 +23,25 @@ public sealed record LotPlacementResponse
 
     public required DateTimeOffset PlannedEnd { get; init; }
 }
+
+// One broken rule with its text (API.md section "Error format", DEC-42).
+public sealed record RuleViolationResponse
+{
+    public required string Rule { get; init; }
+
+    public required string Code { get; init; }
+
+    public required ConflictResponse Conflict { get; init; }
+
+    public required string Detail { get; init; }
+
+    public required DateTimeOffset? EarliestAllowedStart { get; init; }
+}
+
+// The item a rule conflicts with: `placement`, `unavailability`, `lot` or `resource`.
+public sealed record ConflictResponse
+{
+    public required string Type { get; init; }
+
+    public required int Id { get; init; }
+}

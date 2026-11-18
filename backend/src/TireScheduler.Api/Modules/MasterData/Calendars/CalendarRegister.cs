@@ -6,7 +6,11 @@ using TireScheduler.Api.Errors;
 namespace TireScheduler.Api.Modules.MasterData.Calendars;
 
 // F-MD-5: the calendars and their weekly shifts. v1 has only the plant default (A3).
-internal sealed class CalendarRegister(MasterDataDbContext context, RequestTransaction requestTransaction, IOptions<PlantOptions> plantOptions)
+internal sealed class CalendarRegister(
+    MasterDataDbContext context,
+    RequestTransaction requestTransaction,
+    WorkingTimeChange workingTimeChange,
+    IOptions<PlantOptions> plantOptions)
 {
     public async Task<IReadOnlyList<CalendarResponse>> ListAsync(CancellationToken cancellationToken)
     {
@@ -42,6 +46,7 @@ internal sealed class CalendarRegister(MasterDataDbContext context, RequestTrans
                 throw ApiProblemException.NotFound("This calendar");
             }
 
+            await workingTimeChange.LockEveryResourceAsync(cancellationToken);
             await context.Set<CalendarShift>().Where(shift => shift.CalendarId == calendarId).ExecuteDeleteAsync(cancellationToken);
             context.Set<CalendarShift>().AddRange(shifts.Select(shift => new CalendarShift
             {
@@ -51,6 +56,7 @@ internal sealed class CalendarRegister(MasterDataDbContext context, RequestTrans
                 EndMinuteOfDay = shift.EndMinuteOfDay,
             }));
             await context.SaveChangesAsync(cancellationToken);
+            await workingTimeChange.RecomputePlannedEndsAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }
 
