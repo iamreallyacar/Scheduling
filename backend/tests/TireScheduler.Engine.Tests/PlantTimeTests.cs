@@ -37,6 +37,12 @@ public sealed class PlantTimeTests
         Assert.Equal(new DateTime(2026, 9, 6, 1, 0, 0), TimeZoneInfo.ConvertTime(end, TimeZoneInfo.FindSystemTimeZoneById("America/Santiago")).DateTime);
     }
 
+    [Fact]
+    public void AC_185_where_dst_skips_local_midnight_the_day_begins_at_the_first_local_time_after_the_gap()
+    {
+        Assert.Equal(Utc(2026, 9, 6, 4, 0), PlantTime.StartOfDay(new DateOnly(2026, 9, 6), "America/Santiago"));
+    }
+
     // In the Azores the clocks go back from 2026-10-25 01:00 to 00:00, so local midnight occurs twice.
     [Fact]
     public void A27_where_local_midnight_occurs_twice_the_day_ends_at_the_first_occurrence()

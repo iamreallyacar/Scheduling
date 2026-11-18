@@ -118,3 +118,6 @@ export const listUnscheduledLots = (versionId: Api.ListUnscheduledLotsData['path
 
 export const listConflictedPlacements = (versionId: Api.ListConflictedPlacementsData['path']['versionId']) =>
   requestApi<Api.ListConflictedPlacementsResponse>('GET', { url: '/api/v1/versions/{versionId}/conflicts', path: { versionId } } satisfies Api.ListConflictedPlacementsData);
+
+export const getTimeline = (versionId: Api.GetTimelineData['path']['versionId'], query: NonNullable<Api.GetTimelineData['query']>) =>
+  requestApi<Api.GetTimelineResponse>('GET', { url: '/api/v1/versions/{versionId}/timeline', path: { versionId }, query } satisfies Api.GetTimelineData);

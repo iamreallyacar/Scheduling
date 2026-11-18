@@ -17,5 +17,9 @@ internal static class ScheduleViewEndpoints
                 TypedResults.Ok(await reader.ListAsync(versionId, cancellationToken)))
             .WithName("ListConflictedPlacements")
             .RequireAuthorization(AccessPolicies.Read);
+        version.MapGet("/timeline", async (string versionId, DateOnly? from, DateOnly? to, TimelineReader reader, CancellationToken cancellationToken) =>
+                TypedResults.Ok(await reader.GetAsync(versionId, TimelineRange.Check(from, to), cancellationToken)))
+            .WithName("GetTimeline")
+            .RequireAuthorization(AccessPolicies.Read);
     }
 }

@@ -61,6 +61,34 @@ internal sealed class WorkingTime
         }
     }
 
+    // Ordered, merged where periods touch or overlap, and cut at the range (DEC-45).
+    public IReadOnlyList<WorkingPeriod> PeriodsBetween(DateTimeOffset rangeStart, DateTimeOffset rangeEnd)
+    {
+        // Periods of the neighbouring days can reach across local midnight when it occurs twice.
+        DateOnly firstDate = PlantTime.LocalDate(rangeStart, zone).AddDays(-1);
+        int dayCount = PlantTime.LocalDate(rangeEnd, zone).AddDays(1).DayNumber - firstDate.DayNumber + 1;
+        IEnumerable<(DateTimeOffset Start, DateTimeOffset End)> periods = Enumerable.Range(0, dayCount)
+            .SelectMany(dayOffset => PeriodsOn(firstDate.AddDays(dayOffset)))
+            .Where(period => period.Start < rangeEnd && rangeStart < period.End)
+            .OrderBy(period => period.Start);
+        List<WorkingPeriod> merged = [];
+        foreach ((DateTimeOffset start, DateTimeOffset end) in periods)
+        {
+            DateTimeOffset cutStart = start > rangeStart ? start : rangeStart;
+            DateTimeOffset cutEnd = end < rangeEnd ? end : rangeEnd;
+            if (merged.Count > 0 && cutStart <= merged[^1].End)
+            {
+                merged[^1] = merged[^1] with { End = cutEnd > merged[^1].End ? cutEnd : merged[^1].End };
+            }
+            else
+            {
+                merged.Add(new WorkingPeriod(cutStart, cutEnd));
+            }
+        }
+
+        return merged;
+    }
+
     private IEnumerable<(DateTimeOffset Start, DateTimeOffset End)> PeriodsOn(DateOnly date)
     {
         if (holidays.Contains(date))

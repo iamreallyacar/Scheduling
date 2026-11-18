@@ -16,6 +16,8 @@ internal static class SchedulingTestData
 
     public static string ConflictsPath(string versionId) => $"/api/v1/versions/{versionId}/conflicts";
 
+    public static string TimelinePath(string versionId, string query) => $"/api/v1/versions/{versionId}/timeline?{query}";
+
     public static string PlacementPath(string versionId, int lotId) => $"/api/v1/versions/{versionId}/lots/{lotId}/placement";
 
     public static string UnavailabilitiesPath(int resourceId) => $"{MasterDataTestData.ResourcesPath}/{resourceId}/unavailabilities";

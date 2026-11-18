@@ -3,6 +3,9 @@ namespace TireScheduler.Engine;
 // Conversions between plant-local dates and UTC instants (ARCHITECTURE.md section "Time rules").
 public static class PlantTime
 {
+    // The first instant of a plant-local day, read as the end of the day before (A27).
+    public static DateTimeOffset StartOfDay(DateOnly date, string timeZoneId) => EndOfDay(date.AddDays(-1), timeZoneId);
+
     // The first instant of the next plant-local day (DEC-22, A27).
     public static DateTimeOffset EndOfDay(DateOnly date, string timeZoneId)
     {

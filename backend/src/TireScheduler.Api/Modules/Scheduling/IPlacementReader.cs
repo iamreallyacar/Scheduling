@@ -10,10 +10,15 @@ public interface IPlacementReader
 
     // The placements of the lots among lotIds, by lot id; a lot without one is missing.
     Task<IReadOnlyDictionary<int, PlacementValues>> PlacementsOfLotsAsync(string versionId, IReadOnlyCollection<int> lotIds, CancellationToken cancellationToken);
+
+    // The placements of the version that overlap the half-open range, by planned start, then id.
+    Task<IReadOnlyList<PlacementValues>> PlacementsOverlappingAsync(string versionId, DateTimeOffset rangeStart, DateTimeOffset rangeEnd, CancellationToken cancellationToken);
 }
 
 public sealed record PlacementValues
 {
+    public required int Id { get; init; }
+
     public required int LotId { get; init; }
 
     public required int ResourceId { get; init; }

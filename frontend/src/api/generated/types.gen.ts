@@ -299,6 +299,50 @@ export type SignInRequest = {
     password: string;
 };
 
+export type TimelinePlacementResponse = {
+    placementId: number;
+    plannedStart: string;
+    plannedEnd: string;
+    lotId: number;
+    lotNo: number;
+    quantity: number;
+    durationMinutes: number;
+    status: LotStatus;
+    orderId: number;
+    orderNo: string;
+    product: ProductReference;
+    orderIsLate: boolean;
+    sequenceNo: number;
+    resourceType: NamedReference;
+};
+
+export type TimelineResourceResponse = {
+    id: number;
+    name: string;
+    isActive: boolean;
+    status: ResourceStatus;
+    workingPeriods: Array<TimePeriodResponse>;
+    unavailabilities: Array<UnavailabilityResponse>;
+    placements: Array<TimelinePlacementResponse>;
+};
+
+export type TimelineResourceTypeResponse = {
+    id: number;
+    name: string;
+    resources: Array<TimelineResourceResponse>;
+};
+
+export type TimelineResponse = {
+    start: string;
+    end: string;
+    resourceTypes: Array<TimelineResourceTypeResponse>;
+};
+
+export type TimePeriodResponse = {
+    start: string;
+    end: string;
+};
+
 export type UnavailabilityKind = 'Planned' | 'Breakdown';
 
 export type UnavailabilityRequest = {
@@ -1027,3 +1071,24 @@ export type ListConflictedPlacementsResponses = {
 };
 
 export type ListConflictedPlacementsResponse = ListConflictedPlacementsResponses[keyof ListConflictedPlacementsResponses];
+
+export type GetTimelineData = {
+    body?: never;
+    path: {
+        versionId: string;
+    };
+    query?: {
+        from?: string;
+        to?: string;
+    };
+    url: '/api/v1/versions/{versionId}/timeline';
+};
+
+export type GetTimelineResponses = {
+    /**
+     * OK
+     */
+    200: TimelineResponse;
+};
+
+export type GetTimelineResponse = GetTimelineResponses[keyof GetTimelineResponses];

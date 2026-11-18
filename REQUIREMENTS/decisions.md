@@ -52,6 +52,8 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 | DEC-42 | Each rule violation of a rejected placement carries its own text and earliest allowed start | Proposed | 2026-11-18 (M3-4) | API.md section "Error format", AC-179 |
 | DEC-43 | R2 is guarded by the resource row lock, not by an exclusion constraint, once planned ends are recomputed | Proposed | 2026-11-18 (after M3-4) | ARCHITECTURE.md section "Persistence rules", AC-83, AC-107, WQ4 |
 | DEC-44 | A shift or holiday change recomputes the planned ends through a MasterData write port, in its own transaction | Proposed | 2026-11-18 (M3-5) | ARCHITECTURE.md sections "Module rules" and "Persistence rules", AC-182 |
+| DEC-45 | The timeline read takes a required plant-local date range and carries the working periods the engine computes | Proposed | 2026-11-18 (M3-6) | API.md section "Scheduling calls", AC-185 to AC-187, WQ3 |
+| DEC-46 | The timeline marks conflicts from the conflict list, which stays on the schedule page | Proposed | 2026-11-18 (M3-6) | wireframes.md section 2, AC-189 to AC-191 |
 
 ## Accepted
 
@@ -354,6 +356,21 @@ Made while building M1 (2026-11-10) and M2 (2026-11-18) and already followed by 
 - Concern: a second write port, next to the one of DEC-33, where DEC-16 keeps ports read-only. A shift or holiday save now waits for running placement commands and rewrites every placement. A machine created while such a save runs is not locked by it, so a placement on it in that moment keeps an end from the old working time until the next change; with 2-5 planners and machines created rarely this is accepted.
 - Consequences: a new kind of change to working time, such as per-machine calendars (P1), calls the port the same way.
 
+### DEC-45 Timeline read with a plant-local date range
+
+- Decision: `GET /versions/{v}/timeline?from=&to=` takes two required plant-local dates, both days included, at most 31 days apart (A44). It answers the range as the UTC instants where `from` begins and `to` ends, and the resource types with their machines, each with its derived status, working periods, unavailabilities and placements in the range (AC-185). The working periods come from the engine's `WorkingPeriods.Between`, merged where they touch. The UI picks the range; there is no default on the server. This settles WQ3.
+- Reason: the page must know the range to show it and to step it, and [Today] needs the current plant week in the UI anyway, so a server default would be a second place that decides the same range. On the server only the engine reads shift times (`ARCHITECTURE.md` section "Time rules"), so the UI shades non-working time without knowing the shifts or the R6 reading of a DST day.
+- Alternatives: `from` and `to` optional with a two-week default on the server, as WQ3 proposed, rejected for the reason above; UTC instants as parameters, rejected because the range is made of plant days, and the server then reads the day boundaries the way the due date does (A27); shading from the calendar answer in the UI, rejected because the UI would then repeat the working-time rule.
+- Consequences: the answer grows with machines and days, about 800 working periods at 25 machines and 31 days. A per-machine calendar (F-MD-6, P1) needs no change, because each machine carries its own periods.
+
+### DEC-46 Conflict markers from the conflict list
+
+- Decision: the timeline answer carries no violations. The schedule page marks the bars whose placement id the conflict list (`GET /versions/{v}/conflicts`, AC-183) holds, and the popover of such a bar shows that entry's violations. The conflict list stays on the schedule page, below the timeline. A violation's [Show ...] link is resolved from what the timeline holds (AC-191). The popover has no removal of its own: [Move...] opens the placement form, which offers [Remove placement].
+- Reason: `FindConflicts` needs the snapshot of the whole version, which the conflict read already builds, so the timeline read stays a plain read of stored rows. The list is the only place that shows a conflict outside the shown range, and it keeps [Move...] one click away. A violation names only the type and id of its item, and the timeline already holds the placements, lots and unavailabilities with their machine, so the links need no new read. One removal path keeps one display of a rejected removal (R8).
+- Alternatives: violations on each timeline placement, rejected because each timeline read would build the version's snapshot again; dropping the list once the bars are marked, rejected because a conflict outside the range would then be invisible; links that read their item when it is not on the timeline, deferred until planners ask for them.
+- Concern: the page combines two answers, read at slightly different times; after a write both are read again (DEC-36), so they differ only while one of them loads.
+- Consequences: an item that is not on the shown timeline has no link, so the conflict list links only the items of the shown range. The dashboard (task M5-3) can reuse the conflict list.
+
 ## Open
 
 The only list of open questions. BQ questions wait for the business; until it answers, the docs follow the assumption named. WQ questions were found while sketching the wireframes or building the tasks. Each must be answered before the task in "Needed by"; record the answer in the row (or as a new decision) and update the documents it affects.
@@ -368,4 +385,4 @@ The only list of open questions. BQ questions wait for the business; until it an
 | WQ1 | The placement form cannot show the planned end before saving, because no endpoint validates without saving | Settled in task M3-4: the form shows "Calculated when saved" in v1 and shows the server's `plannedEnd` after the save (AC-180). If planners need a preview, add `GET .../placement/preview` returning `Validate` output | M3-4 |
 | WQ4 | The exclusion constraint on placements (R2, `ARCHITECTURE.md` section "Persistence rules") rejects a stored `plannedEnd` that overlaps another placement on the machine, but AC-107 saves a recomputed end that may do exactly that and lets `FindConflicts` list it | Settled after task M3-4 by DEC-43: task M3-5 drops the constraint and R2 relies on the resource row lock that every placement takes | M3-5 |
 | WQ2 | The proposal review shows whether the order would be late, but the proposal response has no lateness field, and the UI must not compute rules | Add `finishesAt` and `wouldBeLate` to the proposal response, computed in Queries with the same `isLate` rule | M4-4 |
-| WQ3 | The timeline needs a time range, but `/versions/{v}/timeline` has no range parameters yet | Add `from` and `to` query parameters (plant-local dates), default two weeks | M3-6 |
+| WQ3 | The timeline needs a time range, but `/versions/{v}/timeline` has no range parameters yet | Settled in task M3-6 by DEC-45: `from` and `to` are required plant-local dates, at most 31 days apart, and the UI picks the default two weeks from the Monday of the current plant week | M3-6 |

@@ -10,7 +10,7 @@ import { SelectField, TextField } from '../forms/Fields';
 import { ProblemSummary } from '../forms/ProblemSummary';
 import { QueryResult } from '../forms/QueryResult';
 import { useMachines } from '../machines/machineQueries';
-import { ViolationList } from './ViolationList';
+import { ViolationList, type ConflictLinkRenderer } from './ViolationList';
 
 /** The lot the form places, as the queue or the order page shows it. */
 export interface PlacementTarget {
@@ -28,17 +28,19 @@ export interface PlacementTarget {
 interface PlacementFormProps {
   target: PlacementTarget;
   onClose: () => void;
+  /** Given where a view can show the conflicting items of a rejection (AC-191). */
+  renderConflictLink?: ConflictLinkRenderer;
 }
 
 const NO_MACHINE_CHOSEN = '';
 
 // F-SCH-1 (wireframes.md section 3). The server checks every rule and computes the planned end,
 // so the form shows "Calculated when saved" (WQ1) and lists the rules a rejected save broke (R7).
-export function PlacementForm({ target, onClose }: PlacementFormProps) {
-  return <WithPlantTimeZone>{(timeZone) => <LoadedPlacementForm target={target} timeZone={timeZone} onClose={onClose} />}</WithPlantTimeZone>;
+export function PlacementForm(props: PlacementFormProps) {
+  return <WithPlantTimeZone>{(timeZone) => <LoadedPlacementForm {...props} timeZone={timeZone} />}</WithPlantTimeZone>;
 }
 
-function LoadedPlacementForm({ target, timeZone, onClose }: PlacementFormProps & { timeZone: string }) {
+function LoadedPlacementForm({ target, timeZone, onClose, renderConflictLink }: PlacementFormProps & { timeZone: string }) {
   // The server filters the machines (AC-30); R1 is still checked when saving.
   const machines = useMachines({ resourceTypeId: target.resourceType.id, isActive: true });
   const [resourceId, setResourceId] = useState(target.placement === null ? NO_MACHINE_CHOSEN : String(target.placement.resourceId));
@@ -70,7 +72,7 @@ function LoadedPlacementForm({ target, timeZone, onClose }: PlacementFormProps &
         Quantity {target.quantity}, duration {target.durationMinutes} minutes of working time. Times in {timeZone}.
       </p>
       <ProblemSummary problem={problem} />
-      {problem !== null && <ViolationList violations={problem.violations} timeZone={timeZone} />}
+      {problem !== null && <ViolationList violations={problem.violations} timeZone={timeZone} renderConflictLink={renderConflictLink} />}
       <QueryResult query={machines}>
         {(loadedMachines) => (
           <SelectField

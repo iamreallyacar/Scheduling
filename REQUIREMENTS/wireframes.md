@@ -1,6 +1,6 @@
 # Wireframes
 
-Status: DRAFT, written in task P8 on 2026-11-10; section 5 in task M3-2, the built parts of section 3 in task M3-4 and the conflict list of section 2 in task M3-5 on 2026-11-18. Low-fidelity sketches of the three scheduling screens and the machine page: layout, content and states, not visual design. Sources: [features.md](features.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [acceptance-criteria.md](acceptance-criteria.md), [domain-model.md](domain-model.md).
+Status: DRAFT, written in task P8 on 2026-11-10; section 5 in task M3-2, the built parts of section 3 in task M3-4 and the conflict list of section 2 in task M3-5 and the timeline of section 2 in task M3-6 on 2026-11-18. Low-fidelity sketches of the three scheduling screens and the machine page: layout, content and states, not visual design. Sources: [features.md](features.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [acceptance-criteria.md](acceptance-criteria.md), [domain-model.md](domain-model.md).
 
 ## 1. Conventions
 
@@ -20,7 +20,7 @@ Features F-SCH-2, F-SCH-4, F-SCH-7 and F-MNT-2; tasks M3-3, M3-5 and M3-6. Route
 | Tire Scheduler   Dashboard  Orders  Schedule  Machines  Products            J. Doe (Planner) |
 +----------------------------------------------------------------------------------------------+
 | Schedule - Live                                              Times in Europe/Berlin          |
-| [< Prev] [Today] [Next >]   Mon 16 Nov - Sun 29 Nov 2026   Zoom: ( ) Day (x) Week            |
+| [< Prev] [Today] [Next >]   Mon 16 Nov - Sun 29 Nov 2026   Zoom: ( ) Day (x) Two weeks       |
 | Resource type: [All      v]                                  [! 3 conflicted placements]     |
 +-------------------------+--------------------------------------------------------------------+
 | Machine         Status  | Mon 16          Tue 17          Wed 18   ...   Sat 21    Sun 22    |
@@ -60,22 +60,23 @@ Lot bar popover, opened by clicking a bar:
 |   Overlaps breakdown on Press 1 from Mon 16 Nov  |
 |   11:00, no end                [Show breakdown]  |
 |                                                  |
-| [Move...] [Remove placement]   [Open order]      |
-|  Move and Remove: Planner only, hidden once the  |
-|  lot has started                                 |
+| [Move...]   [Open order]                         |
+|  Move: Planner only, hidden once the lot has     |
+|  started; the form it opens can also remove      |
 +--------------------------------------------------+
 ```
 
 Behavior:
 
-- Rows are grouped by resource type, sorted by name; inactive machines are hidden unless they still hold placements, which are then R1 conflicts (A15).
+- Rows are grouped by resource type, sorted by name, as the API returns them (AC-185); an inactive machine is shown only while it holds a placement in the range, which is then an R1 conflict (A15, A43).
 - Machine status is the derived display status at the current time (`domain-model.md` section 6). It is not editable here; breakdowns and maintenance are recorded on the machine page (F-MNT-1).
-- Non-working time and holidays are shaded. Unavailabilities are hatched and labelled with their kind; an open-ended breakdown runs to the right edge.
-- A bar shows the order number and lot number. Conflicted placements carry a `!` marker and a distinct outline, and the "conflicted placements" button filters the view to them (F-SCH-4, AC-88). A placement listed by `FindConflicts` is never hidden or moved by the UI (DEC-18).
-- Until the timeline exists, task M3-5 lists the conflicted placements above the queue, each with its order, stage, lot, machine, planned times and violations, and [Move...] for a Planner (AC-184). Task M3-6 decides whether the list stays next to the timeline's markers.
+- Non-working time and holidays are shaded: everything outside the working periods the API returns (DEC-45). Unavailabilities are hatched and labelled with their kind; an open-ended breakdown runs to the right edge.
+- A bar shows the order number and lot number. Conflicted placements carry a `!` marker and a distinct outline, and the "conflicted placements" button filters the view to them (F-SCH-4, AC-88). A placement listed by `FindConflicts` is never hidden or moved by the UI (DEC-18). The markers come from the conflict list (DEC-46).
+- The conflict list stays below the timeline and above the queue, with each conflicted placement's order, stage, lot, machine, planned times and violations, and [Move...] for a Planner (AC-184), because it also shows the conflicts outside the shown range (DEC-46).
+- Each violation, in the popover, the conflict list and a rejected save, links to its conflicting item when the timeline holds it: [Show machine], [Show unavailability] (its machine's page), and [Show placement] or [Show lot] (that bar and its popover) (AC-191).
 - The timeline is read-only (F-SCH-2): no drag, no resize. Changes go through the placement form (section 3), opened from "Place..." in the queue or "Move..." in the popover.
-- The default range is two weeks from the Monday of the current week, the F-NFR-5 size (~25 machines x 2 weeks).
-- The unscheduled-lots queue shows the lots the API returns, in its order (AC-174, AC-175); lots of cancelled orders never appear there. It names the stages a lot depends on with their lag; the earliest start that the placed predecessors allow is shown in the placement form (section 3). Task M3-3 builds the queue on its own on `/schedule`; the timeline above it and the [Hide queue] button come with task M3-6. The [Place...] buttons are Planner only and open the placement form (section 3, task M3-4).
+- The default range is two weeks from the Monday of the current plant week, the F-NFR-5 size (~25 machines x 2 weeks). "Day" shows one day; [< Prev] and [Next >] move by the shown length (A44).
+- The unscheduled-lots queue shows the lots the API returns, in its order (AC-174, AC-175); lots of cancelled orders never appear there. It names the stages a lot depends on with their lag; the earliest start that the placed predecessors allow is shown in the placement form (section 3). Task M3-3 built the queue on its own on `/schedule`; task M3-6 added the timeline above it and the [Hide queue] button. The [Place...] buttons are Planner only and open the placement form (section 3, task M3-4).
 
 ## 3. Lot placement form with earliest-slot suggestion
 
@@ -132,7 +133,7 @@ No slot found (`slot.none`, AC-122, AC-123):
 What task M3-4 builds and what follows:
 
 - Built in task M3-4 (AC-180, AC-181): the header with order, stage, lot, quantity and duration; the Placement part, with "Calculated when saved" for the planned end (WQ1); [Save placement], [Remove placement] for a placed lot, and [Cancel]; the rejected save, which lists each violation's text and code and the earliest allowed start, without the [Show ...] links. The form opens from [Place...] in the queue and from [Place...] or [Move...] on the lots of the order page, which also show each lot's live machine, planned start and planned end (AC-71).
-- Later: "Find earliest slot" and the "Depends on" lines with the earliest start from dependencies come with task M4-2; the [Show ...] links to the conflicting items and "Move..." in the lot popover with the timeline (task M3-6); the read-only form for a started lot with task M5-1, and until then a started lot shows no action.
+- Later: "Find earliest slot" and the "Depends on" lines with the earliest start from dependencies come with task M4-2; the [Show ...] links to the conflicting items and "Move..." in the lot popover came with the timeline (task M3-6, AC-191); the read-only form for a started lot with task M5-1, and until then a started lot shows no action.
 
 Behavior:
 

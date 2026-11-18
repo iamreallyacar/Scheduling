@@ -224,6 +224,8 @@ Order progress (F-PRG-2) = completed quantity / total quantity over the lots of 
 | A40 | A lot has at most one placement per schedule version, so placing a placed lot again moves that placement, which keeps its id. A placement start is a whole minute (A2); the 15-minute grid is the UI's only. The placement form lists only the active machines of the lot's resource type, but the API takes any machine and rejects a wrong one under R1, because the rules live on the server |
 | A41 | Until scenarios (F-SCH-12, P2), the live version is the only version the application creates; it comes with the migration that adds the version table. A version path also takes a version's id, so scenarios need no URL change (DEC-17) |
 | A42 | When the shifts or holidays change, a placement whose start is no longer in working time keeps its stored planned end, because no new end exists (A35), and `FindConflicts` lists it under R6 (AC-108) until the planner moves it. The ends of completed lots are not recomputed, because their placement is the record of where they ran (A36) |
+| A43 | An inactive machine appears on the timeline only when it holds a placement in the shown range, which is then an R1 conflict (A15); one with nothing in the range has nothing to show. Its unavailabilities are shown with it |
+| A44 | The timeline shows one day or two weeks, and two weeks start on the Monday of the current plant week by default. The API takes up to 31 days, which covers the F-NFR-5 size (about 25 machines over 2 weeks) and a month, and keeps the answer small, and only days in the years 2000 to 2999, which a plant schedule never leaves, so the day arithmetic never reaches the ends of the calendar |
 
 ## 8. Out of the model for v1
 

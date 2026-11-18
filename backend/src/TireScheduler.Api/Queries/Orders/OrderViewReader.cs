@@ -2,13 +2,11 @@ using TireScheduler.Api.Modules.MasterData;
 using TireScheduler.Api.Modules.MasterData.Machines;
 using TireScheduler.Api.Modules.Orders;
 using TireScheduler.Api.Modules.Scheduling;
-using TireScheduler.Engine;
 
 namespace TireScheduler.Api.Queries.Orders;
 
 // The order reads (DEC-29): what Orders stores, with the statuses, late flag and progress derived
-// on every read from the placements of the live version. Until task M5-1 no lot is completed, so
-// there is no completion time to pass on.
+// on every read from the placements of the live version.
 internal sealed class OrderViewReader(IOrderReader orders, IPlacementReader placements, IMasterDataReader masterData, TimeProvider clock)
 {
     public async Task<OrderResponse> GetAsync(int orderId, CancellationToken cancellationToken)
@@ -142,11 +140,5 @@ internal sealed class OrderViewReader(IOrderReader orders, IPlacementReader plac
         OrderStatusRules.Derive(order.CancelledAt, isAnyLotPlacedInVersion: order.LotIds.Any(livePlacements.ContainsKey));
 
     private bool IsLate(OrderSummary order, IReadOnlyDictionary<int, PlacementValues> livePlacements, DateTimeOffset now) =>
-        OrderLateness.IsLate(new LatenessFacts(
-            order.DueDate,
-            masterData.PlantTimeZoneId,
-            now,
-            IsCancelled: order.CancelledAt is not null,
-            PlannedEnds: [.. order.LotIds.Where(livePlacements.ContainsKey).Select(lotId => livePlacements[lotId].PlannedEnd)],
-            CompletedAt: null));
+        OrderLateRules.IsLate(order, livePlacements, masterData.PlantTimeZoneId, now);
 }

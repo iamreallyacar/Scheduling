@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { listConflictedPlacements, listUnscheduledLots } from '../api/generated/endpoints.gen';
+import { getTimeline, listConflictedPlacements, listUnscheduledLots } from '../api/generated/endpoints.gen';
 import { queryKeys } from '../api/queryKeys';
 import { SCHEDULE_VERSION } from '../api/scheduleVersion';
 
@@ -9,4 +9,8 @@ export function useUnscheduledLots() {
 
 export function useConflictedPlacements() {
   return useQuery({ queryKey: queryKeys.conflictedPlacements(SCHEDULE_VERSION), queryFn: () => listConflictedPlacements(SCHEDULE_VERSION) });
+}
+
+export function useTimeline(range: { from: string; to: string }) {
+  return useQuery({ queryKey: queryKeys.timeline(SCHEDULE_VERSION, range), queryFn: () => getTimeline(SCHEDULE_VERSION, range) });
 }

@@ -1251,6 +1251,52 @@
           }
         }
       }
+    },
+    "/api/v1/versions/{versionId}/timeline": {
+      "get": {
+        "tags": [
+          "Schedule"
+        ],
+        "operationId": "GetTimeline",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimelineResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2464,6 +2510,187 @@
           },
           "password": {
             "type": "string"
+          }
+        }
+      },
+      "TimelinePlacementResponse": {
+        "required": [
+          "placementId",
+          "plannedStart",
+          "plannedEnd",
+          "lotId",
+          "lotNo",
+          "quantity",
+          "durationMinutes",
+          "status",
+          "orderId",
+          "orderNo",
+          "product",
+          "orderIsLate",
+          "sequenceNo",
+          "resourceType"
+        ],
+        "type": "object",
+        "properties": {
+          "placementId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "plannedStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "plannedEnd": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lotId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "lotNo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "durationMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "$ref": "#/components/schemas/LotStatus"
+          },
+          "orderId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "orderNo": {
+            "type": "string"
+          },
+          "product": {
+            "$ref": "#/components/schemas/ProductReference"
+          },
+          "orderIsLate": {
+            "type": "boolean"
+          },
+          "sequenceNo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "resourceType": {
+            "$ref": "#/components/schemas/NamedReference"
+          }
+        }
+      },
+      "TimelineResourceResponse": {
+        "required": [
+          "id",
+          "name",
+          "isActive",
+          "status",
+          "workingPeriods",
+          "unavailabilities",
+          "placements"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ResourceStatus"
+          },
+          "workingPeriods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimePeriodResponse"
+            }
+          },
+          "unavailabilities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnavailabilityResponse"
+            }
+          },
+          "placements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimelinePlacementResponse"
+            }
+          }
+        }
+      },
+      "TimelineResourceTypeResponse": {
+        "required": [
+          "id",
+          "name",
+          "resources"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimelineResourceResponse"
+            }
+          }
+        }
+      },
+      "TimelineResponse": {
+        "required": [
+          "start",
+          "end",
+          "resourceTypes"
+        ],
+        "type": "object",
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resourceTypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimelineResourceTypeResponse"
+            }
+          }
+        }
+      },
+      "TimePeriodResponse": {
+        "required": [
+          "start",
+          "end"
+        ],
+        "type": "object",
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },

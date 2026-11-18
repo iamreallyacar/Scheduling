@@ -5,15 +5,16 @@ import { WithPlantTimeZone } from '../calendar/WithPlantTimeZone';
 import { QueryResult } from '../forms/QueryResult';
 import type { PlacementTarget } from './PlacementForm';
 import { useConflictedPlacements } from './scheduleQueries';
-import { ViolationList } from './ViolationList';
+import { ViolationList, type ConflictLinkRenderer } from './ViolationList';
 
 interface ConflictListProps {
   /** Opens the placement form; null when the user cannot plan. */
   onMove: ((target: PlacementTarget) => void) | null;
+  renderConflictLink: ConflictLinkRenderer;
 }
 
 /** The placements that later facts made break a rule (F-SCH-4, AC-184). The server finds them; the page only lists them. */
-export function ConflictList({ onMove }: ConflictListProps) {
+export function ConflictList({ onMove, renderConflictLink }: ConflictListProps) {
   const conflictedPlacements = useConflictedPlacements();
   return (
     <QueryResult query={conflictedPlacements}>
@@ -23,7 +24,9 @@ export function ConflictList({ onMove }: ConflictListProps) {
           {placements.length === 0 ? (
             <p className="page-message">No placement breaks a rule.</p>
           ) : (
-            <WithPlantTimeZone>{(timeZone) => <ConflictTable placements={placements} timeZone={timeZone} onMove={onMove} />}</WithPlantTimeZone>
+            <WithPlantTimeZone>
+              {(timeZone) => <ConflictTable placements={placements} timeZone={timeZone} onMove={onMove} renderConflictLink={renderConflictLink} />}
+            </WithPlantTimeZone>
           )}
         </>
       )}
@@ -31,7 +34,7 @@ export function ConflictList({ onMove }: ConflictListProps) {
   );
 }
 
-function ConflictTable({ placements, timeZone, onMove }: ConflictListProps & { placements: ConflictedPlacementResponse[]; timeZone: string }) {
+function ConflictTable({ placements, timeZone, onMove, renderConflictLink }: ConflictListProps & { placements: ConflictedPlacementResponse[]; timeZone: string }) {
   return (
     <>
       <p>Times in {timeZone}.</p>
@@ -60,7 +63,7 @@ function ConflictTable({ placements, timeZone, onMove }: ConflictListProps & { p
               <td>{formatPlantTime(placement.plannedStart, timeZone)}</td>
               <td>{formatPlantTime(placement.plannedEnd, timeZone)}</td>
               <td>
-                <ViolationList violations={placement.violations} timeZone={timeZone} />
+                <ViolationList violations={placement.violations} timeZone={timeZone} renderConflictLink={renderConflictLink} />
               </td>
               {onMove !== null && (
                 <td>

@@ -1,7 +1,7 @@
 namespace TireScheduler.Api.Modules.Scheduling;
 
 // The public read interface of Scheduling for Queries, which derives the machine status from it
-// (DEC-39).
+// (DEC-39) and shows the unavailabilities on the timeline (DEC-45).
 public interface IUnavailabilityReader
 {
     // The kinds of the unavailabilities of each resource that cover the instant: from the start
@@ -11,4 +11,8 @@ public interface IUnavailabilityReader
         IReadOnlyCollection<int> resourceIds,
         DateTimeOffset instant,
         CancellationToken cancellationToken);
+
+    // The unavailabilities that overlap the half-open range, one without an end from its start
+    // on, by start, then id.
+    Task<IReadOnlyList<UnavailabilityResponse>> OverlappingAsync(DateTimeOffset rangeStart, DateTimeOffset rangeEnd, CancellationToken cancellationToken);
 }
