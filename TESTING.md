@@ -25,7 +25,7 @@ Backend, in `backend/tests/TireScheduler.Api.Tests`:
 - `PostgresFixture`: one real PostgreSQL container per test run, and a new empty database for each caller, so tests cannot see each other's rows. The API's migrations create the tables.
 - `SchedulerApiFixture`: one running API on its own empty database, shared by the tests of one class.
 - `SchedulerApiFactory`: starts the API and gives browser-like clients over https. Signs in as the first Admin, or as a user of a given role that it creates directly, because v1 has no user management API (F-AUTH-3). Sets the plant time zone of `acceptance-criteria.md` section 1 unless a test passes another, and can fix the clock and replace services.
-- `FakeLotActivity`: stands in for Scheduling and Progress behind the Orders ports `ILotPlacements` and `ILotProgress`, so the order rules that depend on placed and started lots are tested before those modules store anything.
+- `FakeLotActivity`: stands in for Scheduling and Progress behind the Orders ports `ILotPlacements` and `ILotProgress` and the Scheduling read interface `IPlacementReader`, so the order rules and the unscheduled-lots queue that depend on placed and started lots are tested before those modules store anything.
 - `TestData/`: the builders that create rows through the API, one class per module with one method per kind of row and the paths of its routes (DEC-38). `MasterDataTestData` builds machine types, machines, products, routings, calendar shifts and holidays; `OrderTestData` builds orders, and its create and cancel helpers read the order back, because order writes answer without it (DEC-29). `SchedulingTestData` builds unavailabilities. A test class never calls another test class; a builder that a second class needs moves here.
 - `ApiSession`: does what the browser and the frontend client do: keeps cookies between requests and sends the anti-forgery token with state-changing requests.
 - `ProblemAssert`: checks that a response is "Rejected" in the sense of `acceptance-criteria.md` section 1.
@@ -47,7 +47,7 @@ Frontend, in `frontend/src/testing`:
 
 - No CI runs the checks yet; they are run by hand (CLAUDE.md, section VERIFICATION TOOLS).
 - The property tests and their library come with task M4-1, and Playwright with the first end-to-end flow.
-- AC-19, AC-49 and AC-51 are tested through `FakeLotActivity` until tasks M3-4 and M5-1 test them with real placements and progress.
+- AC-19, AC-49, AC-51 and AC-174 are tested through `FakeLotActivity` until tasks M3-4 and M5-1 test them with real placements and progress.
 - Order status and `isLate` are tested through the API without placements or progress, so only Pending and Cancelled occur and no planned end counts, until tasks M3-4 and M5-1 add them.
 
 ## Pitfalls

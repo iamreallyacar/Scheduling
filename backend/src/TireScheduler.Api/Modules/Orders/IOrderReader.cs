@@ -8,6 +8,10 @@ public interface IOrderReader
     // A missing order is answered 404.
     Task<OrderDetails> GetAsync(int orderId, CancellationToken cancellationToken);
 
+    // Every order with its operations, lots and dependencies, in the default sort of the order
+    // list (AC-68), for the views derived from every lot (A39).
+    Task<IReadOnlyList<OrderDetails>> ListAllDetailsAsync(CancellationToken cancellationToken);
+
     // One page of the orders matching the criteria; page and pageSize are 1 or more.
     Task<OrderSummaryPage> ListPageAsync(OrderListCriteria criteria, int page, int pageSize, CancellationToken cancellationToken);
 

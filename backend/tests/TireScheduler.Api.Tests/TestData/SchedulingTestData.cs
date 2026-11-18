@@ -5,6 +5,8 @@ namespace TireScheduler.Api.Tests.TestData;
 // Scheduling rows built through the API, as a Planner would; one method per kind of row.
 internal static class SchedulingTestData
 {
+    public static string UnscheduledLotsPath(string versionId) => $"/api/v1/versions/{versionId}/unscheduled-lots";
+
     public static string UnavailabilitiesPath(int resourceId) => $"{MasterDataTestData.ResourcesPath}/{resourceId}/unavailabilities";
 
     public static string UnavailabilityPath(int resourceId, int unavailabilityId) => $"{UnavailabilitiesPath(resourceId)}/{unavailabilityId}";

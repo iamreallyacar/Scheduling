@@ -50,7 +50,7 @@ flowchart LR
 | Orders | Order, Operation, OperationDependency, Lot | MasterData (routing at order creation), Engine (lot duration, DEC-28) |
 | Scheduling | ScheduleVersion, Placement, Unavailability; calls the engine | MasterData (resources, calendars), Orders (lots, dependencies), Engine |
 | Progress | LotProgress | Orders, Scheduling (a lot must be placed in the live version before it starts) |
-| Queries | Read models only, including all derived statuses and `isLate`; serves the order reads (DEC-29) and the machine reads (DEC-39) | All modules, read-only; Engine (late flag, DEC-30) |
+| Queries | Read models only, including all derived statuses and `isLate`; serves the order reads (DEC-29), the machine reads (DEC-39) and the unscheduled-lots queue | All modules, read-only; Engine (late flag, DEC-30) |
 | Engine | Scheduling rules and search over plain values | Nothing |
 | Plant generator (`TireScheduler.PlantGenerator`) | Parameters, presets and a seeded synthetic plant as plain values | Engine (lot duration) |
 | Plant loader (`TireScheduler.PlantLoader`) | Writing a generated plant into a running API as an Admin | Plant generator; the API over HTTP only |
@@ -128,7 +128,7 @@ Implements A2.
 - Query keys are defined in `src/api/queryKeys.ts`, and after every successful write the query client reads the cached queries again in one place; forms and pages refresh nothing themselves (DEC-36). Reason: a write changes data that other areas show, and a refresh list per form misses some of them silently.
 - One fetch wrapper (`src/api/request.ts`) adds the anti-forgery token and turns every rejection into an error that carries the problem details. The UI uses its `code` for behavior and shows `detail` to the user; form fields show the messages of their field.
 - Routes are split per module area.
-- The UI passes `live` as the version everywhere, through one setting. Reason: a scenario switcher (P2) then changes one value.
+- The UI passes `live` as the version everywhere, through one setting (`src/api/scheduleVersion.ts`). Reason: a scenario switcher (P2) then changes one value.
 - Generated types and endpoint functions in `src/api/generated` are never edited by hand (DEC-27). Pages call the API only through the endpoint functions, which `npm run generate:api` writes from the OpenAPI document with the method, URL and response type of each operation (DEC-37). Reason: a hand-written list let the method and the response type differ from the server.
 - The timeline (F-SCH-2) is read-only in v1, so it can be a simple custom component. Drag-and-drop (P1) is when a Gantt library should be evaluated.
 
@@ -241,7 +241,7 @@ flowchart LR
 
 ### Frontend
 
-- Owner: `frontend/src`, one folder per area (`auth`, `orders`, `machines`, `calendar`, `products`, `routing`, `shell`, `forms`, `api`).
+- Owner: `frontend/src`, one folder per area (`auth`, `orders`, `machines`, `schedule`, `calendar`, `products`, `routing`, `shell`, `forms`, `api`).
 - Rules: Design, Frontend rules.
 - Detail: screens in [wireframes.md](REQUIREMENTS/wireframes.md).
 

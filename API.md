@@ -7,7 +7,7 @@ The interfaces between the browser and the API: conventions, routes, scheduling 
 - REST over JSON, versioned by path: `/api/v1/...`. The OpenAPI document is generated from the code and kept in `backend/openapi/tire-scheduler-v1.json`, where a test keeps it up to date; the frontend types are generated from it (DEC-27).
 - Times are ISO 8601 UTC (`2026-11-04T14:00:00Z`). Dates (due dates, holidays) are plant-local `YYYY-MM-DD`. Shift times are plant-local `HH:mm`, where `24:00` is the midnight that ends a day (AC-144).
 - Schedule versions in the path. Everything that depends on a version sits under `/versions/{versionId}/...`. `live` is an alias for the live version, and in v1 the client always uses it (DEC-17).
-- Lists are paged (`page`, `pageSize`) with explicit `sort` and filter query parameters (F-ORD-4). Master data lists are small and returned whole (A22).
+- Lists are paged (`page`, `pageSize`) with explicit `sort` and filter query parameters (F-ORD-4). Master data lists are small and returned whole (A22), and so is the unscheduled-lots queue (A39).
 - `sort` names one field of the list items, `-` in front sorts it descending (`sort=-dueDate`). A filter that takes several values repeats the parameter (`status=Pending&status=Scheduled`).
 - Concurrent-edit protection (F-NFR-3) is P1. Keep room for it: every mutable entity can later gain a version column and an `ETag`/`If-Match` pair without changing URLs.
 - No bulk endpoints in v1 apart from the order proposal commit. CSV import (P1) adds them.

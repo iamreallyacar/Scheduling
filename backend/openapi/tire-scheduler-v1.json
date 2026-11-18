@@ -1106,6 +1106,39 @@
           }
         }
       }
+    },
+    "/api/v1/versions/{versionId}/unscheduled-lots": {
+      "get": {
+        "tags": [
+          "Schedule"
+        ],
+        "operationId": "ListUnscheduledLots",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UnscheduledLotResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1324,6 +1357,27 @@
           },
           "name": {
             "type": "string"
+          }
+        }
+      },
+      "LotPredecessorResponse": {
+        "required": [
+          "sequenceNo",
+          "resourceType",
+          "minLagMinutes"
+        ],
+        "type": "object",
+        "properties": {
+          "sequenceNo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "resourceType": {
+            "$ref": "#/components/schemas/NamedReference"
+          },
+          "minLagMinutes": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -2189,6 +2243,63 @@
           }
         }
       },
+      "UnscheduledLotResponse": {
+        "required": [
+          "id",
+          "lotNo",
+          "quantity",
+          "durationMinutes",
+          "orderId",
+          "orderNo",
+          "dueDate",
+          "sequenceNo",
+          "resourceType",
+          "predecessors"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "lotNo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "durationMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "orderId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "orderNo": {
+            "type": "string"
+          },
+          "dueDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "sequenceNo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "resourceType": {
+            "$ref": "#/components/schemas/NamedReference"
+          },
+          "predecessors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LotPredecessorResponse"
+            }
+          }
+        }
+      },
       "UpdateResourceRequest": {
         "required": [
           "name",
@@ -2244,6 +2355,9 @@
     },
     {
       "name": "Unavailability"
+    },
+    {
+      "name": "Schedule"
     }
   ]
 }

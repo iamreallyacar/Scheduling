@@ -106,3 +106,6 @@ export const updateUnavailability = (resourceId: Api.UpdateUnavailabilityData['p
 
 export const deleteUnavailability = (resourceId: Api.DeleteUnavailabilityData['path']['resourceId'], id: Api.DeleteUnavailabilityData['path']['id']) =>
   requestApi<Api.DeleteUnavailabilityResponse>('DELETE', { url: '/api/v1/resources/{resourceId}/unavailabilities/{id}', path: { resourceId, id } } satisfies Api.DeleteUnavailabilityData);
+
+export const listUnscheduledLots = (versionId: Api.ListUnscheduledLotsData['path']['versionId']) =>
+  requestApi<Api.ListUnscheduledLotsResponse>('GET', { url: '/api/v1/versions/{versionId}/unscheduled-lots', path: { versionId } } satisfies Api.ListUnscheduledLotsData);

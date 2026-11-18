@@ -49,7 +49,8 @@ internal sealed class OrderViewReader(IOrderReader orders, IMasterDataReader mas
                 LotNo = lot.LotNo,
                 Quantity = lot.Quantity,
                 DurationMinutes = lot.DurationMinutes,
-                Status = LotStatusRules.Derive(orderCancelledAt),
+                // The order reads take the live placements in task M3-4 (AC-71).
+                Status = LotStatusRules.Derive(orderCancelledAt, isPlacedInVersion: false),
             })
             .ToList(),
     };

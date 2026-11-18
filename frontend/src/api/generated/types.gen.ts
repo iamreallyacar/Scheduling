@@ -59,6 +59,12 @@ export type HolidayResponse = {
     name: string;
 };
 
+export type LotPredecessorResponse = {
+    sequenceNo: number;
+    resourceType: NamedReference;
+    minLagMinutes: number;
+};
+
 export type LotResponse = {
     id: number;
     lotNo: number;
@@ -261,6 +267,19 @@ export type UnavailabilityResponse = {
     start: string;
     end: null | string;
     reason: null | string;
+};
+
+export type UnscheduledLotResponse = {
+    id: number;
+    lotNo: number;
+    quantity: number;
+    durationMinutes: number;
+    orderId: number;
+    orderNo: string;
+    dueDate: string;
+    sequenceNo: number;
+    resourceType: NamedReference;
+    predecessors: Array<LotPredecessorResponse>;
 };
 
 export type UpdateResourceRequest = {
@@ -886,3 +905,21 @@ export type UpdateUnavailabilityResponses = {
 };
 
 export type UpdateUnavailabilityResponse = UpdateUnavailabilityResponses[keyof UpdateUnavailabilityResponses];
+
+export type ListUnscheduledLotsData = {
+    body?: never;
+    path: {
+        versionId: string;
+    };
+    query?: never;
+    url: '/api/v1/versions/{versionId}/unscheduled-lots';
+};
+
+export type ListUnscheduledLotsResponses = {
+    /**
+     * OK
+     */
+    200: Array<UnscheduledLotResponse>;
+};
+
+export type ListUnscheduledLotsResponse = ListUnscheduledLotsResponses[keyof ListUnscheduledLotsResponses];

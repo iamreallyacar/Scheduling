@@ -12,6 +12,7 @@ public static class SchedulingModule
         services.AddModuleDbContext<SchedulingDbContext>(SchedulingDbContext.Schema);
         services.AddScoped<UnavailabilityRegister>();
         services.AddScoped<IUnavailabilityReader, UnavailabilityReader>();
+        services.AddScoped<IPlacementReader, PlacementReader>();
         services.AddScoped<IResourceReferences, UnavailabilityReferences>();
         services.AddScoped<ILotPlacements, LotPlacements>();
         return services;

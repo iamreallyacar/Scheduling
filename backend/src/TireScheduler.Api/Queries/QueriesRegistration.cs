@@ -1,5 +1,6 @@
 using TireScheduler.Api.Queries.Machines;
 using TireScheduler.Api.Queries.Orders;
+using TireScheduler.Api.Queries.Schedule;
 
 namespace TireScheduler.Api.Queries;
 
@@ -10,6 +11,7 @@ public static class QueriesRegistration
     {
         services.AddScoped<OrderViewReader>();
         services.AddScoped<MachineViewReader>();
+        services.AddScoped<UnscheduledLotReader>();
         return services;
     }
 
@@ -17,6 +19,7 @@ public static class QueriesRegistration
     {
         OrderViewEndpoints.Map(api);
         MachineViewEndpoints.Map(api);
+        ScheduleViewEndpoints.Map(api);
         return api;
     }
 }

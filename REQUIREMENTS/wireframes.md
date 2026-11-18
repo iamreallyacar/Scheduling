@@ -39,10 +39,10 @@ Features F-SCH-2, F-SCH-4, F-SCH-7 and F-MNT-2; tasks M3-3, M3-5 and M3-6. Route
 |  Inspect 1      Idle    |                   [=1038/L4=]   [=1051/L4=]    ......... ......... |
 +-------------------------+--------------------------------------------------------------------+
 | Unscheduled lots (12)                                                    [Hide queue]        |
-| Order   Stage        Lot  Qty  Duration  Due         Earliest from deps                      |
-| 1063    Building     L2   200  6h 40m    Fri 20 Nov  -                     [Place...]        |
-| 1063    Curing       L3   200  20h 30m   Fri 20 Nov  after L2 + 2h         [Place...]        |
-| 1064    Extrusion    L1   120  2h 00m    Mon 23 Nov  -                     [Place...]        |
+| Order   Stage        Lot  Qty  Duration (min)  Due         Depends on                          |
+| 1063    1 Building   1    200  400             2026-11-20  -                     [Place...]    |
+| 1063    2 Curing     1    200  1230            2026-11-20  1 Building, lag 120   [Place...]    |
+| 1064    1 Extrusion  1    120  120             2026-11-23  -                     [Place...]    |
 +----------------------------------------------------------------------------------------------+
 ```
 
@@ -74,7 +74,7 @@ Behavior:
 - A bar shows the order number and lot number. Conflicted placements carry a `!` marker and a distinct outline, and the "conflicted placements" button filters the view to them (F-SCH-4, AC-88). A placement listed by `FindConflicts` is never hidden or moved by the UI (DEC-18).
 - The timeline is read-only (F-SCH-2): no drag, no resize. Changes go through the placement form (section 3), opened from "Place..." in the queue or "Move..." in the popover.
 - The default range is two weeks from the Monday of the current week, the F-NFR-5 size (~25 machines x 2 weeks).
-- The unscheduled-lots queue is sorted by due date, then order number. Lots of cancelled orders never appear there. The [Place...] buttons are Planner only.
+- The unscheduled-lots queue shows the lots the API returns, in its order (AC-174, AC-175); lots of cancelled orders never appear there. It names the stages a lot depends on with their lag; the earliest start that the placed predecessors allow is shown in the placement form (section 3). Task M3-3 builds the queue on its own on `/schedule`; the timeline above it and the [Hide queue] button come with task M3-6. The [Place...] buttons are Planner only and come with the placement form (task M3-4).
 
 ## 3. Lot placement form with earliest-slot suggestion
 

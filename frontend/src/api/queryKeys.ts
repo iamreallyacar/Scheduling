@@ -17,6 +17,7 @@ export const queryKeys = {
   holidays: ['holidays'],
   orderPage: (query: OrderListQuery) => ['orders', 'page', query],
   order: (orderId: number) => ['orders', orderId],
+  unscheduledLots: (versionId: string) => ['versions', versionId, 'unscheduled-lots'],
 } as const;
 
 export function isCurrentUserQuery(query: Query): boolean {

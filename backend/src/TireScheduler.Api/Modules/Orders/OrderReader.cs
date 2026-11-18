@@ -10,40 +10,11 @@ internal sealed class OrderReader(OrdersDbContext context, IMasterDataReader mas
 {
     public async Task<OrderDetails> GetAsync(int orderId, CancellationToken cancellationToken)
     {
-        Order order = await context.Orders
-            .Include(o => o.Operations).ThenInclude(operation => operation.Lots)
-            .Include(o => o.Dependencies)
-            .AsSplitQuery()
-            .AsNoTracking()
+        Order order = await WithOperationsAndDependencies(context.Orders)
             .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken)
             ?? throw ApiProblemException.NotFound("This order");
 
-        ProductReference product = await ProductOfAsync(order.Id, order.ProductId, cancellationToken);
-        int[] resourceTypeIds = order.Operations.Select(operation => operation.ResourceTypeId).Distinct().ToArray();
-        IReadOnlyDictionary<int, NamedReference> resourceTypes = await masterData.GetResourceTypesAsync(resourceTypeIds, cancellationToken);
-        Dictionary<int, int> sequenceNoByOperationId = order.Operations.ToDictionary(operation => operation.Id, operation => operation.SequenceNo);
-
-        return new OrderDetails
-        {
-            Order = ToSummary(order, product),
-            Operations = order.Operations
-                .OrderBy(operation => operation.SequenceNo)
-                .Select(operation => ToDetails(
-                    operation,
-                    resourceTypes.GetValueOrDefault(operation.ResourceTypeId)
-                        ?? throw new InvalidOperationException($"Operation {operation.Id} needs resource type {operation.ResourceTypeId}, which does not exist.")))
-                .ToList(),
-            Dependencies = order.Dependencies
-                .Select(dependency => new OperationDependencyResponse
-                {
-                    PredecessorSequenceNo = sequenceNoByOperationId[dependency.PredecessorOperationId],
-                    SuccessorSequenceNo = sequenceNoByOperationId[dependency.SuccessorOperationId],
-                    MinLagMinutes = dependency.MinLagMinutes,
-                })
-                .OrderBy(dependency => dependency.SuccessorSequenceNo)
-                .ThenBy(dependency => dependency.PredecessorSequenceNo)
-                .ToList(),
-        };
+        return (await DetailAsync([order], cancellationToken))[0];
     }
 
     public async Task<OrderSummaryPage> ListPageAsync(OrderListCriteria criteria, int page, int pageSize, CancellationToken cancellationToken)
@@ -67,6 +38,53 @@ internal sealed class OrderReader(OrdersDbContext context, IMasterDataReader mas
     {
         IQueryable<Order> orders = await MatchingAsync(criteria, cancellationToken);
         return await SummarizeAsync(await orders.ToListAsync(cancellationToken), cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<OrderDetails>> ListAllDetailsAsync(CancellationToken cancellationToken)
+    {
+        List<Order> orders = await WithOperationsAndDependencies(Sorted(context.Orders, OrderSort.Default)).ToListAsync(cancellationToken);
+        return await DetailAsync(orders, cancellationToken);
+    }
+
+    private static IQueryable<Order> WithOperationsAndDependencies(IQueryable<Order> orders) =>
+        orders
+            .Include(o => o.Operations).ThenInclude(operation => operation.Lots)
+            .Include(o => o.Dependencies)
+            .AsSplitQuery()
+            .AsNoTracking();
+
+    private async Task<IReadOnlyList<OrderDetails>> DetailAsync(IReadOnlyList<Order> orders, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<OrderSummary> summaries = await SummarizeAsync(orders, cancellationToken);
+        int[] resourceTypeIds = orders.SelectMany(order => order.Operations).Select(operation => operation.ResourceTypeId).Distinct().ToArray();
+        IReadOnlyDictionary<int, NamedReference> resourceTypes = await masterData.GetResourceTypesAsync(resourceTypeIds, cancellationToken);
+        return orders.Select((order, index) => ToDetails(order, summaries[index], resourceTypes)).ToList();
+    }
+
+    private static OrderDetails ToDetails(Order order, OrderSummary summary, IReadOnlyDictionary<int, NamedReference> resourceTypes)
+    {
+        Dictionary<int, int> sequenceNoByOperationId = order.Operations.ToDictionary(operation => operation.Id, operation => operation.SequenceNo);
+        return new OrderDetails
+        {
+            Order = summary,
+            Operations = order.Operations
+                .OrderBy(operation => operation.SequenceNo)
+                .Select(operation => ToDetails(
+                    operation,
+                    resourceTypes.GetValueOrDefault(operation.ResourceTypeId)
+                        ?? throw new InvalidOperationException($"Operation {operation.Id} needs resource type {operation.ResourceTypeId}, which does not exist.")))
+                .ToList(),
+            Dependencies = order.Dependencies
+                .Select(dependency => new OperationDependencyResponse
+                {
+                    PredecessorSequenceNo = sequenceNoByOperationId[dependency.PredecessorOperationId],
+                    SuccessorSequenceNo = sequenceNoByOperationId[dependency.SuccessorOperationId],
+                    MinLagMinutes = dependency.MinLagMinutes,
+                })
+                .OrderBy(dependency => dependency.SuccessorSequenceNo)
+                .ThenBy(dependency => dependency.PredecessorSequenceNo)
+                .ToList(),
+        };
     }
 
     private async Task<IQueryable<Order>> MatchingAsync(OrderListCriteria criteria, CancellationToken cancellationToken)
@@ -170,10 +188,6 @@ internal sealed class OrderReader(OrdersDbContext context, IMasterDataReader mas
             })
             .ToList(),
     };
-
-    private async Task<ProductReference> ProductOfAsync(int orderId, int productId, CancellationToken cancellationToken) =>
-        (await masterData.GetProductsAsync([productId], cancellationToken)).GetValueOrDefault(productId)
-        ?? throw MissingProduct(orderId, productId);
 
     // A product used by an order cannot be deleted (AC-20), so this means a bug.
     private static InvalidOperationException MissingProduct(int orderId, int productId) =>

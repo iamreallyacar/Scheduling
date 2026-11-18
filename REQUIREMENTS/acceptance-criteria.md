@@ -1,6 +1,6 @@
 # Acceptance Criteria
 
-Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules and engine search) on 2026-11-06; section 6 in task M2-7 and section 7 in task M3-2 on 2026-11-18. Sources: [features.md](features.md), [domain-model.md](domain-model.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [decisions.md](decisions.md).
+Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules and engine search) on 2026-11-06; section 6 in task M2-7 and section 7 in task M3-2 and section 8 in task M3-3 on 2026-11-18. Sources: [features.md](features.md), [domain-model.md](domain-model.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [decisions.md](decisions.md).
 
 ## 1. How to read this
 
@@ -332,4 +332,15 @@ AC-20 covers a resource that has an unavailability: deleting it is rejected, nam
 |---|---|---|---|---|
 | AC-172 | Resources with unavailabilities | A signed-in user of any role reads the machine list or one machine | Each machine has a `status`: `Down` when a breakdown covers now, otherwise `Maintenance` when planned maintenance covers now, otherwise `Idle` (`domain-model.md` section 6). An unavailability covers the time from its start up to, not including, its end; one without an end covers everything from its start on. `Running` follows with lot progress (task M5-1). The reads come from Queries (DEC-39); the machine writes answer without a status (AC-28) | API |
 | AC-173 | The machine register and the machine page | They are shown | Each machine shows the `status` the API returns; neither page derives it. Each machine name in the register opens its machine page | UI |
+
+## 8. M3 Scheduling
+
+Unless a row says otherwise, the version is the live version, named `live` in the path (DEC-17). Assumptions are A39 in `domain-model.md` section 7.
+
+### F-SCH-7 Unscheduled-lots queue
+
+| ID | Given | When | Then | Level |
+|---|---|---|---|---|
+| AC-174 | Orders with lots, one lot placed in the live version, a cancelled order and a deleted order | A signed-in user of any role reads `GET /api/v1/versions/live/unscheduled-lots` | Every lot whose derived status in that version is Unscheduled (`domain-model.md` section 6), so none of a cancelled or deleted order and none placed in the version. Each with its id, lot number, quantity and `durationMinutes`; its order's id, order number and due date; its operation's sequence number and resource type; and the operations it depends on, each with sequence number, resource type and lag. Sorted by due date, then order number, then sequence number, and returned whole (A39). The answer comes from Queries. A version that does not exist answers as in AC-23 | API |
+| AC-175 | The schedule page (`/schedule`, `wireframes.md` section 2) | Anyone opens it | It shows the live version as a fixed label and lists the lots the API returns, in that order, with their count: the order number linking to the order page, the stage with its resource type, lot number, quantity, duration in minutes, due date, and each stage it depends on with its lag, or "-" when there is none. The page filters, sorts and computes nothing. With no lot in the answer it says that every lot is placed | UI |
 

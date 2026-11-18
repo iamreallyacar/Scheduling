@@ -9,6 +9,7 @@ import { OrderListPage } from './orders/OrderListPage';
 import { OrderPage } from './orders/OrderPage';
 import { ProductRegisterPage } from './products/ProductRegisterPage';
 import { RoutingPage } from './routing/RoutingPage';
+import { SchedulePage } from './schedule/SchedulePage';
 import { AppShell } from './shell/AppShell';
 import { NotFoundPage } from './shell/NotFoundPage';
 
@@ -22,6 +23,7 @@ export function App() {
           <Route index element={<Navigate to="/machines" replace />} />
           <Route path="/orders" element={<OrderListPage />} />
           <Route path="/orders/:orderId" element={<OrderPage />} />
+          <Route path="/schedule" element={<SchedulePage />} />
           <Route path="/machines" element={<MachineRegisterPage />} />
           <Route path="/machines/:machineId" element={<MachinePage />} />
           <Route path="/calendar" element={<CalendarPage />} />
