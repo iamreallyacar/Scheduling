@@ -10,6 +10,10 @@ public static class PlantTime
         return EarliestInstant(date.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified), zone);
     }
 
+    // A plant-local wall-clock time as a UTC instant, read as EarliestInstant reads it (A27).
+    public static DateTimeOffset LocalToUtc(DateTime localTime, string timeZoneId) =>
+        EarliestInstant(DateTime.SpecifyKind(localTime, DateTimeKind.Unspecified), TimeZoneInfo.FindSystemTimeZoneById(timeZoneId));
+
     // A local time that occurs twice gives its first occurrence; one inside a DST gap gives the
     // instant the gap ends, the first local time that exists after it.
     internal static DateTimeOffset EarliestInstant(DateTime localTime, TimeZoneInfo zone)

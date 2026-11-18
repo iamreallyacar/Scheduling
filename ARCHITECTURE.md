@@ -50,7 +50,7 @@ flowchart LR
 | Orders | Order, Operation, OperationDependency, Lot | MasterData (routing at order creation), Engine (lot duration, DEC-28) |
 | Scheduling | ScheduleVersion, Placement, Unavailability; calls the engine | MasterData (resources, calendars), Orders (lots, dependencies), Engine |
 | Progress | LotProgress | Orders, Scheduling (a lot must be placed in the live version before it starts) |
-| Queries | Read models only, including all derived statuses and `isLate`; serves the order reads (DEC-29) | All modules, read-only; Engine (late flag, DEC-30) |
+| Queries | Read models only, including all derived statuses and `isLate`; serves the order reads (DEC-29) and the machine reads (DEC-39) | All modules, read-only; Engine (late flag, DEC-30) |
 | Engine | Scheduling rules and search over plain values | Nothing |
 | Plant generator (`TireScheduler.PlantGenerator`) | Parameters, presets and a seeded synthetic plant as plain values | Engine (lot duration) |
 | Plant loader (`TireScheduler.PlantLoader`) | Writing a generated plant into a running API as an Admin | Plant generator; the API over HTTP only |
@@ -65,7 +65,7 @@ Rules every part must follow, each with its reason.
 - One API instance, one app, one database, no services. Reason: 2-5 planners and 15-25 machines do not justify more.
 - Each module owns its tables, in its own database schema, and no module reads another module's tables. Reason: modules are used only through their public interface, which keeps them replaceable.
 - Dependencies point downward in the parts table and never form a cycle. Reason: a convention the compiler cannot check, so an architecture test enforces it on every commit (DEC-23).
-- Reading upward goes through ports (DEC-16). Orders, to change, cancel or delete an order, needs "is any lot placed in the live version?" (`ILotPlacements`, implemented by Scheduling) and "has any lot started?" (`ILotProgress`, implemented by Progress). MasterData, before deleting a product or resource type, asks the modules above it which of their rows use it (`IProductReferences`, `IResourceTypeReferences`, implemented by Orders; A14). Scheduling, for R8, needs "is this lot completed?" (Progress). The lower module declares the interface; the higher module implements it and registers it in dependency injection. Reason: source-code dependencies still point downward. Keep these ports few and read-only. The one write port is `ILotPlacements.RemoveUnstartedAsync`, with which cancelling an order removes its placements in the same transaction (DEC-33).
+- Reading upward goes through ports (DEC-16). Orders, to change, cancel or delete an order, needs "is any lot placed in the live version?" (`ILotPlacements`, implemented by Scheduling) and "has any lot started?" (`ILotProgress`, implemented by Progress). MasterData, before deleting a product, resource type or resource, asks the modules above it which of their rows use it (`IProductReferences`, `IResourceTypeReferences`, implemented by Orders; `IResourceReferences`, implemented by Scheduling; A14). Scheduling, for R8, needs "is this lot completed?" (Progress). The lower module declares the interface; the higher module implements it and registers it in dependency injection. Reason: source-code dependencies still point downward. Keep these ports few and read-only. The one write port is `ILotPlacements.RemoveUnstartedAsync`, with which cancelling an order removes its placements in the same transaction (DEC-33).
 - Statuses are derived, never stored, and computed in Queries (`domain-model.md` section 6). Reason: lot, operation and order status need placements (Scheduling) and progress (Progress), and no module may write another module's status.
 - Each module registers its services with one extension method and maps its own endpoints with another, into the `/api/v1` group that `Program.cs` passes in; endpoints are minimal API route groups (DEC-25, DEC-35). Reason: one place per module that the startup code calls.
 - Errors, Security and Database depend on no module. Reason: every module uses them.
@@ -82,7 +82,7 @@ Implements A2.
 
 - The database stores `timestamptz` in UTC, and the API sends and receives UTC.
 - The plant time zone is one IANA id in MasterData settings (`Plant:TimeZone`, required, checked at startup). Every calendar answer carries it, and the UI renders in the plant zone, not the browser zone. Reason: every planner sees the same wall clock.
-- Calendar shift times and holiday dates are plant-local, and only the engine converts between local and UTC, using the zone id passed in.
+- Calendar shift times and holiday dates are plant-local, and on the server only the engine converts between local and UTC, using the zone id passed in. The UI converts only to show times on the plant's wall clock and to send the times a planner types as UTC (DEC-40, A38).
 - Working time is measured in elapsed real time. On a DST day a local time that does not exist is skipped and one that occurs twice counts both occurrences, so the 3x8h pattern yields 23 or 25 working hours that day. Engine tests include a spring-forward and a fall-back case.
 - Dependency lag is elapsed real time and ignores calendars (A8).
 - A due date is a plant-local date, due at the end of that local day (DEC-22).
@@ -107,12 +107,12 @@ Implements A2.
 - Constraints back the domain rules where possible: unique `Product.code`, unique `(product, sequenceNo)`, routing duration values and lags within their ranges, unique `(version, lot)` on placements, positive quantities (A7).
 - R2 is also guarded by a PostgreSQL exclusion constraint on placements over `(version, resource, tstzrange(plannedStart, plannedEnd))`; touching ranges are allowed (half-open ranges). Reason: a race between two requests cannot double-book a resource.
 - A routing is replaced as a whole in one transaction that locks the product row. Reason: two saves of the same routing run one after the other. Its stages get new ids on every save; nothing outside the routing refers to them (A1, A24).
-- R3 and R4 span tables, so no single constraint covers them. A placement command locks the resource row and the order row, builds the engine snapshot, validates and writes in one transaction; MasterData and Orders lock their own row when Scheduling calls them (DEC-33). Open-ended unavailabilities are stored with an infinite upper bound.
+- R3 and R4 span tables, so no single constraint covers them. A placement command locks the resource row and the order row, builds the engine snapshot, validates and writes in one transaction; MasterData and Orders lock their own row when Scheduling calls them (DEC-33). An open-ended unavailability is stored without an end, which every overlap check reads as infinite (DEC-41).
 - Later facts never delete placements (domain-model.md section 5, DEC-18). The fact is saved anyway (it is true), affected `plannedEnd` values are recomputed, and `FindConflicts` lists the placements that now break a rule.
 - Soft-deleted orders are excluded by a global query filter (F-NFR-1), and the unique index on the order number leaves them out, so a deleted order frees its number (A25). Cancel is a state change, not a delete.
 - An order is changed, cancelled or deleted in one transaction that locks its row first, like a placement command, so the checks on its lots and the change cannot interleave with a placement of those lots.
 - Modules keep the ids of another module's rows without a foreign key (for example `Order.ProductId`), because a constraint would tie the schemas together. The delete check goes through the ports above instead.
-- The live schedule version row is created by the first migration.
+- The live schedule version row is created by the migration that adds the schedule version table (task M3-4).
 - Seed and demo data come from the plant generator and are written by the plant loader, a separate program that calls the API like any client, so the API never loads them on startup (DEC-32).
 
 ### Error and API rules

@@ -180,6 +180,8 @@ export type ResourceResponse = {
     isActive: boolean;
 };
 
+export type ResourceStatus = 'Down' | 'Maintenance' | 'Idle';
+
 export type ResourceTypeRequest = {
     name: string;
     kind?: null | string;
@@ -189,6 +191,15 @@ export type ResourceTypeResponse = {
     id: number;
     name: string;
     kind: ResourceKind;
+};
+
+export type ResourceViewResponse = {
+    id: number;
+    name: string;
+    resourceType: NamedReference;
+    calendar: NamedReference;
+    isActive: boolean;
+    status: ResourceStatus;
 };
 
 export type RoutingDependencyRequest = {
@@ -232,6 +243,24 @@ export type RoutingStageResponse = {
 export type SignInRequest = {
     email: string;
     password: string;
+};
+
+export type UnavailabilityKind = 'Planned' | 'Breakdown';
+
+export type UnavailabilityRequest = {
+    kind: null | UnavailabilityKind;
+    start: null | string;
+    end?: null | string;
+    reason?: null | string;
+};
+
+export type UnavailabilityResponse = {
+    id: number;
+    resourceId: number;
+    kind: UnavailabilityKind;
+    start: string;
+    end: null | string;
+    reason: null | string;
 };
 
 export type UpdateResourceRequest = {
@@ -388,7 +417,7 @@ export type ListResourcesResponses = {
     /**
      * OK
      */
-    200: Array<ResourceResponse>;
+    200: Array<ResourceViewResponse>;
 };
 
 export type ListResourcesResponse = ListResourcesResponses[keyof ListResourcesResponses];
@@ -440,7 +469,7 @@ export type GetResourceResponses = {
     /**
      * OK
      */
-    200: ResourceResponse;
+    200: ResourceViewResponse;
 };
 
 export type GetResourceResponse = GetResourceResponses[keyof GetResourceResponses];
@@ -783,3 +812,77 @@ export type CancelOrderResponses = {
 };
 
 export type CancelOrderResponse = CancelOrderResponses[keyof CancelOrderResponses];
+
+export type ListUnavailabilitiesData = {
+    body?: never;
+    path: {
+        resourceId: number;
+    };
+    query?: never;
+    url: '/api/v1/resources/{resourceId}/unavailabilities';
+};
+
+export type ListUnavailabilitiesResponses = {
+    /**
+     * OK
+     */
+    200: Array<UnavailabilityResponse>;
+};
+
+export type ListUnavailabilitiesResponse = ListUnavailabilitiesResponses[keyof ListUnavailabilitiesResponses];
+
+export type CreateUnavailabilityData = {
+    body: UnavailabilityRequest;
+    path: {
+        resourceId: number;
+    };
+    query?: never;
+    url: '/api/v1/resources/{resourceId}/unavailabilities';
+};
+
+export type CreateUnavailabilityResponses = {
+    /**
+     * Created
+     */
+    201: UnavailabilityResponse;
+};
+
+export type CreateUnavailabilityResponse = CreateUnavailabilityResponses[keyof CreateUnavailabilityResponses];
+
+export type DeleteUnavailabilityData = {
+    body?: never;
+    path: {
+        resourceId: number;
+        id: number;
+    };
+    query?: never;
+    url: '/api/v1/resources/{resourceId}/unavailabilities/{id}';
+};
+
+export type DeleteUnavailabilityResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteUnavailabilityResponse = DeleteUnavailabilityResponses[keyof DeleteUnavailabilityResponses];
+
+export type UpdateUnavailabilityData = {
+    body: UnavailabilityRequest;
+    path: {
+        resourceId: number;
+        id: number;
+    };
+    query?: never;
+    url: '/api/v1/resources/{resourceId}/unavailabilities/{id}';
+};
+
+export type UpdateUnavailabilityResponses = {
+    /**
+     * OK
+     */
+    200: UnavailabilityResponse;
+};
+
+export type UpdateUnavailabilityResponse = UpdateUnavailabilityResponses[keyof UpdateUnavailabilityResponses];

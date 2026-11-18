@@ -3,6 +3,7 @@ import { RequireSession } from './auth/RequireSession';
 import { SIGN_IN_PATH } from './auth/signInLocation';
 import { SignInPage } from './auth/SignInPage';
 import { CalendarPage } from './calendar/CalendarPage';
+import { MachinePage } from './machines/MachinePage';
 import { MachineRegisterPage } from './machines/MachineRegisterPage';
 import { OrderListPage } from './orders/OrderListPage';
 import { OrderPage } from './orders/OrderPage';
@@ -22,6 +23,7 @@ export function App() {
           <Route path="/orders" element={<OrderListPage />} />
           <Route path="/orders/:orderId" element={<OrderPage />} />
           <Route path="/machines" element={<MachineRegisterPage />} />
+          <Route path="/machines/:machineId" element={<MachinePage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/products" element={<ProductRegisterPage />} />
           <Route path="/products/:productId/routing" element={<RoutingPage />} />

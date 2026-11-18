@@ -12,8 +12,8 @@ interface FieldProps {
 interface TextFieldProps extends FieldProps {
   value: string;
   onChange: (value: string) => void;
-  /** A date field holds the date as YYYY-MM-DD. */
-  type?: 'text' | 'email' | 'password' | 'date';
+  /** A date field holds the date as YYYY-MM-DD, a date and time field as YYYY-MM-DDTHH:mm. */
+  type?: 'text' | 'email' | 'password' | 'date' | 'datetime-local';
   autoComplete?: HTMLInputAutoCompleteAttribute;
 }
 

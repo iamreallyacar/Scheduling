@@ -26,20 +26,20 @@ export const updateResourceType = (id: Api.UpdateResourceTypeData['path']['id'],
 export const deleteResourceType = (id: Api.DeleteResourceTypeData['path']['id']) =>
   requestApi<Api.DeleteResourceTypeResponse>('DELETE', { url: '/api/v1/resource-types/{id}', path: { id } } satisfies Api.DeleteResourceTypeData);
 
-export const listResources = (query: NonNullable<Api.ListResourcesData['query']>) =>
-  requestApi<Api.ListResourcesResponse>('GET', { url: '/api/v1/resources', query } satisfies Api.ListResourcesData);
-
 export const createResource = (body: Api.CreateResourceData['body']) =>
   requestApi<Api.CreateResourceResponse>('POST', { url: '/api/v1/resources', body } satisfies Api.CreateResourceData);
 
-export const getResource = (id: Api.GetResourceData['path']['id']) =>
-  requestApi<Api.GetResourceResponse>('GET', { url: '/api/v1/resources/{id}', path: { id } } satisfies Api.GetResourceData);
+export const listResources = (query: NonNullable<Api.ListResourcesData['query']>) =>
+  requestApi<Api.ListResourcesResponse>('GET', { url: '/api/v1/resources', query } satisfies Api.ListResourcesData);
 
 export const updateResource = (id: Api.UpdateResourceData['path']['id'], body: Api.UpdateResourceData['body']) =>
   requestApi<Api.UpdateResourceResponse>('PUT', { url: '/api/v1/resources/{id}', path: { id }, body } satisfies Api.UpdateResourceData);
 
 export const deleteResource = (id: Api.DeleteResourceData['path']['id']) =>
   requestApi<Api.DeleteResourceResponse>('DELETE', { url: '/api/v1/resources/{id}', path: { id } } satisfies Api.DeleteResourceData);
+
+export const getResource = (id: Api.GetResourceData['path']['id']) =>
+  requestApi<Api.GetResourceResponse>('GET', { url: '/api/v1/resources/{id}', path: { id } } satisfies Api.GetResourceData);
 
 export const listCalendars = () =>
   requestApi<Api.ListCalendarsResponse>('GET', { url: '/api/v1/calendars' } satisfies Api.ListCalendarsData);
@@ -94,3 +94,15 @@ export const getOrder = (id: Api.GetOrderData['path']['id']) =>
 
 export const cancelOrder = (id: Api.CancelOrderData['path']['id']) =>
   requestApi<Api.CancelOrderResponse>('POST', { url: '/api/v1/orders/{id}/cancel', path: { id } } satisfies Api.CancelOrderData);
+
+export const listUnavailabilities = (resourceId: Api.ListUnavailabilitiesData['path']['resourceId']) =>
+  requestApi<Api.ListUnavailabilitiesResponse>('GET', { url: '/api/v1/resources/{resourceId}/unavailabilities', path: { resourceId } } satisfies Api.ListUnavailabilitiesData);
+
+export const createUnavailability = (resourceId: Api.CreateUnavailabilityData['path']['resourceId'], body: Api.CreateUnavailabilityData['body']) =>
+  requestApi<Api.CreateUnavailabilityResponse>('POST', { url: '/api/v1/resources/{resourceId}/unavailabilities', path: { resourceId }, body } satisfies Api.CreateUnavailabilityData);
+
+export const updateUnavailability = (resourceId: Api.UpdateUnavailabilityData['path']['resourceId'], id: Api.UpdateUnavailabilityData['path']['id'], body: Api.UpdateUnavailabilityData['body']) =>
+  requestApi<Api.UpdateUnavailabilityResponse>('PUT', { url: '/api/v1/resources/{resourceId}/unavailabilities/{id}', path: { resourceId, id }, body } satisfies Api.UpdateUnavailabilityData);
+
+export const deleteUnavailability = (resourceId: Api.DeleteUnavailabilityData['path']['resourceId'], id: Api.DeleteUnavailabilityData['path']['id']) =>
+  requestApi<Api.DeleteUnavailabilityResponse>('DELETE', { url: '/api/v1/resources/{resourceId}/unavailabilities/{id}', path: { resourceId, id } } satisfies Api.DeleteUnavailabilityData);

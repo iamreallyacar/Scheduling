@@ -1,23 +1,25 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { deleteResource } from '../api/generated/endpoints.gen';
-import type { ResourceResponse, ResourceTypeResponse } from '../api/generated';
+import type { ResourceTypeResponse, ResourceViewResponse } from '../api/generated';
 import { problemOf } from '../api/problem';
 import { useSignedInUser } from '../auth/signedInUser';
 import { ProblemSummary } from '../forms/ProblemSummary';
 import { QueryResult } from '../forms/QueryResult';
 import { MachineForm } from './MachineForm';
 import { useMachines, useResourceTypes, type MachineFilter } from './machineQueries';
+import { RESOURCE_STATUS_LABELS } from './machineValues';
 import { MachineTypesPanel } from './MachineTypesPanel';
 
 const ANY = '';
 
-// F-MD-1: the machine register, with its machine types. Everyone reads; an Admin edits. The
-// status column follows in M3 (F-MNT-2).
+// F-MD-1 and F-MNT-2: the machine register, with its machine types and the status the server
+// derived. Everyone reads; an Admin edits. Each name opens the machine page.
 export function MachineRegisterPage() {
   const { canAdminister } = useSignedInUser();
   const [filter, setFilter] = useState<MachineFilter>({ resourceTypeId: null, isActive: null });
-  const [machineInForm, setMachineInForm] = useState<ResourceResponse | 'new' | null>(null);
+  const [machineInForm, setMachineInForm] = useState<ResourceViewResponse | 'new' | null>(null);
   const resourceTypes = useResourceTypes();
   const machines = useMachines(filter);
   const deleteMutation = useMutation({
@@ -116,10 +118,10 @@ function MachineFilterBar({ filter, onChange, resourceTypes }: MachineFilterBarP
 }
 
 interface MachineTableProps {
-  machines: readonly ResourceResponse[];
+  machines: readonly ResourceViewResponse[];
   canEdit: boolean;
-  onEdit: (machine: ResourceResponse) => void;
-  onDelete: (machine: ResourceResponse) => void;
+  onEdit: (machine: ResourceViewResponse) => void;
+  onDelete: (machine: ResourceViewResponse) => void;
 }
 
 function MachineTable({ machines, canEdit, onEdit, onDelete }: MachineTableProps) {
@@ -134,16 +136,20 @@ function MachineTable({ machines, canEdit, onEdit, onDelete }: MachineTableProps
           <th scope="col">Type</th>
           <th scope="col">Calendar</th>
           <th scope="col">Active</th>
+          <th scope="col">Status</th>
           {canEdit && <th scope="col">Actions</th>}
         </tr>
       </thead>
       <tbody>
         {machines.map((machine) => (
           <tr key={machine.id}>
-            <th scope="row">{machine.name}</th>
+            <th scope="row">
+              <Link to={`/machines/${String(machine.id)}`}>{machine.name}</Link>
+            </th>
             <td>{machine.resourceType.name}</td>
             <td>{machine.calendar.name}</td>
             <td>{machine.isActive ? 'Yes' : 'No'}</td>
+            <td>{RESOURCE_STATUS_LABELS[machine.status]}</td>
             {canEdit && (
               <td className="row-actions">
                 <button

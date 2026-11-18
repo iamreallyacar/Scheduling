@@ -203,6 +203,34 @@
       }
     },
     "/api/v1/resources": {
+      "post": {
+        "tags": [
+          "Machines"
+        ],
+        "operationId": "CreateResource",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateResourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceResponse"
+                }
+              }
+            }
+          }
+        }
+      },
       "get": {
         "tags": [
           "Machines"
@@ -233,36 +261,8 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/ResourceResponse"
+                    "$ref": "#/components/schemas/ResourceViewResponse"
                   }
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Machines"
-        ],
-        "operationId": "CreateResource",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateResourceRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ResourceResponse"
                 }
               }
             }
@@ -271,35 +271,6 @@
       }
     },
     "/api/v1/resources/{id}": {
-      "get": {
-        "tags": [
-          "Machines"
-        ],
-        "operationId": "GetResource",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ResourceResponse"
-                }
-              }
-            }
-          }
-        }
-      },
       "put": {
         "tags": [
           "Machines"
@@ -358,6 +329,35 @@
         "responses": {
           "204": {
             "description": "No Content"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Machines"
+        ],
+        "operationId": "GetResource",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceViewResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -936,6 +936,160 @@
         ],
         "operationId": "CancelOrder",
         "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{resourceId}/unavailabilities": {
+      "get": {
+        "tags": [
+          "Unavailability"
+        ],
+        "operationId": "ListUnavailabilities",
+        "parameters": [
+          {
+            "name": "resourceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UnavailabilityResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Unavailability"
+        ],
+        "operationId": "CreateUnavailability",
+        "parameters": [
+          {
+            "name": "resourceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnavailabilityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnavailabilityResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{resourceId}/unavailabilities/{id}": {
+      "put": {
+        "tags": [
+          "Unavailability"
+        ],
+        "operationId": "UpdateUnavailability",
+        "parameters": [
+          {
+            "name": "resourceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnavailabilityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnavailabilityResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Unavailability"
+        ],
+        "operationId": "DeleteUnavailability",
+        "parameters": [
+          {
+            "name": "resourceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
           {
             "name": "id",
             "in": "path",
@@ -1672,6 +1826,13 @@
           }
         }
       },
+      "ResourceStatus": {
+        "enum": [
+          "Down",
+          "Maintenance",
+          "Idle"
+        ]
+      },
       "ResourceTypeRequest": {
         "required": [
           "name"
@@ -1708,6 +1869,38 @@
           },
           "kind": {
             "$ref": "#/components/schemas/ResourceKind"
+          }
+        }
+      },
+      "ResourceViewResponse": {
+        "required": [
+          "id",
+          "name",
+          "resourceType",
+          "calendar",
+          "isActive",
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "resourceType": {
+            "$ref": "#/components/schemas/NamedReference"
+          },
+          "calendar": {
+            "$ref": "#/components/schemas/NamedReference"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ResourceStatus"
           }
         }
       },
@@ -1908,6 +2101,94 @@
           }
         }
       },
+      "UnavailabilityKind": {
+        "enum": [
+          "Planned",
+          "Breakdown"
+        ]
+      },
+      "UnavailabilityRequest": {
+        "required": [
+          "kind",
+          "start"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/UnavailabilityKind"
+              }
+            ]
+          },
+          "start": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "end": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "reason": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "UnavailabilityResponse": {
+        "required": [
+          "id",
+          "resourceId",
+          "kind",
+          "start",
+          "end",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "resourceId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/UnavailabilityKind"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "UpdateResourceRequest": {
         "required": [
           "name",
@@ -1960,6 +2241,9 @@
     },
     {
       "name": "Orders"
+    },
+    {
+      "name": "Unavailability"
     }
   ]
 }

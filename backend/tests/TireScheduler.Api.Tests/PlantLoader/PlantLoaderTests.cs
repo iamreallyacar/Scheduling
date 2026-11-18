@@ -29,12 +29,14 @@ public sealed class PlantLoaderTests(PostgresFixture postgres)
         Assert.Contains("seed 3", output, StringComparison.Ordinal);
         Assert.Contains("start 2026-11-16", output, StringComparison.Ordinal);
         Assert.Contains($"{plant.Orders.Count} orders", output, StringComparison.Ordinal);
-        Assert.Contains($"{plant.Unavailabilities.Count} unavailabilities not loaded", output, StringComparison.Ordinal);
+        Assert.Contains($"{plant.Unavailabilities.Count} unavailabilities", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("not loaded", output, StringComparison.Ordinal);
         using ApiSession viewer = await factory.SignInAsRoleAsync(UserRole.Viewer);
         await AssertMachinesAsync(viewer, plant);
         await AssertCalendarAsync(viewer, plant);
         await AssertProductsAsync(viewer, plant);
         await AssertOrdersAsync(viewer, plant);
+        await AssertUnavailabilitiesAsync(viewer, plant);
     }
 
     [Theory]
@@ -204,6 +206,34 @@ public sealed class PlantLoaderTests(PostgresFixture postgres)
             Assert.Equal(productByCode[order.ProductCode].Stages.Count, operations.Length);
             Assert.All(operations, operation => Assert.Equal(1, operation.GetProperty("lots").GetArrayLength()));
         }
+    }
+
+    // Generated starts never fall into a DST gap or a repeated hour (A33), so the zone converts
+    // them without choosing; the loader itself converts through the engine.
+    private static async Task AssertUnavailabilitiesAsync(ApiSession viewer, GeneratedPlant plant)
+    {
+        TimeZoneInfo plantZone = TimeZoneInfo.FindSystemTimeZoneById(SchedulerApiFactory.DefaultPlantTimeZone);
+        JsonElement resources = await viewer.GetJsonAsync("/api/v1/resources");
+        List<(string, string, DateTimeOffset, DateTimeOffset?, string)> saved = [];
+        foreach (JsonElement resource in resources.EnumerateArray())
+        {
+            JsonElement unavailabilities = await viewer.GetJsonAsync($"/api/v1/resources/{resource.GetProperty("id").GetInt32()}/unavailabilities");
+            saved.AddRange(unavailabilities.EnumerateArray().Select(unavailability => (
+                resource.GetProperty("name").GetString()!,
+                unavailability.GetProperty("kind").GetString()!,
+                unavailability.GetProperty("start").GetDateTimeOffset(),
+                unavailability.GetProperty("end").ValueKind == JsonValueKind.Null ? (DateTimeOffset?)null : unavailability.GetProperty("end").GetDateTimeOffset(),
+                unavailability.GetProperty("reason").GetString()!)));
+        }
+
+        Assert.Equal(
+            plant.Unavailabilities.Select(unavailability =>
+            {
+                DateTimeOffset start = new(TimeZoneInfo.ConvertTimeToUtc(unavailability.LocalStart, plantZone), TimeSpan.Zero);
+                DateTimeOffset? end = unavailability.DurationMinutes is { } minutes ? start.AddMinutes(minutes) : null;
+                return (unavailability.MachineName, unavailability.Kind.ToString(), start, end, unavailability.Reason);
+            }).Order(),
+            saved.Order());
     }
 
     private static string ShiftTime(int minuteOfDay) => $"{minuteOfDay / 60:00}:{minuteOfDay % 60:00}";

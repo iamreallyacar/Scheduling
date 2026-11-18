@@ -22,6 +22,7 @@ public static class MasterDataModule
         services.AddScoped<ProductRegister>();
         services.AddScoped<RoutingRegister>();
         services.AddScoped<IMasterDataReader, MasterDataReader>();
+        services.AddScoped<IMasterDataLocks, MasterDataLocks>();
         return services;
     }
 

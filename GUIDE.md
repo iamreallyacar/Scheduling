@@ -50,7 +50,6 @@ dotnet run --project backend/src/TireScheduler.PlantLoader -- --preset plant --s
 - `--start` (default the Monday of the current week, A32): first day of the horizon, `yyyy-MM-dd`.
 - `--api` (default `http://localhost:5080`): address of the API.
 - The loader prints the seed, start date and counts. Exit code 0 means loaded; 1 means the API rejected a request or the plant was not empty, with the reason printed; 2 means the command line or settings were wrong. A run that stopped halfway leaves the rows written so far, so start again on a new database.
-- Unavailabilities are generated but not loaded until the API has an unavailability endpoint (task M3-2).
 
 ## Developer setup
 

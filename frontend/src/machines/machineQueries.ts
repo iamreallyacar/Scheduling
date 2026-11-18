@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { listResources, listResourceTypes } from '../api/generated/endpoints.gen';
+import { getResource, listResources, listResourceTypes, listUnavailabilities } from '../api/generated/endpoints.gen';
 import type { ListResourcesData } from '../api/generated';
 import { queryKeys } from '../api/queryKeys';
 
@@ -27,4 +27,12 @@ export function useMachines(filter: MachineFilter) {
       return listResources(query);
     },
   });
+}
+
+export function useMachine(resourceId: number) {
+  return useQuery({ queryKey: queryKeys.resource(resourceId), queryFn: () => getResource(resourceId) });
+}
+
+export function useUnavailabilities(resourceId: number) {
+  return useQuery({ queryKey: queryKeys.unavailabilities(resourceId), queryFn: () => listUnavailabilities(resourceId) });
 }

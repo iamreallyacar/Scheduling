@@ -1,14 +1,14 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState, type SyntheticEvent } from 'react';
 import { createResource, updateResource } from '../api/generated/endpoints.gen';
-import type { ResourceResponse, ResourceTypeResponse } from '../api/generated';
+import type { ResourceTypeResponse, ResourceViewResponse } from '../api/generated';
 import { problemOf } from '../api/problem';
 import { CheckboxField, SelectField, TextField } from '../forms/Fields';
 import { ProblemSummary } from '../forms/ProblemSummary';
 
 interface MachineFormProps {
   /** The machine to change, or null to add one. */
-  machine: ResourceResponse | null;
+  machine: ResourceViewResponse | null;
   resourceTypes: readonly ResourceTypeResponse[];
   onClose: () => void;
 }

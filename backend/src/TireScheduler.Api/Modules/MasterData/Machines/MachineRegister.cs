@@ -5,7 +5,7 @@ using TireScheduler.Api.Errors;
 namespace TireScheduler.Api.Modules.MasterData.Machines;
 
 // F-MD-1. A machine is a resource (DEC-7).
-internal sealed class MachineRegister(MasterDataDbContext context)
+internal sealed class MachineRegister(MasterDataDbContext context, IEnumerable<IResourceReferences> resourceReferences, RequestTransaction requestTransaction)
 {
     private static readonly Dictionary<string, string> FieldByUniqueIndex = new() { [MasterDataDbContext.ResourceNameIndex] = "name" };
 
@@ -51,11 +51,29 @@ internal sealed class MachineRegister(MasterDataDbContext context)
         return await GetAsync(id, cancellationToken);
     }
 
+    // Locks the row first, so an unavailability cannot be recorded on the resource while it is
+    // checked and deleted (DEC-33).
     public async Task DeleteAsync(int id, CancellationToken cancellationToken)
     {
+        await using OpenTransaction transaction = await requestTransaction.BeginAsync(context, cancellationToken);
+        if (!await context.LockRowAsync<Resource>(id, cancellationToken))
+        {
+            throw NotFound();
+        }
+
         Resource resource = await FindAsync(id, cancellationToken);
+        foreach (IResourceReferences references in resourceReferences)
+        {
+            if (await references.FindItemUsingResourceAsync(id, cancellationToken) is { } itemUsingResource)
+            {
+                throw ApiProblemException.InUse(
+                    $"Machine '{resource.Name}' cannot be deleted because {itemUsingResource} refers to it. Deactivate the machine instead (A14).");
+            }
+        }
+
         context.Resources.Remove(resource);
         await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     private async Task<Resource> FindAsync(int id, CancellationToken cancellationToken) =>

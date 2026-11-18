@@ -1,6 +1,6 @@
 # Acceptance Criteria
 
-Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules and engine search) on 2026-11-06; section 6 in task M2-7 on 2026-11-18. Sources: [features.md](features.md), [domain-model.md](domain-model.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [decisions.md](decisions.md).
+Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules and engine search) on 2026-11-06; section 6 in task M2-7 and section 7 in task M3-2 on 2026-11-18. Sources: [features.md](features.md), [domain-model.md](domain-model.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [decisions.md](decisions.md).
 
 ## 1. How to read this
 
@@ -73,7 +73,7 @@ Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules
 | AC-27 | An Admin | The Admin creates a resource type with a name | Saved with kind `Machine`. Any other kind is rejected, 400 `validation.failed` (v1 has machines only, DEC-7) | API |
 | AC-28 | A resource type | The Admin creates a resource with name and type, without a calendar | Saved, active, on the plant default calendar. A request cannot set a status; there is no status field (DEC-9) | API |
 | AC-29 | An active resource with no placements | The Admin changes its name, type or active flag | Saved | API |
-| AC-30 | Resources of several types | Anyone opens the machine register | Resources are listed by type, then name, with type, calendar and active flag; the list filters by type and by active flag. The derived status column is added in M3 (F-MNT-2) | API, UI |
+| AC-30 | Resources of several types | Anyone opens the machine register | Resources are listed by type, then name, with type, calendar and active flag; the list filters by type and by active flag. The derived status column is added in M3 (F-MNT-2, AC-172, AC-173) | API, UI |
 | AC-140 | A resource type and a resource that no other row references | The Admin renames the resource type, or deletes the resource or the resource type | Saved; a deleted item is gone from its list and its id answers as in AC-23 | API |
 | AC-141 | A resource name or resource type name typed with spaces around it, or equal to an existing name except for case (A20) | The Admin saves it | The name is stored without the surrounding spaces; the name that differs only by case is rejected as in AC-24 | API |
 
@@ -304,7 +304,32 @@ Covers task M2-7 (no feature). The generator core turns parameters, a seed and a
 | AC-154 | Any preset and seed | A plant is generated | Unavailabilities start on working days inside the horizon, on the 15-minute grid from 06:00 to 18:00 plant-local, and last a duration inside the range of their kind. On one machine they are at least 60 minutes apart. Only a breakdown can have no end, only when the open-ended share is above 0, and it is the last unavailability of its machine | Generator |
 | AC-155 | The presets `small`, `plant` and `stress` | Each is generated with any seed | `small`: 4 machines of 3 types and 3 products. `plant`: 20 machines of 4 types (extrusion, building, curing, inspection), 40 products, and Monday to Friday with shifts 00:00-08:00, 08:00-16:00 and 16:00-24:00 (A3). `stress`: 25 machines, a 2-week horizon, and for every machine type its lots need at least the working minutes of its machines in the horizon, so a placed schedule can fill every machine (fully loaded) | Generator |
 | AC-156 | Parameters with a count below its minimum, a range whose minimum is above its maximum or below the smallest allowed value, a share outside 0 to 1, a stage on an unknown machine type, a shift outside the day or not ending after it starts, a lag list whose length is not the number of stages minus 1, or more holidays than working days in the horizon | A plant is generated | Fails with an error naming the parameter; no plant is returned | Generator |
-| AC-157 | An empty plant (no resource type, product or order; the plant default calendar of the first migration) and an Admin's sign-in | The loader runs with a preset, a seed and a start date | Every generated machine type, machine, shift, holiday, product with its routing, and order is created through the API and reads back with the generated values; each order has its operations and lots. The loader prints the seed, the start date and the count of each kind. Unavailabilities are counted but not loaded, because the API has no unavailability endpoint yet (task M3-2) | API |
+| AC-157 | An empty plant (no resource type, product or order; the plant default calendar of the first migration) and an Admin's sign-in | The loader runs with a preset, a seed and a start date | Every generated machine type, machine, shift, holiday, product with its routing, and order is created through the API and reads back with the generated values; each order has its operations and lots. Every generated unavailability is recorded on its machine and reads back with its kind, reason, and start and end in UTC, its plant-local start converted by the engine (A33). The loader prints the seed, the start date and the count of each kind | API |
 | AC-158 | A plant that has any resource type, product or order | The loader runs | It stops before writing anything, with an error naming what exists, and exits with a non-zero code | API |
 | AC-159 | The loader running | The API rejects one of its requests (for example a value the API does not accept, or a user who may not write master data) | The loader stops at once, with an error giving the request, the status, the problem `code` and the `detail`, and exits with a non-zero code. Rows written before the rejection stay | API |
 | AC-160 | The loader's command line | A preset is unknown, the seed or start date cannot be read, an option is unknown, or the sign-in settings are missing | It stops before calling the API, with an error naming the option or setting, and exits with a non-zero code | Generator |
+
+## 7. M3 Maintenance
+
+Unless a row says otherwise, Press 1 is a resource of the plant, the clock is the injected `TimeProvider`, and times are sent and answered in UTC (`API.md` section "Conventions"). Assumptions are A37 and A38 in `domain-model.md` section 7.
+
+### F-MNT-1 Unavailability
+
+| ID | Given | When | Then | Level |
+|---|---|---|---|---|
+| AC-166 | Press 1, active or inactive, and a Planner | The Planner records an unavailability on it with kind `Planned` or `Breakdown`, a start, an end and an optional reason, or a breakdown without an end | 201 with `Location` and the unavailability: id, resource id, kind, start, end (missing for a breakdown with no known end) and reason, the times in UTC and the reason without surrounding spaces. Unavailabilities of one resource may overlap, and one may start in the past (A37) | API |
+| AC-167 | Press 1 | An unavailability is saved without a kind or a start, with an end that is not after its start, as planned maintenance without an end, with a start or end that is not a whole minute, or with a reason longer than 200 characters | Rejected, 400 `validation.failed`, naming each field (`kind`, `start`, `end`, `reason`). A kind other than `Planned` or `Breakdown` is an unreadable value, rejected as in AC-22 | API |
+| AC-168 | Press 1 with unavailabilities, and another machine with its own | A signed-in user of any role reads the unavailabilities of Press 1 | Only those of Press 1, latest start first. A missing resource answers as in AC-23 | API |
+| AC-169 | An unavailability of Press 1 | A Planner changes its kind, start, end or reason, for example gives an open breakdown its end to bring the machine back (`domain-model.md` section 6) | 200 with the saved unavailability, checked as in AC-167. An unavailability id that belongs to another resource than the one in the path answers as in AC-23 | API |
+| AC-170 | An unavailability of Press 1 | A Planner deletes it, for example one entered by mistake | 204; it is gone from the list and its id answers as in AC-23 | API |
+| AC-171 | The machine page (`wireframes.md` section 5) | A Planner records, changes or deletes an unavailability | Times are entered and shown on the plant's wall clock and sent in UTC; a local time that occurs twice is read as its first occurrence, one inside a DST gap as the first time after the gap (A38). A breakdown without an end shows "no end". A rejected save shows the problem as in AC-26 and keeps the entered values. A Viewer sees the list without the actions | UI |
+
+AC-20 covers a resource that has an unavailability: deleting it is rejected, naming the unavailability.
+
+### F-MNT-2 Machine status
+
+| ID | Given | When | Then | Level |
+|---|---|---|---|---|
+| AC-172 | Resources with unavailabilities | A signed-in user of any role reads the machine list or one machine | Each machine has a `status`: `Down` when a breakdown covers now, otherwise `Maintenance` when planned maintenance covers now, otherwise `Idle` (`domain-model.md` section 6). An unavailability covers the time from its start up to, not including, its end; one without an end covers everything from its start on. `Running` follows with lot progress (task M5-1). The reads come from Queries (DEC-39); the machine writes answer without a status (AC-28) | API |
+| AC-173 | The machine register and the machine page | They are shown | Each machine shows the `status` the API returns; neither page derives it. Each machine name in the register opens its machine page | UI |
+

@@ -11,7 +11,7 @@ How the project is tested. The commands to run are in CLAUDE.md, section VERIFIC
 | Module integration | Each module against a real PostgreSQL, including constraints, locking and soft delete | xUnit v3 with Testcontainers |
 | API | Auth and role policies, problem-details shape, rule violations returned as 422 with `rule` and `conflict` | `WebApplicationFactory` |
 | Architecture | Module dependency table in `ARCHITECTURE.md` section "Structure" holds between module namespaces; the engine project references no module; the generator core references only the engine, and neither the engine nor the API references it | NetArchTest |
-| Frontend | Components and forms (placement dialog, order form, ASAP proposal review); the endpoint generator in `frontend/scripts`, including a check that the committed endpoint functions match the OpenAPI document (DEC-37) | Vitest, Testing Library |
+| Frontend | Components and forms (placement dialog, order form, ASAP proposal review); the plant clock conversion of typed times, with the DST cases of the engine (DEC-40); the endpoint generator in `frontend/scripts`, including a check that the committed endpoint functions match the OpenAPI document (DEC-37) | Vitest, Testing Library |
 | End to end | A few smoke flows only: sign in, create order, schedule it as soon as possible, see it on the timeline | Playwright, added with the first flow |
 
 ## Rules for tests
@@ -26,7 +26,7 @@ Backend, in `backend/tests/TireScheduler.Api.Tests`:
 - `SchedulerApiFixture`: one running API on its own empty database, shared by the tests of one class.
 - `SchedulerApiFactory`: starts the API and gives browser-like clients over https. Signs in as the first Admin, or as a user of a given role that it creates directly, because v1 has no user management API (F-AUTH-3). Sets the plant time zone of `acceptance-criteria.md` section 1 unless a test passes another, and can fix the clock and replace services.
 - `FakeLotActivity`: stands in for Scheduling and Progress behind the Orders ports `ILotPlacements` and `ILotProgress`, so the order rules that depend on placed and started lots are tested before those modules store anything.
-- `TestData/`: the builders that create rows through the API, one class per module with one method per kind of row and the paths of its routes (DEC-38). `MasterDataTestData` builds machine types, machines, products, routings, calendar shifts and holidays; `OrderTestData` builds orders, and its create and cancel helpers read the order back, because order writes answer without it (DEC-29). A test class never calls another test class; a builder that a second class needs moves here.
+- `TestData/`: the builders that create rows through the API, one class per module with one method per kind of row and the paths of its routes (DEC-38). `MasterDataTestData` builds machine types, machines, products, routings, calendar shifts and holidays; `OrderTestData` builds orders, and its create and cancel helpers read the order back, because order writes answer without it (DEC-29). `SchedulingTestData` builds unavailabilities. A test class never calls another test class; a builder that a second class needs moves here.
 - `ApiSession`: does what the browser and the frontend client do: keeps cookies between requests and sends the anti-forgery token with state-changing requests.
 - `ProblemAssert`: checks that a response is "Rejected" in the sense of `acceptance-criteria.md` section 1.
 - `RecordingLoggerProvider`: keeps log entries in memory so a test can check what was logged.

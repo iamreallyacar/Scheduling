@@ -44,6 +44,7 @@ RouteGroupBuilder api = app.MapGroup("/api/v1").ValidateRequestBodies();
 api.MapAuthEndpoints();
 api.MapMasterDataEndpoints();
 api.MapOrdersEndpoints();
+api.MapSchedulingEndpoints();
 api.MapQueriesEndpoints();
 
 await app.RunStartupStepsAsync();

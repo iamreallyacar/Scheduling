@@ -12,7 +12,7 @@ The interfaces between the browser and the API: conventions, routes, scheduling 
 - Concurrent-edit protection (F-NFR-3) is P1. Keep room for it: every mutable entity can later gain a version column and an `ETag`/`If-Match` pair without changing URLs.
 - No bulk endpoints in v1 apart from the order proposal commit. CSV import (P1) adds them.
 - Order writes answer without the order, because its status and `isLate` come from Queries: create answers 201 with `Location` and `{ id }`, change and cancel answer 204. The client then reads the order again (DEC-29).
-- There is no machine status endpoint; status is derived.
+- There is no machine status endpoint; status is derived. The machine reads (`GET /resources`, `GET /resources/{id}`) carry it and come from Queries, while the machine writes answer the machine without it (DEC-39).
 
 ## Routes
 
@@ -23,7 +23,7 @@ Planned route areas for v1. Routes that are built are in the OpenAPI document.
 | Auth | `/auth/sign-in`, `/auth/sign-out`, `/auth/antiforgery-token`, `/me` (the signed-in user) |
 | Master data | `/resource-types`, `/resources`, `/calendars` (each with the plant time zone and its shifts), `/calendars/{id}/shifts` (the whole week, saved together, A26), `/holidays`, `/products`, `/products/{id}/routing` (stages and dependencies together) |
 | Orders | `POST /orders`, `PUT` and `DELETE /orders/{id}`, `/orders/{id}/cancel`, `/lots/{id}` |
-| Unavailability | `/resources/{id}/unavailabilities` |
+| Unavailability | `/resources/{id}/unavailabilities` (list, latest start first, and record), `/resources/{id}/unavailabilities/{unavailabilityId}` (change and delete) |
 | Scheduling | `/versions/{v}/lots/{id}/placement`, `/versions/{v}/lots/{id}/earliest-slot`, `/versions/{v}/orders/{id}/asap-proposal`, `/versions/{v}/timeline`, `/versions/{v}/conflicts`, `/versions/{v}/unscheduled-lots` |
 | Progress | `/lots/{id}/progress` |
 | Views (Queries) | `GET /orders` (paged; `search`, `status`, `late`, `customer`, `dueFrom`, `dueTo`, `priority`, `sort`, A29) and `GET /orders/{id}` (with operations, lots with their `status`, dependencies, and `progress` as `completedQuantity` and `totalQuantity`), each order with `status` and `isLate` (DEC-29); `/versions/{v}/dashboard` |
@@ -33,7 +33,7 @@ Planned route areas for v1. Routes that are built are in the OpenAPI document.
 - Placing a lot is `PUT /versions/live/lots/{id}/placement` with `{ resourceId, plannedStart }`. The server computes and returns `plannedEnd`. Removing is `DELETE` on the same URL.
 - Earliest slot is `GET /versions/live/lots/{id}/earliest-slot?resourceId=&notBefore=`. It changes nothing; the planner then places the lot with the returned values.
 - Schedule order as soon as possible has two steps: `POST /versions/live/orders/{id}/asap-proposal` returns proposed placements without saving them; `POST .../asap-proposal/commit` with the same proposal saves all of them in one transaction. The commit validates again and fails as a whole if anything changed in between.
-- Marking a machine down is `POST /resources/{id}/unavailabilities` with `kind: Breakdown`, a start and an optional end.
+- Marking a machine down is `POST /resources/{id}/unavailabilities` with `kind: Breakdown`, a start and an optional end. Bringing it back is `PUT` on that unavailability with its end set.
 
 ## Sign-in and anti-forgery
 

@@ -21,8 +21,7 @@ public static class LoaderRun
             LoadSummary summary = await new PlantWriter(api).WriteAsync(plant, cancellationToken);
             await output.WriteLineAsync(
                 $"Loaded {summary.MachineTypes} machine types, {summary.Machines} machines, {summary.Shifts} shifts, {summary.Holidays} holidays, " +
-                $"{summary.Products} products with routings and {summary.Orders} orders; " +
-                $"{summary.UnavailabilitiesNotLoaded} unavailabilities not loaded, because the API has no unavailability endpoint yet.");
+                $"{summary.Products} products with routings, {summary.Orders} orders and {summary.Unavailabilities} unavailabilities.");
             return 0;
         }
         catch (LoaderException failure)

@@ -8,6 +8,8 @@ export const queryKeys = {
   currentUser: ['current-user'],
   resourceTypes: ['resource-types'],
   resources: (filter: MachineFilter) => ['resources', filter],
+  resource: (resourceId: number) => ['resources', resourceId],
+  unavailabilities: (resourceId: number) => ['resources', resourceId, 'unavailabilities'],
   products: ['products'],
   product: (productId: number) => ['products', productId],
   routing: (productId: number) => ['products', productId, 'routing'],

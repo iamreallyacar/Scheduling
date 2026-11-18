@@ -3,7 +3,7 @@ using TireScheduler.PlantGenerator;
 
 namespace TireScheduler.PlantLoader;
 
-public sealed record LoadSummary(int MachineTypes, int Machines, int Shifts, int Holidays, int Products, int Orders, int UnavailabilitiesNotLoaded);
+public sealed record LoadSummary(int MachineTypes, int Machines, int Shifts, int Holidays, int Products, int Orders, int Unavailabilities);
 
 // Writes a generated plant through the API, master data first and orders last, so every row
 // passes the validation of user input (DEC-32). Ids of written rows are looked up by name.
@@ -13,11 +13,11 @@ internal sealed class PlantWriter(SchedulerApiClient api)
     {
         await EnsureEmptyAsync(cancellationToken);
         Dictionary<string, int> machineTypeIds = await WriteMachineTypesAsync(plant, cancellationToken);
-        await WriteMachinesAsync(plant, machineTypeIds, cancellationToken);
-        await WriteCalendarAsync(plant, cancellationToken);
+        Dictionary<string, int> machineIds = await WriteMachinesAsync(plant, machineTypeIds, cancellationToken);
+        string plantTimeZone = await WriteCalendarAsync(plant, cancellationToken);
+        await WriteUnavailabilitiesAsync(plant, machineIds, plantTimeZone, cancellationToken);
         Dictionary<string, int> productIds = await WriteProductsAsync(plant, machineTypeIds, cancellationToken);
         await WriteOrdersAsync(plant, productIds, cancellationToken);
-        // The API has no unavailability endpoint yet; task M3-2 adds it and their loading.
         return new LoadSummary(
             plant.MachineTypes.Count,
             plant.Machines.Count,
@@ -69,15 +69,20 @@ internal sealed class PlantWriter(SchedulerApiClient api)
         return idByName;
     }
 
-    private async Task WriteMachinesAsync(GeneratedPlant plant, Dictionary<string, int> machineTypeIds, CancellationToken cancellationToken)
+    private async Task<Dictionary<string, int>> WriteMachinesAsync(GeneratedPlant plant, Dictionary<string, int> machineTypeIds, CancellationToken cancellationToken)
     {
+        Dictionary<string, int> idByName = new(StringComparer.Ordinal);
         foreach (GeneratedMachine machine in plant.Machines)
         {
-            await api.SendAsync(HttpMethod.Post, "/resources", new ResourceRequest(machine.Name, machineTypeIds[machine.MachineTypeName]), cancellationToken);
+            NamedItem created = await api.SendAsync<NamedItem>(HttpMethod.Post, "/resources", new ResourceRequest(machine.Name, machineTypeIds[machine.MachineTypeName]), cancellationToken);
+            idByName[machine.Name] = created.Id;
         }
+
+        return idByName;
     }
 
-    private async Task WriteCalendarAsync(GeneratedPlant plant, CancellationToken cancellationToken)
+    // Returns the plant time zone that every calendar answer carries.
+    private async Task<string> WriteCalendarAsync(GeneratedPlant plant, CancellationToken cancellationToken)
     {
         CalendarResponse[] calendars = await api.GetAsync<CalendarResponse[]>("/calendars", cancellationToken);
         CalendarResponse plantDefault = calendars.SingleOrDefault(calendar => calendar.IsPlantDefault)
@@ -88,6 +93,18 @@ internal sealed class PlantWriter(SchedulerApiClient api)
         foreach (GeneratedHoliday holiday in plant.Holidays)
         {
             await api.SendAsync(HttpMethod.Post, "/holidays", new HolidayRequest(holiday.Date, holiday.Name), cancellationToken);
+        }
+
+        return plantDefault.TimeZone;
+    }
+
+    // The generated starts are plant-local (A33) and the API takes UTC.
+    private async Task WriteUnavailabilitiesAsync(GeneratedPlant plant, Dictionary<string, int> machineIds, string plantTimeZone, CancellationToken cancellationToken)
+    {
+        foreach (GeneratedUnavailability unavailability in plant.Unavailabilities)
+        {
+            UnavailabilityRequest request = new(unavailability.Kind.ToString(), unavailability.StartUtc(plantTimeZone), unavailability.EndUtc(plantTimeZone), unavailability.Reason);
+            await api.SendAsync(HttpMethod.Post, $"/resources/{machineIds[unavailability.MachineName]}/unavailabilities", request, cancellationToken);
         }
     }
 

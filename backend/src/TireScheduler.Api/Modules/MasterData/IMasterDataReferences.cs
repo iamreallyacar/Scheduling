@@ -12,3 +12,8 @@ public interface IResourceTypeReferences
 {
     Task<string?> FindItemUsingResourceTypeAsync(int resourceTypeId, CancellationToken cancellationToken);
 }
+
+public interface IResourceReferences
+{
+    Task<string?> FindItemUsingResourceAsync(int resourceId, CancellationToken cancellationToken);
+}

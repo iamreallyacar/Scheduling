@@ -1,3 +1,5 @@
+using TireScheduler.Api.Modules.MasterData.Machines;
+
 namespace TireScheduler.Api.Modules.MasterData;
 
 // The public read interface of MasterData for the modules above it (ARCHITECTURE.md section "Module rules").
@@ -17,6 +19,14 @@ public interface IMasterDataReader
 
     // Only the ids that exist are in the answer.
     Task<IReadOnlyDictionary<int, NamedReference>> GetResourceTypesAsync(IReadOnlyCollection<int> resourceTypeIds, CancellationToken cancellationToken);
+
+    // By type, then name (AC-30); a null filter value matches every resource.
+    Task<IReadOnlyList<ResourceResponse>> ListResourcesAsync(int? resourceTypeId, bool? isActive, CancellationToken cancellationToken);
+
+    // A missing resource is answered 404.
+    Task<ResourceResponse> GetResourceAsync(int resourceId, CancellationToken cancellationToken);
+
+    Task<bool> ResourceExistsAsync(int resourceId, CancellationToken cancellationToken);
 }
 
 public sealed record ProductReference

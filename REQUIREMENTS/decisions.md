@@ -46,6 +46,9 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 | DEC-36 | Every successful write refreshes the cached queries in one place; query keys are defined in one file | Proposed | 2026-11-18 (M2-11) | ARCHITECTURE.md section "Frontend rules", AC-164 |
 | DEC-37 | Frontend endpoint functions generated from the OpenAPI document by a project script | Proposed | 2026-11-18 (M2-12) | ARCHITECTURE.md section "Frontend rules", AC-165 |
 | DEC-38 | API test data is built by shared builders in one folder; requests stay anonymous objects | Proposed | 2026-11-18 (M2-13) | TESTING.md section "Fixtures and helpers" |
+| DEC-39 | Queries serves the machine reads with the derived status; the machine writes stay in MasterData | Proposed | 2026-11-18 (M3-2) | ARCHITECTURE.md section "Structure", AC-172 |
+| DEC-40 | The UI converts plant-local input times to UTC and UTC to plant time for display | Proposed | 2026-11-18 (M3-2) | ARCHITECTURE.md section "Time rules", A38 |
+| DEC-41 | An open-ended unavailability is stored without an end | Proposed | 2026-11-18 (M3-2) | ARCHITECTURE.md section "Persistence rules" |
 
 ## Accepted
 
@@ -303,6 +306,27 @@ Made while building M1 (2026-11-10) and M2 (2026-11-18) and already followed by 
 - Reason: the builders lived in test classes (`MachineRegisterTests` was called 25 times by other classes) or were copied: products and routings were built by three classes each. Changing one test class could break unrelated tests, and the M3 and M4 tests need whole plants.
 - Alternatives: requests and answers as the API's contract records, rejected because a test then follows a renamed property instead of failing, while the tests should see the JSON the frontend sees; a builder object for whole plants now, deferred until the first test needs a whole plant (M3), when writing the generator's `small` preset through the loader's `PlantWriter` is the first option to check.
 - Consequences: a builder sends every field it has a value for, so a test of a default (for example AC-34) writes its request out in full.
+
+### DEC-39 Machine reads in Queries
+
+- Decision: `GET /resources` and `GET /resources/{id}` are served by Queries, which adds the derived `status` (`domain-model.md` section 6) to the machine fields that MasterData reads through `IMasterDataReader`, and the unavailabilities covering now that Scheduling reads through `IUnavailabilityReader`. The machine writes stay in MasterData, keep their URLs and keep answering the machine without a status (AC-28). The unavailabilities are written and read by Scheduling under `/resources/{id}/unavailabilities`.
+- Reason: statuses are derived in Queries (DEC-12), and MasterData, the lowest module, cannot ask Scheduling or Progress for what the status needs. It is the order pattern of DEC-29, so the machine register keeps one read per page, and the URLs and operation names stay the same for the frontend and the loader.
+- Alternatives: a separate status list (`GET /resource-statuses`) that the pages match to the machines by id, rejected because every machine page would need two reads and API.md says there is no machine status endpoint; changing the machine writes to answer without the machine, as the order writes do, rejected as an API change with no gain, because the frontend reads the machine again after every write anyway (DEC-36).
+- Consequences: the machine read answer (`ResourceViewResponse`) and the write answer (`ResourceResponse`) are two shapes, the read one with `status`. Running (task M5-1) adds the lots in progress to the same derivation.
+
+### DEC-40 Plant time conversion in the UI
+
+- Decision: the UI shows every UTC time on the plant's wall clock, as it already did, and converts a plant-local time a planner types to the UTC instant it sends, with `Intl.DateTimeFormat` in the plant time zone that the calendar answer carries. A local time that occurs twice is read as its first occurrence and one inside a DST gap as the first time after the gap (A38). On the server only the engine converts.
+- Reason: the API sends and receives UTC (`API.md` section "Conventions"), and the planner thinks in plant time. The unavailability form (task M3-2) is the first input of a time of day with a date; the placement form (task M3-4) is the next.
+- Alternatives: requests with plant-local times that the server converts through the engine, rejected because the API would then take local times and answer UTC ones; a date library such as `date-fns-tz`, rejected because a few lines on `Intl` do it without a package; the `Temporal` API, rejected because Node 24, which runs the frontend tests, does not have it.
+- Concern: the reading of an ambiguous local time is written twice, in the engine (A27) and in the UI. The UI tests check the same DST cases as the engine tests.
+
+### DEC-41 Open-ended unavailability without an end
+
+- Decision: an unavailability is stored with a start and a nullable end; a breakdown with no known end has none. A check constraint allows a missing end only for a breakdown and requires the end after the start.
+- Reason: the API, the engine snapshot (`SnapshotUnavailability.End`) and the generator already describe an open end as a missing value, and no exclusion constraint covers unavailabilities (R3 spans tables), so a range column with an infinite upper bound, as the persistence rules first said, would only add a conversion at each end.
+- Alternatives: a `tstzrange` column with an infinite upper bound, rejected for the reason above; an end of `infinity`, rejected because every reader would have to turn it back into a missing end.
+- Consequences: a query for what covers a time reads a missing end as "still going on" (`EndsAt == null || EndsAt > time`).
 
 ## Open
 

@@ -1,3 +1,5 @@
+using TireScheduler.Engine;
+
 namespace TireScheduler.PlantGenerator;
 
 // A generated plant as plain values. Machines, stages and orders name what they refer to,
@@ -54,7 +56,13 @@ public enum GeneratedPriority
 }
 
 // A plant-local start and an elapsed duration; no duration means no known end (A33).
-public sealed record GeneratedUnavailability(string MachineName, UnavailabilityKind Kind, DateTime LocalStart, int? DurationMinutes, string Reason);
+public sealed record GeneratedUnavailability(string MachineName, UnavailabilityKind Kind, DateTime LocalStart, int? DurationMinutes, string Reason)
+{
+    // Only the engine converts between plant-local time and UTC (ARCHITECTURE.md section "Time rules").
+    public DateTimeOffset StartUtc(string timeZoneId) => PlantTime.LocalToUtc(LocalStart, timeZoneId);
+
+    public DateTimeOffset? EndUtc(string timeZoneId) => DurationMinutes is { } minutes ? StartUtc(timeZoneId).AddMinutes(minutes) : null;
+}
 
 public enum UnavailabilityKind
 {

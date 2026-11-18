@@ -2,10 +2,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using TireScheduler.Api.Database;
 using TireScheduler.Api.Modules.MasterData.Calendars;
+using TireScheduler.Api.Modules.MasterData.Machines;
 
 namespace TireScheduler.Api.Modules.MasterData;
 
-internal sealed class MasterDataReader(MasterDataDbContext context, IOptions<PlantOptions> plantOptions) : IMasterDataReader
+internal sealed class MasterDataReader(MasterDataDbContext context, MachineRegister machines, IOptions<PlantOptions> plantOptions) : IMasterDataReader
 {
     // Checked at startup (AC-41), so a missing value here is a bug.
     public string PlantTimeZoneId =>
@@ -65,4 +66,13 @@ internal sealed class MasterDataReader(MasterDataDbContext context, IOptions<Pla
             .Where(type => resourceTypeIds.Contains(type.Id))
             .Select(type => new NamedReference { Id = type.Id, Name = type.Name })
             .ToDictionaryAsync(type => type.Id, cancellationToken);
+
+    public Task<IReadOnlyList<ResourceResponse>> ListResourcesAsync(int? resourceTypeId, bool? isActive, CancellationToken cancellationToken) =>
+        machines.ListAsync(resourceTypeId, isActive, cancellationToken);
+
+    public Task<ResourceResponse> GetResourceAsync(int resourceId, CancellationToken cancellationToken) =>
+        machines.GetAsync(resourceId, cancellationToken);
+
+    public Task<bool> ResourceExistsAsync(int resourceId, CancellationToken cancellationToken) =>
+        context.Resources.AnyAsync(resource => resource.Id == resourceId, cancellationToken);
 }

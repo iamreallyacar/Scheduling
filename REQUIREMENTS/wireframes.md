@@ -1,6 +1,6 @@
 # Wireframes
 
-Status: DRAFT, written in task P8 on 2026-11-10. Low-fidelity sketches of the three scheduling screens: layout, content and states, not visual design. Sources: [features.md](features.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [acceptance-criteria.md](acceptance-criteria.md), [domain-model.md](domain-model.md).
+Status: DRAFT, written in task P8 on 2026-11-10; section 5 in task M3-2 on 2026-11-18. Low-fidelity sketches of the three scheduling screens and the machine page: layout, content and states, not visual design. Sources: [features.md](features.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [acceptance-criteria.md](acceptance-criteria.md), [domain-model.md](domain-model.md).
 
 ## 1. Conventions
 
@@ -181,3 +181,36 @@ Behavior:
 - Already placed and started lots are listed for context, marked "Already placed", and are not part of the commit (AC-130).
 - The proposal cannot be edited row by row. To change one lot, the planner commits and then moves that lot with the placement form, or cancels and places lots one by one.
 - The commit sends the proposal unchanged (AC-136).
+
+## 5. Machine page
+
+Features F-MD-1, F-MNT-1 and F-MNT-2; task M3-2. Route `/machines/{id}`, opened from a machine's name in the machine register, which also shows each machine's status. Data from `GET /resources/{id}`, `GET /resources/{id}/unavailabilities` and `GET /calendars` (the plant time zone); saved with `POST` on `/resources/{id}/unavailabilities` and `PUT` and `DELETE` on one unavailability.
+
+```
++----------------------------------------------------------------------------------------------+
+| < Machines                                                                                   |
+| Press 1                                                          Times in Europe/Berlin      |
+| Type Curing   Calendar Plant default   Active Yes   Status Down                              |
++----------------------------------------------------------------------------------------------+
+| Unavailability                                                   [Record unavailability]     |
+| Kind          Start                End                  Reason                               |
+| Breakdown     18 Nov 2026, 09:00   no end               Hydraulic leak     [Edit] [Delete]   |
+| Planned       17 Nov 2026, 06:00   17 Nov 2026, 10:00   Mold change        [Edit] [Delete]   |
++----------------------------------------------------------------------------------------------+
+| Record unavailability                                                                        |
+|   Kind    [Breakdown           v]                                                            |
+|   Start   [18.11.2026, 09:00]                                                                |
+|   End     [__________________]   empty for a breakdown with no known end                     |
+|   Reason  ______________________                                                             |
+|   [Save]  [Cancel]                                                                           |
++----------------------------------------------------------------------------------------------+
+```
+
+Behavior:
+
+- The status is the one the API returns at the current time (AC-172); the page derives nothing.
+- The list shows the latest start first. Times are on the plant's wall clock, and a breakdown without an end shows "no end".
+- [Record unavailability], [Edit] and [Delete] are Planner only. [Edit] opens the same form filled in; giving an open breakdown its end brings the machine back (`domain-model.md` section 6).
+- Start and end are typed as plant-local date and time (A38). A rejected save shows the problem and the field errors and keeps the entered values (AC-26).
+- Recording an unavailability is always saved, also when it overlaps placed lots; those placements are flagged as conflicts by task M3-5 (DEC-18).
+

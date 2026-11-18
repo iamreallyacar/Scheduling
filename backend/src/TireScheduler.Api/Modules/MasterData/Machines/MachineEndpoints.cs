@@ -32,15 +32,8 @@ internal static class MachineEndpoints
             .WithName("DeleteResourceType")
             .RequireAuthorization(AccessPolicies.Administer);
 
+        // The reads are served by Queries, which adds the derived status (DEC-39).
         RouteGroupBuilder resources = api.MapGroup("/resources").WithTags("Machines");
-        resources.MapGet("/", async (int? resourceTypeId, bool? isActive, MachineRegister register, CancellationToken cancellationToken) =>
-                TypedResults.Ok(await register.ListAsync(resourceTypeId, isActive, cancellationToken)))
-            .WithName("ListResources")
-            .RequireAuthorization(AccessPolicies.Read);
-        resources.MapGet("/{id:int}", async (int id, MachineRegister register, CancellationToken cancellationToken) =>
-                TypedResults.Ok(await register.GetAsync(id, cancellationToken)))
-            .WithName("GetResource")
-            .RequireAuthorization(AccessPolicies.Read);
         resources.MapPost("/", async Task<Created<ResourceResponse>> (CreateResourceRequest request, MachineRegister register, CancellationToken cancellationToken) =>
             {
                 ResourceResponse created = await register.CreateAsync(request, cancellationToken);

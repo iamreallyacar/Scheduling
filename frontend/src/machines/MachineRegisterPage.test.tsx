@@ -1,14 +1,14 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { CurrentUserResponse, ResourceResponse, ResourceTypeResponse } from '../api/generated';
+import type { CurrentUserResponse, ResourceTypeResponse, ResourceViewResponse } from '../api/generated';
 import { adminUser, plannerUser, problem, stubApi, viewerUser, type FakeApiRequest } from '../testing/fakeApi';
 import { renderApp } from '../testing/renderApp';
 
 const building: ResourceTypeResponse = { id: 1, name: 'Building machine', kind: 'Machine' };
 const curing: ResourceTypeResponse = { id: 2, name: 'Curing press', kind: 'Machine' };
 const plantCalendar = { id: 1, name: 'Plant default' };
-const builder: ResourceResponse = { id: 10, name: 'Builder 1', resourceType: building, calendar: plantCalendar, isActive: true };
-const press: ResourceResponse = { id: 20, name: 'Press 1', resourceType: curing, calendar: plantCalendar, isActive: false };
+const builder: ResourceViewResponse = { id: 10, name: 'Builder 1', resourceType: building, calendar: plantCalendar, isActive: true, status: 'Idle' };
+const press: ResourceViewResponse = { id: 20, name: 'Press 1', resourceType: curing, calendar: plantCalendar, isActive: false, status: 'Maintenance' };
 
 function stubMachineApi(currentUser: CurrentUserResponse) {
   return {
@@ -36,6 +36,16 @@ describe('machine register', () => {
     expect(within(pressRow as HTMLElement).getByText('Plant default')).toBeInTheDocument();
     expect(within(pressRow as HTMLElement).getByText('No')).toBeInTheDocument();
     expect(screen.getByRole('rowheader', { name: 'Builder 1' })).toBeInTheDocument();
+  });
+
+  it('AC_173 shows the status the server returns and opens a machine page from its name', async () => {
+    stubApi(stubMachineApi(viewerUser));
+    renderApp('/machines');
+
+    const pressRow = (await screen.findByRole('rowheader', { name: 'Press 1' })).closest('tr');
+    expect(within(pressRow as HTMLElement).getByText('Maintenance')).toBeInTheDocument();
+    expect(within(screen.getByRole('rowheader', { name: 'Builder 1' }).closest('tr') as HTMLElement).getByText('Idle')).toBeInTheDocument();
+    expect(within(pressRow as HTMLElement).getByRole('link', { name: 'Press 1' })).toHaveAttribute('href', '/machines/20');
   });
 
   it('AC_30 passes the type and active filters to the server', async () => {

@@ -12,7 +12,7 @@ internal sealed record ResourceTypeRequest(string Name, string Kind);
 
 internal sealed record ResourceRequest(string Name, int ResourceTypeId);
 
-internal sealed record CalendarResponse(int Id, bool IsPlantDefault);
+internal sealed record CalendarResponse(int Id, bool IsPlantDefault, string TimeZone);
 
 internal sealed record CalendarShiftsRequest(IReadOnlyList<CalendarShiftRequest> Shifts);
 
@@ -33,5 +33,8 @@ internal sealed record RoutingDependencyRequest(int PredecessorSequenceNo, int S
 internal sealed record OrderRequest(string OrderNo, string CustomerName, int ProductId, int Quantity, DateOnly DueDate, string Priority);
 
 internal sealed record OrderPageResponse(int TotalCount);
+
+// Times in UTC; no end for a breakdown with no known end.
+internal sealed record UnavailabilityRequest(string Kind, DateTimeOffset Start, DateTimeOffset? End, string Reason);
 
 internal sealed record ProblemResponse(string? Code, string? Detail);

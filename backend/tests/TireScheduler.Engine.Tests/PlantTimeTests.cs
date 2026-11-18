@@ -45,6 +45,24 @@ public sealed class PlantTimeTests
     }
 
     [Fact]
+    public void A33_a_plant_local_time_in_winter_is_one_hour_ahead_of_utc_in_berlin()
+    {
+        Assert.Equal(Utc(2026, 11, 17, 5, 0), PlantTime.LocalToUtc(new DateTime(2026, 11, 17, 6, 0, 0), "Europe/Berlin"));
+    }
+
+    [Fact]
+    public void A27_a_plant_local_time_that_occurs_twice_is_its_first_occurrence()
+    {
+        Assert.Equal(Utc(2026, 10, 25, 0, 30), PlantTime.LocalToUtc(new DateTime(2026, 10, 25, 2, 30, 0), "Europe/Berlin"));
+    }
+
+    [Fact]
+    public void A27_a_plant_local_time_inside_a_dst_gap_is_the_first_time_after_the_gap()
+    {
+        Assert.Equal(Utc(2027, 3, 28, 1, 0), PlantTime.LocalToUtc(new DateTime(2027, 3, 28, 2, 30, 0), "Europe/Berlin"));
+    }
+
+    [Fact]
     public void An_unknown_time_zone_id_is_an_error()
     {
         Assert.Throws<TimeZoneNotFoundException>(() => PlantTime.EndOfDay(new DateOnly(2026, 11, 10), "Mars/Olympus_Mons"));
