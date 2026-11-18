@@ -7,19 +7,38 @@ public static class PlantTime
     public static DateTimeOffset EndOfDay(DateOnly date, string timeZoneId)
     {
         TimeZoneInfo zone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-        DateTime nextMidnight = date.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);
+        return EarliestInstant(date.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified), zone);
+    }
 
-        if (zone.IsInvalidTime(nextMidnight))
+    // A local time that occurs twice gives its first occurrence; one inside a DST gap gives the
+    // instant the gap ends, the first local time that exists after it.
+    internal static DateTimeOffset EarliestInstant(DateTime localTime, TimeZoneInfo zone)
+    {
+        if (zone.IsInvalidTime(localTime))
         {
-            return FirstInstantAtOrAfter(nextMidnight, zone);
+            return FirstInstantAtOrAfter(localTime, zone);
         }
 
         // The larger offset is the earlier of the two instants.
-        TimeSpan offset = zone.IsAmbiguousTime(nextMidnight)
-            ? zone.GetAmbiguousTimeOffsets(nextMidnight).Max()
-            : zone.GetUtcOffset(nextMidnight);
-        return new DateTimeOffset(nextMidnight, offset).ToUniversalTime();
+        TimeSpan offset = zone.IsAmbiguousTime(localTime) ? zone.GetAmbiguousTimeOffsets(localTime).Max() : zone.GetUtcOffset(localTime);
+        return new DateTimeOffset(localTime, offset).ToUniversalTime();
     }
+
+    // As EarliestInstant, but a local time that occurs twice gives its second occurrence, so a
+    // working period ending then contains both (ARCHITECTURE.md section "Time rules").
+    internal static DateTimeOffset LatestInstant(DateTime localTime, TimeZoneInfo zone)
+    {
+        if (zone.IsInvalidTime(localTime))
+        {
+            return FirstInstantAtOrAfter(localTime, zone);
+        }
+
+        TimeSpan offset = zone.IsAmbiguousTime(localTime) ? zone.GetAmbiguousTimeOffsets(localTime).Min() : zone.GetUtcOffset(localTime);
+        return new DateTimeOffset(localTime, offset).ToUniversalTime();
+    }
+
+    internal static DateOnly LocalDate(DateTimeOffset instant, TimeZoneInfo zone) =>
+        DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(instant, zone).DateTime);
 
     // For a local time inside a DST gap: the instant the gap ends. Read with the offset after the
     // gap, the local time is an instant before the gap; read with the offset before it, one after.

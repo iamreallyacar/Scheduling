@@ -183,7 +183,7 @@ Applies to `Validate`, `ComputeEnd` and `FindConflicts` in the engine (task M3-1
 | AC-73 | A curing lot | It is placed on Press 1 at a working time with nothing else there | Accepted | Engine |
 | AC-74 | A curing lot | It is placed on Builder 1 | Rejected, 422 `rule.R1.resource_type`, conflict is the resource | Engine, API |
 | AC-75 | Press 1 inactive | A curing lot is placed on Press 1 | Rejected, 422 `rule.R1.inactive`, conflict is the resource | Engine, API |
-| AC-76 | Press 1 with live placements | The Admin deactivates Press 1 | Saved. The placements stay and `FindConflicts` lists them under R1 (A15) | API |
+| AC-76 | Press 1 with live placements | The Admin deactivates Press 1 | Saved. The placements stay and `FindConflicts` lists them under R1 (A15) | Engine, API |
 | AC-77 | Press 1 with placements | The Admin changes its resource type | Rejected, 409 `conflict.in_use` (A14) | API |
 
 ### R2 No overlap on a resource
@@ -194,7 +194,7 @@ Applies to `Validate`, `ComputeEnd` and `FindConflicts` in the engine (task M3-1
 | AC-79 | Lot A on Press 1, Mon 08:00-12:00 | Lot B on Press 1 starts Mon 12:00 | Accepted, touching is allowed (worked example) | Engine |
 | AC-80 | Lot A on Press 1, Mon 08:00-12:00 | Lot B on Press 2 starts Mon 11:00 | Accepted (worked example) | Engine |
 | AC-81 | Lot A on Press 1, Mon 08:00-12:00 | Lot A is moved to Press 1, Mon 10:00 | Accepted; a lot never conflicts with its own current placement | Engine |
-| AC-82 | Lot A on Press 1, Mon 08:00-12:00 in a scenario version | Lot B is placed on Press 1, Mon 08:00 in the live version | Accepted; rules compare placements within one version only (DEC-11) | Engine |
+| AC-82 | Lot A on Press 1, Mon 08:00-12:00 in a scenario version | Lot B is placed on Press 1, Mon 08:00 in the live version | Accepted; rules compare placements within one version only (DEC-11). The engine is given the placements of one version, so this is tested where the Scheduling module loads them | Integration |
 | AC-83 | Two requests at the same moment placing different lots on Press 1 with overlapping times | Both are processed | Exactly one succeeds; the other is rejected, 422 `rule.R2.overlap`. The database never holds both (exclusion constraint, `ARCHITECTURE.md` section "Persistence rules") | Integration |
 
 ### R3 No overlap with unavailability
@@ -205,7 +205,7 @@ Applies to `Validate`, `ComputeEnd` and `FindConflicts` in the engine (task M3-1
 | AC-85 | A breakdown on Press 1 from Wed 09:00 with no end | A lot on Press 1 starts the following Monday | Rejected, 422 `rule.R3.unavailable`. Accepted after the breakdown gets an end before that Monday (worked example) | Engine |
 | AC-86 | A breakdown on Press 1 from Wed 09:00 with no end | A 4-hour lot on Press 1 starts Wed 05:00 | Accepted, ends 09:00, touching (worked example) | Engine |
 | AC-87 | Planned maintenance on Press 1, Sat 10:00-12:00 | An 8-hour lot on Press 1 starts Fri 20:00 (pauses over the weekend, ends Mon 04:00) | Rejected, 422 `rule.R3.unavailable`; overlap is checked over the whole span from start to end (A16) | Engine |
-| AC-88 | Lot A on Press 1, Tue 06:00-10:00 | A Planner records a breakdown on Press 1 from Tue 08:00 | Saved. Lot A's placement stays and `FindConflicts` lists it under R3 (DEC-18). The timeline and dashboard flag it | API |
+| AC-88 | Lot A on Press 1, Tue 06:00-10:00 | A Planner records a breakdown on Press 1 from Tue 08:00 | Saved. Lot A's placement stays and `FindConflicts` lists it under R3 (DEC-18). The timeline and dashboard flag it | Engine, API |
 
 ### R4 Stage dependencies with lag
 
@@ -234,8 +234,8 @@ Applies to `Validate`, `ComputeEnd` and `FindConflicts` in the engine (task M3-1
 | AC-104 | The same calendar | A 10-hour lot starts Mon 10:00 | `plannedEnd` is Tue 12:00 | Engine |
 | AC-105 | A test calendar with shifts 00:00-24:00 every day, zone `Europe/Berlin` | A 4-hour lot starts 2027-03-28 00:00 (clocks go from 02:00 to 03:00) | `plannedEnd` is 2027-03-28 05:00 local, 03:00Z (A2) | Engine |
 | AC-106 | The same calendar | A 4-hour lot starts 2026-10-25 00:00 (02:00-03:00 happens twice) | `plannedEnd` is 2026-10-25 03:00 local, 02:00Z (A2) | Engine |
-| AC-107 | Lot A on Press 1 from Fri 20:00 to Mon 04:00 | The Admin adds a holiday on that Monday | Saved. Lot A's `plannedEnd` becomes Tue 04:00. If the new end overlaps another placement or unavailability, `FindConflicts` lists Lot A (DEC-18) | API |
-| AC-108 | Lot A on Press 1 starting Mon 06:00 | The Admin removes the Monday 00:00-08:00 shift | Saved. Lot A's placement stays and `FindConflicts` lists it under R6 | API |
+| AC-107 | Lot A on Press 1 from Fri 20:00 to Mon 04:00 | The Admin adds a holiday on that Monday | Saved. Lot A's `plannedEnd` becomes Tue 04:00. If the new end overlaps another placement or unavailability, or ends less than the lag before a placed successor lot starts, `FindConflicts` lists Lot A (DEC-18) | Engine, API |
+| AC-108 | Lot A on Press 1 starting Mon 06:00 | The Admin removes the Monday 00:00-08:00 shift | Saved. Lot A's placement stays and `FindConflicts` lists it under R6 | Engine, API |
 
 ### R7 Reject, never adjust
 

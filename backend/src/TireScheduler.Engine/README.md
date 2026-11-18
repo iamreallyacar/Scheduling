@@ -1,17 +1,19 @@
 # Scheduling engine
 
-Inputs, operations and search of the scheduling engine. The rules it keeps are in `ARCHITECTURE.md` section "Engine rules". `LotDuration` came with task M2-3, `PlantTime` and `OrderLateness` with task M2-4; the rest is built in task M3-1; its expected behavior, including the worked examples, is in [acceptance-criteria.md](../../../REQUIREMENTS/acceptance-criteria.md) sections 4 and 5.
+Inputs, operations and search of the scheduling engine. The rules it keeps are in `ARCHITECTURE.md` section "Engine rules". `LotDuration` came with task M2-3, `PlantTime` and `OrderLateness` with task M2-4, and `PlacementRules` with task M3-1; `EarliestSlot` and `ScheduleOrderAsap` follow in tasks M4-1 and M4-3. Their expected behavior, including the worked examples, is in [acceptance-criteria.md](../../../REQUIREMENTS/acceptance-criteria.md) sections 4 and 5.
 
 ## Inputs
 
-A snapshot for one schedule version:
+A `ScheduleSnapshot` for one schedule version, loaded by the caller:
 
-- Calendars with their shifts, plant holidays, plant time zone id.
+- Calendars with their shifts (plant-local minutes of the day), plant holidays, plant time zone id.
 - Resources: id, type, calendar, isActive.
-- Unavailabilities: resource, start, end (open end allowed), kind.
-- Placements of the version: lot, resource, start, end.
-- Lots: id, operation, duration, resource type, started flag, completed flag, order cancelled flag.
+- Unavailabilities: id, resource, start, end (open end allowed). Both kinds block the same way (R3).
+- Placements of the version: id, lot, resource, start, stored planned end.
+- Lots: id, operation, duration, resource type, progress (not started, In Progress, Completed), order cancelled flag.
 - Operation dependencies with lag.
+
+A lot or resource asked about that is not in the snapshot is an `ArgumentException`, because the caller loads the snapshot for the rows it asks about. A lot duration below one minute is an `ArgumentOutOfRangeException`; Orders computes durations with `LotDuration`, which never gives less.
 
 ## Operations
 
@@ -20,11 +22,16 @@ A snapshot for one schedule version:
 | `LotDuration.Minutes(setup, cycle, unitsPerCycle, quantity)` | A lot's duration in minutes (`domain-model.md` section 4), in 64 bits so it cannot overflow. Used by Orders when it generates lots (DEC-28) |
 | `PlantTime.EndOfDay(date, timeZoneId)` | The UTC instant a plant-local date ends: the first instant of the next local day, also on DST days (DEC-22, A27). An unknown zone id throws |
 | `OrderLateness.IsLate(facts)` | The late flag of `domain-model.md` section 6 from due date, plant time zone, now, cancelled flag, the lots' planned ends in one version and the completion time. Used by Queries (DEC-30) |
-| `ComputeEnd(resource, start, duration)` | `plannedEnd` from working time (R6), or a violation if the start is outside working time |
-| `Validate(lot, resource, start)` | OK with `plannedEnd`, or every violated rule with its conflicting item (R1-R4, R6-R8) |
+| `PlacementRules.ComputeEnd(snapshot, resource, start, duration)` | `plannedEnd` from working time (R6), or null if the start is outside working time. Used to recompute stored ends after a calendar or holiday change |
+| `PlacementRules.Validate(snapshot, lot, resource, start)` | The planned end and every violated rule with its conflicting item, in rule order (R1-R4, R6, R8; A35). Accepted when there are none. The lot's own current placement is ignored |
+| `PlacementRules.ValidateRemoval(snapshot, lot)` | The R8 violation if the lot has started; removing never breaks another rule |
 | `EarliestSlot(lot, resources?, notBefore)` | On each given resource (default: every active resource of the lot's type) the earliest start that passes `Validate`. Across resources the slot with the earliest end wins; on a tie the earlier start, then the resource name. The lot's own current placement is ignored. None if nothing fits within the horizon |
 | `ScheduleOrderAsap(order lots, notBefore)` | A proposal: each unplaced lot in dependency order gets its `EarliestSlot`, with earlier proposals counted as placed. Existing placements never move. Fails as a whole if any lot cannot be placed |
-| `FindConflicts(snapshot)` | Existing placements that now break a rule (`ARCHITECTURE.md` section "Persistence rules") |
+| `PlacementRules.FindConflicts(snapshot)` | Existing placements that now break a rule, each with its violations, checked with the stored planned ends; completed lots are left out (`ARCHITECTURE.md` section "Persistence rules", A36) |
+
+## Working time
+
+Each shift of a local date becomes a UTC period from the first occurrence of its start to the last occurrence of its end, so a local time that occurs twice counts both times and one inside a DST gap is skipped (`ARCHITECTURE.md` section "Time rules"). Holidays have no periods. Periods are half-open: the end of the last shift is not working time, and a planned end that falls on a shift end stays there.
 
 ## Earliest slot search
 

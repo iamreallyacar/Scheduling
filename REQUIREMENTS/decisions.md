@@ -310,11 +310,11 @@ The only list of open questions. BQ questions wait for the business; until it an
 
 | ID | Question | Current proposal | Needed by |
 |---|---|---|---|
-| BQ1 | Does the plant's time zone observe DST? | Assume yes (A2); the engine handles DST either way | M3-1 |
+| BQ1 | Does the plant's time zone observe DST? | Assume yes (A2); the engine handles DST either way, so an answer needs no change (task M3-1) | Before go-live; no code change |
 | BQ2 | Does the real plant run weekends? | Assume Monday to Friday (A3). If not, the generator presets get seven working days instead of five (A30) | Before go-live; preset values only |
 | BQ3 | Which stages need a dependency lag, and how long (for example green tire rest before curing)? | None yet. Routings default to no lag (F-MD-3); lags are routing data, so an answer needs no code change. The generator presets use synthetic lags (A30) | Before go-live; preset values only |
 | BQ4 | How many cavities do the curing presses have (`unitsPerCycle`), and does it differ between presses? | `unitsPerCycle` is set per routing stage, so all presses of a type share it. Different rates per press need machine-specific rates (F-MD-8, P1). The generator presets assume two cavities (A30) | Before go-live; preset values only |
-| BQ5 | Does planned maintenance during non-working time block a lot that pauses across it? | Assume yes, overlap is checked over the whole span (A16) | M3-1 |
+| BQ5 | Does planned maintenance during non-working time block a lot that pauses across it? | Assume yes, overlap is checked over the whole span (A16). A "no" changes only the R3 check in the engine's `PlacementRules` | Before go-live; one engine rule |
 | WQ1 | The placement form cannot show the planned end before saving, because no endpoint validates without saving | Show "calculated when saved" in v1. If planners need a preview, add `GET .../placement/preview` returning `Validate` output | M3-4 |
 | WQ2 | The proposal review shows whether the order would be late, but the proposal response has no lateness field, and the UI must not compute rules | Add `finishesAt` and `wouldBeLate` to the proposal response, computed in Queries with the same `isLate` rule | M4-4 |
 | WQ3 | The timeline needs a time range, but `/versions/{v}/timeline` has no range parameters yet | Add `from` and `to` query parameters (plant-local dates), default two weeks | M3-6 |

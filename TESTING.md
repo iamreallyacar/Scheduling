@@ -7,7 +7,7 @@ How the project is tested. The commands to run are in CLAUDE.md, section VERIFIC
 | Level | What | Tooling |
 |---|---|---|
 | Unit | Engine: every Engine-level acceptance criterion, including the worked examples and DST cases, and the late flag (DEC-30). Generator: every Generator-level criterion, in `TireScheduler.PlantGenerator.Tests`, for every preset over several seeds and start dates, including DST weeks | xUnit v3 |
-| Property | Engine: any slot returned by `EarliestSlot` passes `Validate`; no feasible start exists before it; `ScheduleOrderAsap` proposals pass `Validate` together | FsCheck or similar, added in task M3-1 |
+| Property | Engine: any slot returned by `EarliestSlot` passes `Validate`; no feasible start exists before it; `ScheduleOrderAsap` proposals pass `Validate` together | FsCheck or similar, added in task M4-1 with the first property criteria (AC-115, AC-116, AC-127) |
 | Module integration | Each module against a real PostgreSQL, including constraints, locking and soft delete | xUnit v3 with Testcontainers |
 | API | Auth and role policies, problem-details shape, rule violations returned as 422 with `rule` and `conflict` | `WebApplicationFactory` |
 | Architecture | Module dependency table in `ARCHITECTURE.md` section "Structure" holds between module namespaces; the engine project references no module; the generator core references only the engine, and neither the engine nor the API references it | NetArchTest |
@@ -32,6 +32,11 @@ Backend, in `backend/tests/TireScheduler.Api.Tests`:
 - `RecordingLoggerProvider`: keeps log entries in memory so a test can check what was logged.
 - `SchedulerApiFactory.NewCookieKeepingClient`: a client whose handler keeps the cookies, as a program outside the browser does; the plant loader tests (`PlantLoader/PlantLoaderTests.cs`) run the loader with it against an empty database per test.
 
+Backend, in `backend/tests/TireScheduler.Engine.Tests`:
+
+- `TestPlant`: the plant of the examples in `acceptance-criteria.md` section 4 as an engine snapshot (Press 1, Press 2, Builder 1, the plant default calendar in `Europe/Berlin`), with `With...` methods that add lots, placements, unavailabilities, dependencies, holidays and shifts, and the days of one winter week as UTC instants.
+- `RuleAssert`: checks that a placement is accepted, or rejected with a given first code and conflict.
+
 Frontend, in `frontend/src/testing`:
 
 - `renderApp`: renders the whole app at a path, with a fresh query cache and no anti-forgery token.
@@ -41,7 +46,7 @@ Frontend, in `frontend/src/testing`:
 ## Known gaps
 
 - No CI runs the checks yet; they are run by hand (CLAUDE.md, section VERIFICATION TOOLS).
-- The property tests and their library come with task M3-1, and Playwright with the first end-to-end flow.
+- The property tests and their library come with task M4-1, and Playwright with the first end-to-end flow.
 - AC-19, AC-49 and AC-51 are tested through `FakeLotActivity` until tasks M3-4 and M5-1 test them with real placements and progress.
 - Order status and `isLate` are tested through the API without placements or progress, so only Pending and Cancelled occur and no planned end counts, until tasks M3-4 and M5-1 add them.
 
