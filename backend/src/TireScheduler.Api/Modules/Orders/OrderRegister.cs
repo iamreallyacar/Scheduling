@@ -81,13 +81,15 @@ internal sealed class OrderRegister(
         await transaction.CommitAsync(cancellationToken);
     }
 
-    // AC-50, AC-51. The placements of its lots are removed from the schedule once Scheduling stores them (task M3-4).
+    // AC-50, AC-51. The placements of its lots that have not started leave the schedule in the
+    // same transaction, so they stop blocking machines (A13, DEC-33).
     public async Task CancelAsync(int orderId, CancellationToken cancellationToken)
     {
         await using OpenTransaction transaction = await requestTransaction.BeginAsync(context, cancellationToken);
         Order order = await LockAndLoadAsync(orderId, cancellationToken);
         RejectCancelled(order);
-        if (await lotProgress.AnyInProgressAsync(await LotIdsAsync(orderId, cancellationToken), cancellationToken))
+        IReadOnlyCollection<int> lotIds = await LotIdsAsync(orderId, cancellationToken);
+        if (await lotProgress.AnyInProgressAsync(lotIds, cancellationToken))
         {
             throw ApiProblemException.Rejected(
                 StatusCodes.Status409Conflict,
@@ -97,6 +99,7 @@ internal sealed class OrderRegister(
 
         order.CancelledAt = clock.GetUtcNow();
         await context.SaveChangesAsync(cancellationToken);
+        await lotPlacements.RemoveUnstartedAsync(lotIds, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
 

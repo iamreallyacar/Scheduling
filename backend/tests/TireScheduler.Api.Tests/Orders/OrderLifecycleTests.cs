@@ -1,18 +1,16 @@
 using System.Net;
 using System.Text.Json;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
 using TireScheduler.Api.Errors;
-using TireScheduler.Api.Modules.Orders;
 using TireScheduler.Api.Security;
 using static TireScheduler.Api.Tests.TestData.MasterDataTestData;
 using static TireScheduler.Api.Tests.TestData.OrderTestData;
+using static TireScheduler.Api.Tests.TestData.SchedulingTestData;
 
 namespace TireScheduler.Api.Tests.Orders;
 
-// The order rules that depend on placements and progress (A13), with those facts given through
-// the Orders ports, and the times the order records on the injected clock.
+// The order rules that depend on placements and progress (A13), with real placements and the
+// progress facts given through FakeLotActivity, and the times the order records on the injected clock.
 public sealed class OrderLifecycleTests(PostgresFixture postgres) : IAsyncLifetime
 {
     private static readonly DateTimeOffset CreationTime = new(2026, 11, 2, 7, 30, 0, TimeSpan.Zero);
@@ -23,11 +21,7 @@ public sealed class OrderLifecycleTests(PostgresFixture postgres) : IAsyncLifeti
 
     public ValueTask InitializeAsync()
     {
-        factory = new SchedulerApiFactory(postgres.NewDatabaseConnectionString(), clock: clock, replaceServices: services =>
-        {
-            services.Replace(ServiceDescriptor.Singleton<ILotPlacements>(lotActivity));
-            services.Replace(ServiceDescriptor.Singleton<ILotProgress>(lotActivity));
-        });
+        factory = new SchedulerApiFactory(postgres.NewDatabaseConnectionString(), clock: clock, replaceServices: lotActivity.ReplaceProgressIn);
         return ValueTask.CompletedTask;
     }
 
@@ -55,7 +49,8 @@ public sealed class OrderLifecycleTests(PostgresFixture postgres) : IAsyncLifeti
         int productId = await ProductIdAsync(planner, "LOCKED");
         JsonElement order = await CreateOrderAsync(planner, NewOrder("SO-LOCKED", productId, quantity: 10));
         int orderId = order.GetProperty("id").GetInt32();
-        Record(lotFact, LotIds(order)[^1]);
+        await RecordAsync(lotFact, order, LotIds(order)[^1]);
+        JsonElement recorded = await planner.GetJsonAsync(OrderPath(orderId));
 
         HttpResponseMessage quantityChange = await planner.PutAsync(OrderPath(orderId), NewOrder("SO-LOCKED", productId, quantity: 11));
         HttpResponseMessage customerChange = await planner.PutAsync(OrderPath(orderId), NewOrder("SO-LOCKED", productId, quantity: 10, customerName: "New customer"));
@@ -64,7 +59,7 @@ public sealed class OrderLifecycleTests(PostgresFixture postgres) : IAsyncLifeti
         Assert.Equal(HttpStatusCode.NoContent, customerChange.StatusCode);
         JsonElement saved = await planner.GetJsonAsync(OrderPath(orderId));
         Assert.Equal("New customer", saved.GetProperty("customerName").GetString());
-        Assert.Equal(order.GetProperty("operations").GetRawText(), saved.GetProperty("operations").GetRawText());
+        Assert.Equal(recorded.GetProperty("operations").GetRawText(), saved.GetProperty("operations").GetRawText());
     }
 
     [Fact]
@@ -92,7 +87,7 @@ public sealed class OrderLifecycleTests(PostgresFixture postgres) : IAsyncLifeti
     {
         using ApiSession planner = await PlannerWithProductAsync("KEPT");
         JsonElement order = await CreateOrderAsync(planner, NewOrder("SO-KEPT", await ProductIdAsync(planner, "KEPT")));
-        Record(lotFact, LotIds(order)[0]);
+        await RecordAsync(lotFact, order, LotIds(order)[0]);
 
         HttpResponseMessage response = await planner.DeleteAsync(OrderPath(order.GetProperty("id").GetInt32()));
 
@@ -106,8 +101,23 @@ public sealed class OrderLifecycleTests(PostgresFixture postgres) : IAsyncLifeti
         Started,
     }
 
-    private void Record(LotFact lotFact, int lotId) =>
-        (lotFact == LotFact.Placed ? lotActivity.PlacedLotIds : lotActivity.StartedLotIds).Add(lotId);
+    // A placed lot is placed in the live version on a new machine of its type, Mon 2026-11-16 08:00 in Berlin.
+    private async Task RecordAsync(LotFact lotFact, JsonElement order, int lotId)
+    {
+        if (lotFact == LotFact.Started)
+        {
+            lotActivity.StartedLotIds.Add(lotId);
+            return;
+        }
+
+        int resourceTypeId = order.GetProperty("operations").EnumerateArray()
+            .Single(operation => operation.GetProperty("lots").EnumerateArray().Any(lot => lot.GetProperty("id").GetInt32() == lotId))
+            .GetProperty("resourceType").GetProperty("id").GetInt32();
+        using ApiSession admin = await factory.SignInAsRoleAsync(UserRole.Admin);
+        int resourceId = await CreateResourceAsync(admin, $"Machine for lot {lotId}", resourceTypeId);
+        using ApiSession planner = await factory.SignInAsRoleAsync(UserRole.Planner);
+        await PlaceLotAsync(planner, lotId, resourceId, new DateTimeOffset(2026, 11, 16, 7, 0, 0, TimeSpan.Zero));
+    }
 
     private async Task<ApiSession> PlannerWithProductAsync(string productCode)
     {

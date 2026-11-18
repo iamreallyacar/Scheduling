@@ -23,6 +23,69 @@ namespace TireScheduler.Api.Modules.Scheduling.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("TireScheduler.Api.Modules.Scheduling.Placement", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("LotId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("PlannedEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("PlannedStart")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ResourceId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("VersionId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LotId");
+
+                    b.HasIndex("ResourceId");
+
+                    b.HasIndex("VersionId", "LotId")
+                        .IsUnique();
+
+                    b.ToTable("Placements", "scheduling", t =>
+                        {
+                            t.HasCheckConstraint("CK_Placements_EndAfterStart", "\"PlannedEnd\" > \"PlannedStart\"");
+                        });
+                });
+
+            modelBuilder.Entity("TireScheduler.Api.Modules.Scheduling.ScheduleVersion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("IsLive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsLive")
+                        .IsUnique()
+                        .HasFilter("\"IsLive\"");
+
+                    b.ToTable("ScheduleVersions", "scheduling");
+                });
+
             modelBuilder.Entity("TireScheduler.Api.Modules.Scheduling.Unavailability", b =>
                 {
                     b.Property<int>("Id")
@@ -59,6 +122,15 @@ namespace TireScheduler.Api.Modules.Scheduling.Migrations
 
                             t.HasCheckConstraint("CK_Unavailabilities_OpenEndOnlyForBreakdown", "\"EndsAt\" IS NOT NULL OR \"Kind\" = 'Breakdown'");
                         });
+                });
+
+            modelBuilder.Entity("TireScheduler.Api.Modules.Scheduling.Placement", b =>
+                {
+                    b.HasOne("TireScheduler.Api.Modules.Scheduling.ScheduleVersion", null)
+                        .WithMany()
+                        .HasForeignKey("VersionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

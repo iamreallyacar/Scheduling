@@ -7,8 +7,8 @@ using static TireScheduler.Api.Tests.TestData.OrderTestData;
 namespace TireScheduler.Api.Tests.Queries;
 
 // F-ORD-2 through the order reads of Queries (DEC-29), on a fixed clock in the plant time zone
-// Europe/Berlin. Until tasks M3-4 and M5-1 no lot is placed or started, so only Pending and
-// Cancelled occur.
+// Europe/Berlin, for orders without placements; Scheduled and the late flag from a planned end are
+// in Scheduling/PlacementTests.cs. Until task M5-1 stores progress, no lot is started.
 public sealed class OrderStatusTests(PostgresFixture postgres) : IAsyncLifetime
 {
     private const string DueDate = "2026-11-10";

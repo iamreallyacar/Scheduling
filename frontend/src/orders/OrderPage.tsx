@@ -9,6 +9,7 @@ import { useSignedInUser } from '../auth/signedInUser';
 import { PlantTime } from '../calendar/PlantTime';
 import { ProblemSummary } from '../forms/ProblemSummary';
 import { QueryResult } from '../forms/QueryResult';
+import { PlacementForm, type PlacementTarget } from '../schedule/PlacementForm';
 import { NotFoundPage } from '../shell/NotFoundPage';
 import { OrderForm } from './OrderForm';
 import { useOrder } from './orderQueries';
@@ -37,6 +38,7 @@ function OrderView({ orderId }: { orderId: number }) {
 function LoadedOrder({ order }: { order: OrderResponse }) {
   const { canPlan } = useSignedInUser();
   const [isEditing, setIsEditing] = useState(false);
+  const [lotInForm, setLotInForm] = useState<PlacementTarget | null>(null);
   const navigate = useNavigate();
 
   // A write answers without the order; the query client reads it again (DEC-29, DEC-36).
@@ -128,7 +130,17 @@ function LoadedOrder({ order }: { order: OrderResponse }) {
           }}
         />
       )}
-      <OrderTables order={order} />
+      <OrderTables order={order} onOpenPlacement={canPlan ? setLotInForm : null} />
+      {lotInForm !== null && (
+        <PlacementForm
+          // A new key gives the form fresh state when another lot is chosen.
+          key={lotInForm.lotId}
+          target={lotInForm}
+          onClose={() => {
+            setLotInForm(null);
+          }}
+        />
+      )}
     </>
   );
 }

@@ -1,28 +1,20 @@
 using System.Net;
 using System.Text.Json;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using TireScheduler.Api.Errors;
-using TireScheduler.Api.Modules.Scheduling;
 using TireScheduler.Api.Security;
-using TireScheduler.Api.Tests.Orders;
 using static TireScheduler.Api.Tests.TestData.MasterDataTestData;
 using static TireScheduler.Api.Tests.TestData.OrderTestData;
 using static TireScheduler.Api.Tests.TestData.SchedulingTestData;
 
 namespace TireScheduler.Api.Tests.Queries;
 
-// F-SCH-7: the lots that wait for placement. Until task M3-4 stores placements, the placed lots
-// come from FakeLotActivity.
+// F-SCH-7: the lots that wait for placement, with a lot placed through the placement endpoint.
 public sealed class UnscheduledLotQueueTests(PostgresFixture postgres)
 {
     [Fact]
     public async Task AC_174_lists_the_unscheduled_lots_of_open_orders_by_due_date_order_number_and_stage()
     {
-        FakeLotActivity lotActivity = new();
-        await using SchedulerApiFactory factory = new(
-            postgres.NewDatabaseConnectionString(),
-            replaceServices: services => services.Replace(ServiceDescriptor.Singleton<IPlacementReader>(lotActivity)));
+        await using SchedulerApiFactory factory = new(postgres.NewDatabaseConnectionString());
         using ApiSession admin = await factory.SignInAsRoleAsync(UserRole.Admin);
         int buildingTypeId = await CreateResourceTypeAsync(admin, "AC-174 building");
         int curingTypeId = await CreateResourceTypeAsync(admin, "AC-174 curing");
@@ -41,7 +33,8 @@ public sealed class UnscheduledLotQueueTests(PostgresFixture postgres)
         JsonElement deleted = await CreateOrderAsync(planner, NewOrder("SO-D", productId, dueDate: "2026-11-12"));
         HttpResponseMessage deleteResponse = await planner.DeleteAsync(OrderPath(deleted.GetProperty("id").GetInt32()));
         Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
-        lotActivity.PlacedLotIds.Add(LotIds(partlyPlaced)[0]);
+        // Mon 2026-11-16 08:00 in Berlin.
+        await PlaceLotAsync(planner, LotIds(partlyPlaced)[0], await CreateResourceAsync(admin, "AC-174 builder", buildingTypeId), new DateTimeOffset(2026, 11, 16, 7, 0, 0, TimeSpan.Zero));
         using ApiSession viewer = await factory.SignInAsRoleAsync(UserRole.Viewer);
 
         JsonElement queue = await viewer.GetJsonAsync(UnscheduledLotsPath("live"));

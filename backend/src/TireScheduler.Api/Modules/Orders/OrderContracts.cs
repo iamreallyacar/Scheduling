@@ -49,6 +49,9 @@ public sealed record OrderSummary
     public required DateTimeOffset CreatedAt { get; init; }
 
     public required DateTimeOffset? CancelledAt { get; init; }
+
+    // Of every operation, for the status and late flag that Queries derives from their placements.
+    public required IReadOnlyList<int> LotIds { get; init; }
 }
 
 public sealed record OrderDetails

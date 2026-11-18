@@ -17,3 +17,10 @@ public interface IResourceReferences
 {
     Task<string?> FindItemUsingResourceAsync(int resourceId, CancellationToken cancellationToken);
 }
+
+// Port (DEC-16): a resource whose rows above are planned on it by its type cannot change type
+// (A14, AC-77). The answer names the first placement on the resource, or is null when it has none.
+public interface IResourcePlacementReferences
+{
+    Task<string?> FindPlacementOnResourceAsync(int resourceId, CancellationToken cancellationToken);
+}

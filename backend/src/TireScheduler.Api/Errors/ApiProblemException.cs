@@ -6,12 +6,18 @@ namespace TireScheduler.Api.Errors;
 // request, so a surrounding transaction is rolled back and nothing is saved.
 public sealed class ApiProblemException : Exception
 {
-    private ApiProblemException(int status, string code, string detail, IReadOnlyDictionary<string, IReadOnlyList<string>>? fieldErrors = null)
+    private ApiProblemException(
+        int status,
+        string code,
+        string detail,
+        IReadOnlyDictionary<string, IReadOnlyList<string>>? fieldErrors = null,
+        IReadOnlyDictionary<string, object>? extensions = null)
         : base(detail)
     {
         Status = status;
         Code = code;
         FieldErrors = fieldErrors;
+        Extensions = extensions;
     }
 
     public int Status { get; }
@@ -19,6 +25,10 @@ public sealed class ApiProblemException : Exception
     public string Code { get; }
 
     public IReadOnlyDictionary<string, IReadOnlyList<string>>? FieldErrors { get; }
+
+    // Further fields of the problem details, for example `rule`, `conflict` and `violations` of a
+    // scheduling rule violation (API.md section "Error format").
+    public IReadOnlyDictionary<string, object>? Extensions { get; }
 
     public static ApiProblemException Rejected(int status, string code, string detail) => new(status, code, detail);
 
@@ -37,12 +47,21 @@ public sealed class ApiProblemException : Exception
     public static ApiProblemException InUse(string detail) =>
         new(StatusCodes.Status409Conflict, ProblemCodes.ConflictInUse, detail);
 
+    // A scheduling rule is broken (R7): 422, never adjusted.
+    public static ApiProblemException RuleViolated(string code, string detail, IReadOnlyDictionary<string, object> extensions) =>
+        new(StatusCodes.Status422UnprocessableEntity, code, detail, extensions: extensions);
+
     public ProblemDetails ToProblemDetails()
     {
         ProblemDetails problem = ApiProblems.Create(Status, Code, Message);
         if (FieldErrors is not null)
         {
             problem.Extensions[ApiProblems.FieldErrorsField] = FieldErrors;
+        }
+
+        foreach ((string field, object value) in Extensions ?? new Dictionary<string, object>())
+        {
+            problem.Extensions[field] = value;
         }
 
         return problem;

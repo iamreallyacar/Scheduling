@@ -1,6 +1,8 @@
 import { screen, within } from '@testing-library/react';
-import type { UnscheduledLotResponse } from '../api/generated';
-import { stubApi, viewerUser } from '../testing/fakeApi';
+import userEvent from '@testing-library/user-event';
+import type { ResourceViewResponse, UnscheduledLotResponse } from '../api/generated';
+import { plantCalendar } from '../orders/orderSamples';
+import { plannerUser, stubApi, viewerUser, type FakeApiAnswer, type FakeApiRequest } from '../testing/fakeApi';
 import { renderApp } from '../testing/renderApp';
 
 const UNSCHEDULED_LOTS_PATH = '/api/v1/versions/live/unscheduled-lots';
@@ -62,4 +64,97 @@ describe('schedule page', () => {
     expect(await screen.findByText('Every lot is placed.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Unscheduled lots (0)' })).toBeInTheDocument();
   });
+
+  it('AC_180 a Viewer sees no place action', async () => {
+    stubScheduleApi([curingLot]);
+    renderApp('/schedule');
+
+    expect(await screen.findByRole('table', { name: 'Unscheduled lots (1)' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Place...' })).not.toBeInTheDocument();
+  });
+
+  it('AC_180 a Planner places a queued lot on an active machine of its type, typed on the plant clock and sent in UTC', async () => {
+    let queue = [curingLot, buildingLot];
+    const requests = stubPlannerApi(
+      () => queue,
+      () => {
+        queue = [buildingLot];
+        return { status: 200, body: { lotId: curingLot.id, resourceId: press2.id, plannedStart: '2026-11-16T07:00:00Z', plannedEnd: '2026-11-17T03:30:00Z' } };
+      },
+    );
+    const user = userEvent.setup();
+    renderApp('/schedule');
+
+    const queueTable = await screen.findByRole('table', { name: 'Unscheduled lots (2)' });
+    await user.click(within(within(queueTable).getByRole('row', { name: /SO-1063/ })).getByRole('button', { name: 'Place...' }));
+    const form = await screen.findByRole('form', { name: 'Place lot - Order SO-1063, stage 2 Curing press, lot 1' });
+    expect(within(form).getByText('Quantity 200, duration 1230 minutes of working time. Times in Europe/Berlin.')).toBeInTheDocument();
+    const machine = await within(form).findByLabelText('Machine');
+    expect(within(machine).getAllByRole('option').map((option) => option.textContent)).toEqual(['Choose a machine', 'Press 2']);
+    expect(within(form).getByText('Planned end: Calculated when saved')).toBeInTheDocument();
+    expect(within(form).queryByRole('button', { name: 'Remove placement' })).not.toBeInTheDocument();
+    await user.selectOptions(machine, 'Press 2');
+    await user.type(within(form).getByLabelText('Start'), '2026-11-16T08:00');
+    await user.click(within(form).getByRole('button', { name: 'Save placement' }));
+
+    expect(await screen.findByRole('table', { name: 'Unscheduled lots (1)' })).toBeInTheDocument();
+    expect(screen.queryByRole('form')).not.toBeInTheDocument();
+    const machineRequest = requests.find((request) => request.path === '/api/v1/resources');
+    expect([machineRequest?.query.get('resourceTypeId'), machineRequest?.query.get('isActive')]).toEqual(['2', 'true']);
+    expect(requests.find((request) => request.method === 'PUT')?.body).toEqual({ resourceId: press2.id, plannedStart: '2026-11-16T07:00:00.000Z' });
+  });
+
+  it('AC_181 a rejected placement lists every broken rule with the earliest allowed start and keeps the entered values', async () => {
+    stubPlannerApi(
+      () => [curingLot],
+      () => ({
+        status: 422,
+        body: {
+          status: 422,
+          code: 'rule.R2.overlap',
+          detail: 'The lot would overlap another placement on this machine.',
+          rule: 'R2',
+          conflict: { type: 'placement', id: 40 },
+          violations: [
+            { rule: 'R2', code: 'rule.R2.overlap', conflict: { type: 'placement', id: 40 }, detail: 'The lot would overlap another placement on this machine.', earliestAllowedStart: null },
+            {
+              rule: 'R4',
+              code: 'rule.R4.dependency',
+              conflict: { type: 'lot', id: 51 },
+              detail: 'The lot would start before a lot of an earlier stage ends, counting the lag.',
+              earliestAllowedStart: '2026-11-16T09:00:00Z',
+            },
+          ],
+        },
+      }),
+    );
+    const user = userEvent.setup();
+    renderApp('/schedule');
+
+    await user.click(await screen.findByRole('button', { name: 'Place...' }));
+    const form = await screen.findByRole('form', { name: /^Place lot/ });
+    await user.selectOptions(await within(form).findByLabelText('Machine'), 'Press 2');
+    await user.type(within(form).getByLabelText('Start'), '2026-11-16T08:00');
+    await user.click(within(form).getByRole('button', { name: 'Save placement' }));
+
+    expect(await within(form).findByRole('alert')).toHaveTextContent('The lot would overlap another placement on this machine.');
+    expect(within(within(form).getByRole('list', { name: 'Broken rules' })).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'The lot would overlap another placement on this machine. rule.R2.overlap',
+      'The lot would start before a lot of an earlier stage ends, counting the lag. Earliest allowed start: 16 Nov 2026, 10:00. rule.R4.dependency',
+    ]);
+    expect(within(form).getByLabelText('Machine')).toHaveValue(String(press2.id));
+    expect(within(form).getByLabelText('Start')).toHaveValue('2026-11-16T08:00');
+  });
 });
+
+const press2: ResourceViewResponse = { id: 7, name: 'Press 2', resourceType: curing, calendar: { id: 1, name: 'Plant default' }, isActive: true, status: 'Idle' };
+
+function stubPlannerApi(unscheduledLots: () => UnscheduledLotResponse[], placeLot: (request: FakeApiRequest) => FakeApiAnswer) {
+  return stubApi({
+    'GET /api/v1/me': () => ({ status: 200, body: plannerUser }),
+    [`GET ${UNSCHEDULED_LOTS_PATH}`]: () => ({ status: 200, body: unscheduledLots() }),
+    'GET /api/v1/calendars': () => ({ status: 200, body: [plantCalendar] }),
+    'GET /api/v1/resources': () => ({ status: 200, body: [press2] }),
+    [`PUT /api/v1/versions/live/lots/${String(curingLot.id)}/placement`]: placeLot,
+  });
+}

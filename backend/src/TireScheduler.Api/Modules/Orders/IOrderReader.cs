@@ -17,4 +17,39 @@ public interface IOrderReader
 
     // Every order matching the criteria, for filters on derived values (DEC-31).
     Task<IReadOnlyList<OrderSummary>> ListAllAsync(OrderListCriteria criteria, CancellationToken cancellationToken);
+
+    // Null when the lot does not exist or its order is deleted.
+    Task<int?> FindOrderIdOfLotAsync(int lotId, CancellationToken cancellationToken);
+
+    // What the scheduling rules need of an order (R4, R8); null when it does not exist or is deleted.
+    Task<OrderSchedulingFacts?> FindSchedulingFactsAsync(int orderId, CancellationToken cancellationToken);
+}
+
+public sealed record OrderSchedulingFacts
+{
+    public required bool IsCancelled { get; init; }
+
+    public required IReadOnlyList<SchedulingLotFacts> Lots { get; init; }
+
+    public required IReadOnlyList<SchedulingDependencyFacts> Dependencies { get; init; }
+}
+
+public sealed record SchedulingLotFacts
+{
+    public required int Id { get; init; }
+
+    public required int OperationId { get; init; }
+
+    public required int ResourceTypeId { get; init; }
+
+    public required int DurationMinutes { get; init; }
+}
+
+public sealed record SchedulingDependencyFacts
+{
+    public required int PredecessorOperationId { get; init; }
+
+    public required int SuccessorOperationId { get; init; }
+
+    public required int MinLagMinutes { get; init; }
 }

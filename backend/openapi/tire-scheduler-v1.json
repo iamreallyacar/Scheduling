@@ -1107,6 +1107,85 @@
         }
       }
     },
+    "/api/v1/versions/{versionId}/lots/{lotId}/placement": {
+      "put": {
+        "tags": [
+          "Schedule"
+        ],
+        "operationId": "PlaceLot",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lotId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LotPlacementRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LotPlacementResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Schedule"
+        ],
+        "operationId": "RemoveLotPlacement",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lotId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
     "/api/v1/versions/{versionId}/unscheduled-lots": {
       "get": {
         "tags": [
@@ -1360,6 +1439,77 @@
           }
         }
       },
+      "LotPlacementRequest": {
+        "required": [
+          "resourceId",
+          "plannedStart"
+        ],
+        "type": "object",
+        "properties": {
+          "resourceId": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "plannedStart": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "LotPlacementResponse": {
+        "required": [
+          "lotId",
+          "resourceId",
+          "plannedStart",
+          "plannedEnd"
+        ],
+        "type": "object",
+        "properties": {
+          "lotId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "resourceId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "plannedStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "plannedEnd": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "LotPlacementView": {
+        "required": [
+          "resource",
+          "plannedStart",
+          "plannedEnd"
+        ],
+        "type": "object",
+        "properties": {
+          "resource": {
+            "$ref": "#/components/schemas/NamedReference"
+          },
+          "plannedStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "plannedEnd": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "LotPredecessorResponse": {
         "required": [
           "sequenceNo",
@@ -1387,7 +1537,8 @@
           "lotNo",
           "quantity",
           "durationMinutes",
-          "status"
+          "status",
+          "placement"
         ],
         "type": "object",
         "properties": {
@@ -1409,6 +1560,16 @@
           },
           "status": {
             "$ref": "#/components/schemas/LotStatus"
+          },
+          "placement": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LotPlacementView"
+              }
+            ]
           }
         }
       },

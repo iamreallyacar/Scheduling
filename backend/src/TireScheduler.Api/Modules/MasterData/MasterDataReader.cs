@@ -75,4 +75,24 @@ internal sealed class MasterDataReader(MasterDataDbContext context, MachineRegis
 
     public Task<bool> ResourceExistsAsync(int resourceId, CancellationToken cancellationToken) =>
         context.Resources.AnyAsync(resource => resource.Id == resourceId, cancellationToken);
+
+    public async Task<PlantWorkingTime> GetWorkingTimeAsync(CancellationToken cancellationToken)
+    {
+        List<CalendarWorkingTime> calendars = await context.Calendars
+            .Select(calendar => new CalendarWorkingTime
+            {
+                Id = calendar.Id,
+                Shifts = calendar.Shifts
+                    .Select(shift => new ShiftWorkingTime
+                    {
+                        Weekday = shift.Weekday,
+                        StartMinuteOfDay = shift.StartMinuteOfDay,
+                        EndMinuteOfDay = shift.EndMinuteOfDay,
+                    })
+                    .ToList(),
+            })
+            .ToListAsync(cancellationToken);
+        List<DateOnly> holidays = await context.Holidays.Select(holiday => holiday.Date).ToListAsync(cancellationToken);
+        return new PlantWorkingTime { Calendars = calendars, Holidays = holidays };
+    }
 }

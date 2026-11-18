@@ -11,6 +11,7 @@ public static class OrdersModule
         services.AddModuleDbContext<OrdersDbContext>(OrdersDbContext.Schema);
         services.AddScoped<OrderRegister>();
         services.AddScoped<IOrderReader, OrderReader>();
+        services.AddScoped<IOrderLocks, OrderLocks>();
         services.AddScoped<IProductReferences, OrderReferences>();
         services.AddScoped<IResourceTypeReferences, OrderReferences>();
         return services;

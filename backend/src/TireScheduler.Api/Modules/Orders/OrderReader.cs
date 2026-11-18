@@ -146,16 +146,63 @@ internal sealed class OrderReader(OrdersDbContext context, IMasterDataReader mas
     private static IOrderedQueryable<Order> SortBy<TKey>(IQueryable<Order> orders, Expression<Func<Order, TKey>> key, bool descending) =>
         descending ? orders.OrderByDescending(key) : orders.OrderBy(key);
 
+    public async Task<int?> FindOrderIdOfLotAsync(int lotId, CancellationToken cancellationToken) =>
+        await context.Orders
+            .SelectMany(order => order.Operations.SelectMany(operation => operation.Lots), (order, lot) => new { OrderId = order.Id, LotId = lot.Id })
+            .Where(pair => pair.LotId == lotId)
+            .Select(pair => (int?)pair.OrderId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<OrderSchedulingFacts?> FindSchedulingFactsAsync(int orderId, CancellationToken cancellationToken)
+    {
+        Order? order = await WithOperationsAndDependencies(context.Orders).FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
+        if (order is null)
+        {
+            return null;
+        }
+
+        return new OrderSchedulingFacts
+        {
+            IsCancelled = order.CancelledAt is not null,
+            Lots = order.Operations
+                .SelectMany(operation => operation.Lots.Select(lot => new SchedulingLotFacts
+                {
+                    Id = lot.Id,
+                    OperationId = operation.Id,
+                    ResourceTypeId = operation.ResourceTypeId,
+                    DurationMinutes = lot.DurationMinutes,
+                }))
+                .ToList(),
+            Dependencies = order.Dependencies
+                .Select(dependency => new SchedulingDependencyFacts
+                {
+                    PredecessorOperationId = dependency.PredecessorOperationId,
+                    SuccessorOperationId = dependency.SuccessorOperationId,
+                    MinLagMinutes = dependency.MinLagMinutes,
+                })
+                .ToList(),
+        };
+    }
+
     private async Task<IReadOnlyList<OrderSummary>> SummarizeAsync(IReadOnlyList<Order> orders, CancellationToken cancellationToken)
     {
         IReadOnlyDictionary<int, ProductReference> products = await masterData
             .GetProductsAsync(orders.Select(order => order.ProductId).Distinct().ToArray(), cancellationToken);
+        int[] orderIds = orders.Select(order => order.Id).ToArray();
+        ILookup<int, int> lotIdsByOrder = (await context.Operations
+                .Where(operation => orderIds.Contains(operation.OrderId))
+                .SelectMany(operation => operation.Lots, (operation, lot) => new { operation.OrderId, LotId = lot.Id })
+                .ToListAsync(cancellationToken))
+            .ToLookup(pair => pair.OrderId, pair => pair.LotId);
         return orders
-            .Select(order => ToSummary(order, products.GetValueOrDefault(order.ProductId) ?? throw MissingProduct(order.Id, order.ProductId)))
+            .Select(order => ToSummary(
+                order,
+                products.GetValueOrDefault(order.ProductId) ?? throw MissingProduct(order.Id, order.ProductId),
+                [.. lotIdsByOrder[order.Id].Order()]))
             .ToList();
     }
 
-    private static OrderSummary ToSummary(Order order, ProductReference product) => new()
+    private static OrderSummary ToSummary(Order order, ProductReference product, IReadOnlyList<int> lotIds) => new()
     {
         Id = order.Id,
         OrderNo = order.OrderNo,
@@ -166,6 +213,7 @@ internal sealed class OrderReader(OrdersDbContext context, IMasterDataReader mas
         Priority = order.Priority,
         CreatedAt = order.CreatedAt,
         CancelledAt = order.CancelledAt,
+        LotIds = lotIds,
     };
 
     private static OperationDetails ToDetails(Operation operation, NamedReference resourceType) => new()

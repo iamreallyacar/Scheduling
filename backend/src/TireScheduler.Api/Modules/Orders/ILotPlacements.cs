@@ -5,4 +5,8 @@ namespace TireScheduler.Api.Modules.Orders;
 public interface ILotPlacements
 {
     Task<bool> AnyPlacedInLiveVersionAsync(IReadOnlyCollection<int> lotIds, CancellationToken cancellationToken);
+
+    // The one write port (DEC-33): cancelling an order removes the placements of its lots that
+    // have not started, in every version, inside the cancel's open transaction (AC-50, A13).
+    Task RemoveUnstartedAsync(IReadOnlyCollection<int> lotIds, CancellationToken cancellationToken);
 }

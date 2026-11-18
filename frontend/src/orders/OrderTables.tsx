@@ -1,8 +1,19 @@
 import type { OrderResponse } from '../api/generated';
+import { PlantTime } from '../calendar/PlantTime';
+import type { PlacementTarget } from '../schedule/PlacementForm';
 import { LOT_STATUS_LABELS } from './orderValues';
 
-/** The generated operations, their lots with the status the server derived and the dependencies between them (F-ORD-3, F-ORD-5). */
-export function OrderTables({ order }: { order: OrderResponse }) {
+interface OrderTablesProps {
+  order: OrderResponse;
+  /** Opens the placement form for a lot; null when the user may not place lots. */
+  onOpenPlacement: ((target: PlacementTarget) => void) | null;
+}
+
+/**
+ * The generated operations, their lots with the status the server derived and their live
+ * placement, and the dependencies between them (F-ORD-3, F-ORD-5, AC-71).
+ */
+export function OrderTables({ order, onOpenPlacement }: OrderTablesProps) {
   return (
     <>
       <h2 id="operations-heading">Operations</h2>
@@ -40,6 +51,10 @@ export function OrderTables({ order }: { order: OrderResponse }) {
             <th scope="col">Quantity</th>
             <th scope="col">Duration (minutes)</th>
             <th scope="col">Status</th>
+            <th scope="col">Machine</th>
+            <th scope="col">Planned start</th>
+            <th scope="col">Planned end</th>
+            {onOpenPlacement !== null && <th scope="col">Actions</th>}
           </tr>
         </thead>
         <tbody>
@@ -51,6 +66,33 @@ export function OrderTables({ order }: { order: OrderResponse }) {
                 <td>{lot.quantity}</td>
                 <td>{lot.durationMinutes}</td>
                 <td>{LOT_STATUS_LABELS[lot.status]}</td>
+                <td>{lot.placement?.resource.name}</td>
+                <td>{lot.placement !== null && <PlantTime value={lot.placement.plannedStart} />}</td>
+                <td>{lot.placement !== null && <PlantTime value={lot.placement.plannedEnd} />}</td>
+                {onOpenPlacement !== null && (
+                  <td>
+                    {/* Placed and unplaced lots only: a cancelled order's lots cannot be placed and a started lot stays where it is (R8). */}
+                    {(lot.status === 'Unscheduled' || lot.status === 'Scheduled') && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onOpenPlacement({
+                            lotId: lot.id,
+                            orderNo: order.orderNo,
+                            sequenceNo: operation.sequenceNo,
+                            resourceType: operation.resourceType,
+                            lotNo: lot.lotNo,
+                            quantity: lot.quantity,
+                            durationMinutes: lot.durationMinutes,
+                            placement: lot.placement === null ? null : { resourceId: lot.placement.resource.id, plannedStart: lot.placement.plannedStart },
+                          });
+                        }}
+                      >
+                        {lot.placement === null ? 'Place...' : 'Move...'}
+                      </button>
+                    )}
+                  </td>
+                )}
               </tr>
             )),
           )}

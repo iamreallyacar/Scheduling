@@ -1,20 +1,34 @@
-using TireScheduler.Api.Errors;
+using Microsoft.EntityFrameworkCore;
 
 namespace TireScheduler.Api.Modules.Scheduling;
 
-// Scheduling stores no schedule versions or placements before task M3-4, so the live version is
-// the only one and no lot is placed in it yet (A39).
-internal sealed class PlacementReader : IPlacementReader
+internal sealed class PlacementReader(SchedulingDbContext context, ScheduleVersions versions) : IPlacementReader
 {
-    private const string LiveVersionAlias = "live";
-
-    public Task<IReadOnlySet<int>> PlacedLotIdsAsync(string versionId, IReadOnlyCollection<int> lotIds, CancellationToken cancellationToken)
+    public async Task<IReadOnlySet<int>> PlacedLotIdsAsync(string versionId, CancellationToken cancellationToken)
     {
-        if (versionId != LiveVersionAlias)
-        {
-            throw ApiProblemException.NotFound("This schedule version");
-        }
+        int resolvedVersionId = await versions.ResolveAsync(versionId, cancellationToken);
+        List<int> lotIds = await context.Placements
+            .Where(placement => placement.VersionId == resolvedVersionId)
+            .Select(placement => placement.LotId)
+            .ToListAsync(cancellationToken);
+        return lotIds.ToHashSet();
+    }
 
-        return Task.FromResult<IReadOnlySet<int>>(new HashSet<int>());
+    public async Task<IReadOnlyDictionary<int, PlacementValues>> PlacementsOfLotsAsync(
+        string versionId,
+        IReadOnlyCollection<int> lotIds,
+        CancellationToken cancellationToken)
+    {
+        int resolvedVersionId = await versions.ResolveAsync(versionId, cancellationToken);
+        return await context.Placements
+            .Where(placement => placement.VersionId == resolvedVersionId && lotIds.Contains(placement.LotId))
+            .Select(placement => new PlacementValues
+            {
+                LotId = placement.LotId,
+                ResourceId = placement.ResourceId,
+                PlannedStart = placement.PlannedStart,
+                PlannedEnd = placement.PlannedEnd,
+            })
+            .ToDictionaryAsync(placement => placement.LotId, cancellationToken);
     }
 }

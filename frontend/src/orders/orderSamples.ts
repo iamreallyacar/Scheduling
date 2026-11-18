@@ -28,7 +28,7 @@ export const order: OrderResponse = {
       setupMinutes: 0,
       cycleMinutes: 5,
       unitsPerCycle: 1,
-      lots: [{ id: 21, lotNo: 1, quantity: 101, durationMinutes: 505, status: 'Unscheduled' }],
+      lots: [{ id: 21, lotNo: 1, quantity: 101, durationMinutes: 505, status: 'Unscheduled', placement: null }],
     },
     {
       id: 12,
@@ -38,7 +38,7 @@ export const order: OrderResponse = {
       setupMinutes: 30,
       cycleMinutes: 12,
       unitsPerCycle: 2,
-      lots: [{ id: 22, lotNo: 1, quantity: 101, durationMinutes: 642, status: 'Unscheduled' }],
+      lots: [{ id: 22, lotNo: 1, quantity: 101, durationMinutes: 642, status: 'Unscheduled', placement: null }],
     },
   ],
   dependencies: [{ predecessorSequenceNo: 1, successorSequenceNo: 2, minLagMinutes: 120 }],

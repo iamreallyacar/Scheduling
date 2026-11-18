@@ -1,6 +1,6 @@
 # Acceptance Criteria
 
-Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules and engine search) on 2026-11-06; section 6 in task M2-7 and section 7 in task M3-2 and section 8 in task M3-3 on 2026-11-18. Sources: [features.md](features.md), [domain-model.md](domain-model.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [decisions.md](decisions.md).
+Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules and engine search) on 2026-11-06; section 6 in task M2-7 and section 7 in task M3-2 and section 8 in tasks M3-3 and M3-4 on 2026-11-18. Sources: [features.md](features.md), [domain-model.md](domain-model.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [decisions.md](decisions.md).
 
 ## 1. How to read this
 
@@ -335,7 +335,7 @@ AC-20 covers a resource that has an unavailability: deleting it is rejected, nam
 
 ## 8. M3 Scheduling
 
-Unless a row says otherwise, the version is the live version, named `live` in the path (DEC-17). Assumptions are A39 in `domain-model.md` section 7.
+Unless a row says otherwise, the version is the live version, named `live` in the path (DEC-17), and times are sent and answered in UTC. Assumptions are A39 to A41 in `domain-model.md` section 7.
 
 ### F-SCH-7 Unscheduled-lots queue
 
@@ -344,3 +344,15 @@ Unless a row says otherwise, the version is the live version, named `live` in th
 | AC-174 | Orders with lots, one lot placed in the live version, a cancelled order and a deleted order | A signed-in user of any role reads `GET /api/v1/versions/live/unscheduled-lots` | Every lot whose derived status in that version is Unscheduled (`domain-model.md` section 6), so none of a cancelled or deleted order and none placed in the version. Each with its id, lot number, quantity and `durationMinutes`; its order's id, order number and due date; its operation's sequence number and resource type; and the operations it depends on, each with sequence number, resource type and lag. Sorted by due date, then order number, then sequence number, and returned whole (A39). The answer comes from Queries. A version that does not exist answers as in AC-23 | API |
 | AC-175 | The schedule page (`/schedule`, `wireframes.md` section 2) | Anyone opens it | It shows the live version as a fixed label and lists the lots the API returns, in that order, with their count: the order number linking to the order page, the stage with its resource type, lot number, quantity, duration in minutes, due date, and each stage it depends on with its lag, or "-" when there is none. The page filters, sorts and computes nothing. With no lot in the answer it says that every lot is placed | UI |
 
+### F-SCH-1 Place, move and remove a lot
+
+The rules a placement must keep are in section 4; their API-level rows (AC-74, AC-75, AC-78, AC-84, AC-89, AC-102, AC-109, AC-111 to AC-114) are tested through the endpoints below.
+
+| ID | Given | When | Then | Level |
+|---|---|---|---|---|
+| AC-176 | A lot of an order that is not cancelled, an active machine of the lot's resource type, and a start in working time with nothing else there | A Planner sends `PUT /api/v1/versions/live/lots/{id}/placement` with `resourceId` and `plannedStart` | 200 with the lot id, resource id, planned start and the `plannedEnd` the server computed from the machine's working time (R6). Sent again with another machine or start, the same placement moves there, because a lot has at most one placement per version (A40). The lot then leaves the unscheduled-lots queue (AC-174), and the lot and its order read as Scheduled (AC-58) | API |
+| AC-177 | A Planner and a lot | A placement is sent without `resourceId` or `plannedStart`, with a start that is not a whole minute, or with a machine that does not exist | Rejected, 400 `validation.failed`, naming each field. A lot that does not exist or belongs to a deleted order, or a version that does not exist, answers as in AC-23 | API |
+| AC-178 | A placed lot that has not started | A Planner sends `DELETE` on its placement | 204, and the lot is back in the unscheduled-lots queue. A lot with no placement in the version answers as in AC-23 | API |
+| AC-179 | A rejected placement (AC-109) | The response is read | `detail` is the text of the first violation. Each entry of `violations` has `rule`, `code`, `conflict` and a `detail` text, and an R4 violation held back by a placed predecessor lot also has `earliestAllowedStart` (AC-91); the others have it null | API |
+| AC-180 | The unscheduled-lots queue on the schedule page and the lots on the order page, and a Planner | The Planner chooses [Place...] on an unplaced lot or [Move...] on a placed one (`wireframes.md` section 3) | The placement form opens with the lot's order, stage with its resource type, lot number, quantity and duration. Its machine list holds the active machines of that resource type, as the API returns them for that filter. The start is typed on the plant's wall clock and sent in UTC (A38), and the planned end reads "Calculated when saved" (WQ1). After a save the form closes and the page shows what the API then returns. For a placed lot the form opens filled in and also offers [Remove placement]. A Viewer sees neither button | UI |
+| AC-181 | The placement form | The server rejects a save or a removal | The form shows the `detail`, the field errors next to their fields, and every entry of `violations` with its text and code and, when given, the earliest allowed start on the plant's wall clock. It keeps the entered values (AC-26) | UI |

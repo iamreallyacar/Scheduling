@@ -10,9 +10,9 @@ internal sealed class UnscheduledLotReader(IOrderReader orders, IPlacementReader
 {
     public async Task<IReadOnlyList<UnscheduledLotResponse>> ListAsync(string versionId, CancellationToken cancellationToken)
     {
+        // First, so a version that does not exist is answered before every order is read.
+        IReadOnlySet<int> placedLotIds = await placements.PlacedLotIdsAsync(versionId, cancellationToken);
         IReadOnlyList<OrderDetails> allOrders = await orders.ListAllDetailsAsync(cancellationToken);
-        int[] lotIds = [.. allOrders.SelectMany(order => order.Operations).SelectMany(operation => operation.Lots).Select(lot => lot.Id)];
-        IReadOnlySet<int> placedLotIds = await placements.PlacedLotIdsAsync(versionId, lotIds, cancellationToken);
         return
         [
             .. allOrders.SelectMany(order => order.Operations.SelectMany(operation => operation.Lots

@@ -12,8 +12,14 @@ public static class SchedulingModule
         services.AddModuleDbContext<SchedulingDbContext>(SchedulingDbContext.Schema);
         services.AddScoped<UnavailabilityRegister>();
         services.AddScoped<IUnavailabilityReader, UnavailabilityReader>();
+        services.AddScoped<ScheduleVersions>();
+        services.AddScoped<ScheduleSnapshotLoader>();
+        services.AddScoped<PlacementRegister>();
         services.AddScoped<IPlacementReader, PlacementReader>();
         services.AddScoped<IResourceReferences, UnavailabilityReferences>();
+        services.AddScoped<PlacementReferences>();
+        services.AddScoped<IResourceReferences>(provider => provider.GetRequiredService<PlacementReferences>());
+        services.AddScoped<IResourcePlacementReferences>(provider => provider.GetRequiredService<PlacementReferences>());
         services.AddScoped<ILotPlacements, LotPlacements>();
         return services;
     }
@@ -21,6 +27,7 @@ public static class SchedulingModule
     public static RouteGroupBuilder MapSchedulingEndpoints(this RouteGroupBuilder api)
     {
         UnavailabilityEndpoints.Map(api);
+        PlacementEndpoints.Map(api);
         return api;
     }
 }

@@ -73,6 +73,18 @@ public sealed record LotResponse
     public required int DurationMinutes { get; init; }
 
     public required LotStatus Status { get; init; }
+
+    // In the live version; null while the lot is not placed (AC-71).
+    public required LotPlacementView? Placement { get; init; }
+}
+
+public sealed record LotPlacementView
+{
+    public required NamedReference Resource { get; init; }
+
+    public required DateTimeOffset PlannedStart { get; init; }
+
+    public required DateTimeOffset PlannedEnd { get; init; }
 }
 
 public sealed record OrderSummaryResponse

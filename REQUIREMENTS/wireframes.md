@@ -1,6 +1,6 @@
 # Wireframes
 
-Status: DRAFT, written in task P8 on 2026-11-10; section 5 in task M3-2 on 2026-11-18. Low-fidelity sketches of the three scheduling screens and the machine page: layout, content and states, not visual design. Sources: [features.md](features.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [acceptance-criteria.md](acceptance-criteria.md), [domain-model.md](domain-model.md).
+Status: DRAFT, written in task P8 on 2026-11-10; section 5 in task M3-2 and the built parts of section 3 in task M3-4 on 2026-11-18. Low-fidelity sketches of the three scheduling screens and the machine page: layout, content and states, not visual design. Sources: [features.md](features.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [acceptance-criteria.md](acceptance-criteria.md), [domain-model.md](domain-model.md).
 
 ## 1. Conventions
 
@@ -74,7 +74,7 @@ Behavior:
 - A bar shows the order number and lot number. Conflicted placements carry a `!` marker and a distinct outline, and the "conflicted placements" button filters the view to them (F-SCH-4, AC-88). A placement listed by `FindConflicts` is never hidden or moved by the UI (DEC-18).
 - The timeline is read-only (F-SCH-2): no drag, no resize. Changes go through the placement form (section 3), opened from "Place..." in the queue or "Move..." in the popover.
 - The default range is two weeks from the Monday of the current week, the F-NFR-5 size (~25 machines x 2 weeks).
-- The unscheduled-lots queue shows the lots the API returns, in its order (AC-174, AC-175); lots of cancelled orders never appear there. It names the stages a lot depends on with their lag; the earliest start that the placed predecessors allow is shown in the placement form (section 3). Task M3-3 builds the queue on its own on `/schedule`; the timeline above it and the [Hide queue] button come with task M3-6. The [Place...] buttons are Planner only and come with the placement form (task M3-4).
+- The unscheduled-lots queue shows the lots the API returns, in its order (AC-174, AC-175); lots of cancelled orders never appear there. It names the stages a lot depends on with their lag; the earliest start that the placed predecessors allow is shown in the placement form (section 3). Task M3-3 builds the queue on its own on `/schedule`; the timeline above it and the [Hide queue] button come with task M3-6. The [Place...] buttons are Planner only and open the placement form (section 3, task M3-4).
 
 ## 3. Lot placement form with earliest-slot suggestion
 
@@ -127,6 +127,11 @@ No slot found (`slot.none`, AC-122, AC-123):
 | Tue 17 Nov 16:45. Check breakdowns and inactive machines.              |
 +------------------------------------------------------------------------+
 ```
+
+What task M3-4 builds and what follows:
+
+- Built in task M3-4 (AC-180, AC-181): the header with order, stage, lot, quantity and duration; the Placement part, with "Calculated when saved" for the planned end (WQ1); [Save placement], [Remove placement] for a placed lot, and [Cancel]; the rejected save, which lists each violation's text and code and the earliest allowed start, without the [Show ...] links. The form opens from [Place...] in the queue and from [Place...] or [Move...] on the lots of the order page, which also show each lot's live machine, planned start and planned end (AC-71).
+- Later: "Find earliest slot" and the "Depends on" lines with the earliest start from dependencies come with task M4-2; the [Show ...] links to the conflicting items and "Move..." in the lot popover with the timeline (task M3-6); the read-only form for a started lot with task M5-1, and until then a started lot shows no action.
 
 Behavior:
 

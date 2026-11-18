@@ -49,6 +49,7 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 | DEC-39 | Queries serves the machine reads with the derived status; the machine writes stay in MasterData | Proposed | 2026-11-18 (M3-2) | ARCHITECTURE.md section "Structure", AC-172 |
 | DEC-40 | The UI converts plant-local input times to UTC and UTC to plant time for display | Proposed | 2026-11-18 (M3-2) | ARCHITECTURE.md section "Time rules", A38 |
 | DEC-41 | An open-ended unavailability is stored without an end | Proposed | 2026-11-18 (M3-2) | ARCHITECTURE.md section "Persistence rules" |
+| DEC-42 | Each rule violation of a rejected placement carries its own text and earliest allowed start | Proposed | 2026-11-18 (M3-4) | API.md section "Error format", AC-179 |
 
 ## Accepted
 
@@ -328,6 +329,13 @@ Made while building M1 (2026-11-10) and M2 (2026-11-18) and already followed by 
 - Alternatives: a `tstzrange` column with an infinite upper bound, rejected for the reason above; an end of `infinity`, rejected because every reader would have to turn it back into a missing end.
 - Consequences: a query for what covers a time reads a missing end as "still going on" (`EndsAt == null || EndsAt > time`).
 
+### DEC-42 Rule violations with their own text
+
+- Decision: every entry of `violations` in a rejected placement or removal has a `detail` text written by the Scheduling module for its rule code, and `earliestAllowedStart` in UTC when a placed lot of an earlier stage holds the start back (AC-91). The problem's own `detail` is the first violation's text. The placement form lists the entries as they come and shows the earliest allowed start on the plant's wall clock.
+- Reason: the form must say what each broken rule means, and the UI holds no rule knowledge (`ARCHITECTURE.md` section "Frontend rules"). A time in the text would be UTC or need the server to convert to plant time outside the engine, so the time stays a field that the UI converts for display (DEC-40).
+- Alternatives: the UI maps each code to a text, rejected because a new or changed rule would then need a frontend change; texts that name the conflicting order, lot and times, as the wireframe sketches, deferred because they need reads of Orders and MasterData for every rejection, and the timeline (task M3-6) can show the conflicting item by its id.
+- Consequences: a new rule code needs its text in `RuleViolationProblems`, which fails for an unknown code. The links from a violation to its conflicting item come with the timeline (task M3-6).
+
 ## Open
 
 The only list of open questions. BQ questions wait for the business; until it answers, the docs follow the assumption named. WQ questions were found while sketching the wireframes or building the tasks. Each must be answered before the task in "Needed by"; record the answer in the row (or as a new decision) and update the documents it affects.
@@ -339,6 +347,7 @@ The only list of open questions. BQ questions wait for the business; until it an
 | BQ3 | Which stages need a dependency lag, and how long (for example green tire rest before curing)? | None yet. Routings default to no lag (F-MD-3); lags are routing data, so an answer needs no code change. The generator presets use synthetic lags (A30) | Before go-live; preset values only |
 | BQ4 | How many cavities do the curing presses have (`unitsPerCycle`), and does it differ between presses? | `unitsPerCycle` is set per routing stage, so all presses of a type share it. Different rates per press need machine-specific rates (F-MD-8, P1). The generator presets assume two cavities (A30) | Before go-live; preset values only |
 | BQ5 | Does planned maintenance during non-working time block a lot that pauses across it? | Assume yes, overlap is checked over the whole span (A16). A "no" changes only the R3 check in the engine's `PlacementRules` | Before go-live; one engine rule |
-| WQ1 | The placement form cannot show the planned end before saving, because no endpoint validates without saving | Show "calculated when saved" in v1. If planners need a preview, add `GET .../placement/preview` returning `Validate` output | M3-4 |
+| WQ1 | The placement form cannot show the planned end before saving, because no endpoint validates without saving | Settled in task M3-4: the form shows "Calculated when saved" in v1 and shows the server's `plannedEnd` after the save (AC-180). If planners need a preview, add `GET .../placement/preview` returning `Validate` output | M3-4 |
+| WQ4 | The exclusion constraint on placements (R2, `ARCHITECTURE.md` section "Persistence rules") rejects a stored `plannedEnd` that overlaps another placement on the machine, but AC-107 saves a recomputed end that may do exactly that and lets `FindConflicts` list it | Drop the constraint when the ends are recomputed and rely on the resource row lock that every placement takes (DEC-33); or keep it on a booked range that is fixed when the lot is placed and never recomputed | M3-5 |
 | WQ2 | The proposal review shows whether the order would be late, but the proposal response has no lateness field, and the UI must not compute rules | Add `finishesAt` and `wouldBeLate` to the proposal response, computed in Queries with the same `isLate` rule | M4-4 |
 | WQ3 | The timeline needs a time range, but `/versions/{v}/timeline` has no range parameters yet | Add `from` and `to` query parameters (plant-local dates), default two weeks | M3-6 |

@@ -30,7 +30,8 @@ Planned route areas for v1. Routes that are built are in the OpenAPI document.
 
 ## Scheduling calls
 
-- Placing a lot is `PUT /versions/live/lots/{id}/placement` with `{ resourceId, plannedStart }`. The server computes and returns `plannedEnd`. Removing is `DELETE` on the same URL.
+- A version path takes `live` or a version id (A41).
+- Placing a lot is `PUT /versions/live/lots/{id}/placement` with `{ resourceId, plannedStart }`. The server computes `plannedEnd` and answers the placement (`lotId`, `resourceId`, `plannedStart`, `plannedEnd`). Sending it again for a placed lot moves that placement (A40). Removing is `DELETE` on the same URL, answered 204. The order reads carry each lot's live placement (AC-71).
 - Earliest slot is `GET /versions/live/lots/{id}/earliest-slot?resourceId=&notBefore=`. It changes nothing; the planner then places the lot with the returned values.
 - Schedule order as soon as possible has two steps: `POST /versions/live/orders/{id}/asap-proposal` returns proposed placements without saving them; `POST .../asap-proposal/commit` with the same proposal saves all of them in one transaction. The commit validates again and fails as a whole if anything changed in between.
 - Marking a machine down is `POST /resources/{id}/unavailabilities` with `kind: Breakdown`, a start and an optional end. Bringing it back is `PUT` on that unavailability with its end set.
@@ -48,7 +49,7 @@ Planned route areas for v1. Routes that are built are in the OpenAPI document.
   - `code`: stable machine-readable string (for example `rule.R2.overlap`, `rule.R4.dependency`, `slot.none`, `validation.failed`). [acceptance-criteria.md](REQUIREMENTS/acceptance-criteria.md) gives the code for every case it covers.
   - `errors`: for validation failures, a map of field to messages. A field inside a nested object or list is named by its path, for example `stages[0].cycleMinutes` (A24).
   - `rule` and `conflict`: for scheduling rule violations (R7), the rule id and the conflicting item as `{ "type": "placement", "id": 42 }`. Types: `placement`, `unavailability`, `lot`, `resource`. They hold the first violation in rule order.
-  - `violations`: every broken rule with its conflicting item, because `Validate` reports all of them.
+  - `violations`: every broken rule, because `Validate` reports all of them, each with `rule`, `code`, `conflict`, a `detail` text, and `earliestAllowedStart` (UTC) when a placed lot of an earlier stage holds the start back, otherwise null (AC-179, DEC-42). `detail` of the whole problem is the text of the first violation.
 - Status codes: 400 malformed request or validation failure, 401 not signed in, 403 wrong role, 404 not found, 409 duplicate or state conflict (for example cancelling an order with a lot In Progress, or committing a stale proposal), 422 scheduling rule violation or no slot found, 500 unexpected.
 - Unexpected errors return a generic body with code `server.error` and a `correlationId`; details go to the log only, under the same id.
 - A status without a body (no session, wrong role, unknown route, unreadable request) gets its `code` and `detail` from the status.

@@ -1,31 +1,33 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using TireScheduler.Api.Modules.Orders;
 using TireScheduler.Api.Modules.Scheduling;
 
 namespace TireScheduler.Api.Tests.Orders;
 
-// Stands in for Scheduling and Progress behind the Orders ports (DEC-16) and the Scheduling read
-// interface of Queries until those modules store placements and progress, so the rules that
-// depend on them can be tested now. Every placed lot is placed in the live version.
-internal sealed class FakeLotActivity : ILotPlacements, ILotProgress, IPlacementReader
+// Stands in for Progress behind the ports of Orders and Scheduling (DEC-16) until Progress stores
+// actual starts and ends (task M5-1), so the rules that depend on started lots can be tested now.
+internal sealed class FakeLotActivity : ILotProgress, ILotProgressStates
 {
-    public HashSet<int> PlacedLotIds { get; } = [];
-
     public HashSet<int> StartedLotIds { get; } = [];
 
     public HashSet<int> CompletedLotIds { get; } = [];
-
-    public Task<bool> AnyPlacedInLiveVersionAsync(IReadOnlyCollection<int> lotIds, CancellationToken cancellationToken) =>
-        Task.FromResult(lotIds.Any(PlacedLotIds.Contains));
-
-    public Task<IReadOnlySet<int>> PlacedLotIdsAsync(string versionId, IReadOnlyCollection<int> lotIds, CancellationToken cancellationToken)
-    {
-        Assert.Equal("live", versionId);
-        return Task.FromResult<IReadOnlySet<int>>(lotIds.Where(PlacedLotIds.Contains).ToHashSet());
-    }
 
     public Task<bool> AnyStartedAsync(IReadOnlyCollection<int> lotIds, CancellationToken cancellationToken) =>
         Task.FromResult(lotIds.Any(StartedLotIds.Contains));
 
     public Task<bool> AnyInProgressAsync(IReadOnlyCollection<int> lotIds, CancellationToken cancellationToken) =>
         Task.FromResult(lotIds.Any(lotId => StartedLotIds.Contains(lotId) && !CompletedLotIds.Contains(lotId)));
+
+    public Task<IReadOnlyDictionary<int, StartedLotState>> StartedLotsAsync(IReadOnlyCollection<int> lotIds, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyDictionary<int, StartedLotState>>(lotIds
+            .Where(StartedLotIds.Contains)
+            .ToDictionary(lotId => lotId, lotId => CompletedLotIds.Contains(lotId) ? StartedLotState.Completed : StartedLotState.InProgress));
+
+    // Replaces Progress in an API under test.
+    public void ReplaceProgressIn(IServiceCollection services)
+    {
+        services.Replace(ServiceDescriptor.Singleton<ILotProgress>(this));
+        services.Replace(ServiceDescriptor.Singleton<ILotProgressStates>(this));
+    }
 }

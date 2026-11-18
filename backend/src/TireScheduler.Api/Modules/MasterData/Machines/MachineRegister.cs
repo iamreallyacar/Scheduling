@@ -5,7 +5,11 @@ using TireScheduler.Api.Errors;
 namespace TireScheduler.Api.Modules.MasterData.Machines;
 
 // F-MD-1. A machine is a resource (DEC-7).
-internal sealed class MachineRegister(MasterDataDbContext context, IEnumerable<IResourceReferences> resourceReferences, RequestTransaction requestTransaction)
+internal sealed class MachineRegister(
+    MasterDataDbContext context,
+    IEnumerable<IResourceReferences> resourceReferences,
+    IResourcePlacementReferences placementReferences,
+    RequestTransaction requestTransaction)
 {
     private static readonly Dictionary<string, string> FieldByUniqueIndex = new() { [MasterDataDbContext.ResourceNameIndex] = "name" };
 
@@ -38,16 +42,34 @@ internal sealed class MachineRegister(MasterDataDbContext context, IEnumerable<I
         return await GetAsync(resource.Id, cancellationToken);
     }
 
+    // Locks the row first, so a lot cannot be placed on the resource while its type is checked and
+    // changed (DEC-33). Deactivating is always saved; its placements become R1 conflicts (A15).
     public async Task<ResourceResponse> UpdateAsync(int id, UpdateResourceRequest request, CancellationToken cancellationToken)
     {
-        Resource resource = await FindAsync(id, cancellationToken);
         int resourceTypeId = request.ResourceTypeId.Validated();
-        await RequireResourceTypeAsync(resourceTypeId, cancellationToken);
+        await using (OpenTransaction transaction = await requestTransaction.BeginAsync(context, cancellationToken))
+        {
+            if (!await context.LockRowAsync<Resource>(id, cancellationToken))
+            {
+                throw NotFound();
+            }
 
-        resource.Name = request.Name.Trim();
-        resource.ResourceTypeId = resourceTypeId;
-        resource.IsActive = request.IsActive.Validated();
-        await context.SaveChangesRejectingDuplicatesAsync(FieldByUniqueIndex, cancellationToken);
+            Resource resource = await FindAsync(id, cancellationToken);
+            await RequireResourceTypeAsync(resourceTypeId, cancellationToken);
+            if (resourceTypeId != resource.ResourceTypeId
+                && await placementReferences.FindPlacementOnResourceAsync(id, cancellationToken) is { } placement)
+            {
+                throw ApiProblemException.InUse(
+                    $"Machine '{resource.Name}' cannot change its type because {placement} is on it (A14). Move or remove its placements first.");
+            }
+
+            resource.Name = request.Name.Trim();
+            resource.ResourceTypeId = resourceTypeId;
+            resource.IsActive = request.IsActive.Validated();
+            await context.SaveChangesRejectingDuplicatesAsync(FieldByUniqueIndex, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+
         return await GetAsync(id, cancellationToken);
     }
 

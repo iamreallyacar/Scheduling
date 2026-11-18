@@ -59,6 +59,24 @@ export type HolidayResponse = {
     name: string;
 };
 
+export type LotPlacementRequest = {
+    resourceId: null | number;
+    plannedStart: null | string;
+};
+
+export type LotPlacementResponse = {
+    lotId: number;
+    resourceId: number;
+    plannedStart: string;
+    plannedEnd: string;
+};
+
+export type LotPlacementView = {
+    resource: NamedReference;
+    plannedStart: string;
+    plannedEnd: string;
+};
+
 export type LotPredecessorResponse = {
     sequenceNo: number;
     resourceType: NamedReference;
@@ -71,6 +89,7 @@ export type LotResponse = {
     quantity: number;
     durationMinutes: number;
     status: LotStatus;
+    placement: null | LotPlacementView;
 };
 
 export type LotStatus = 'Unscheduled' | 'Scheduled' | 'InProgress' | 'Completed' | 'Cancelled';
@@ -905,6 +924,44 @@ export type UpdateUnavailabilityResponses = {
 };
 
 export type UpdateUnavailabilityResponse = UpdateUnavailabilityResponses[keyof UpdateUnavailabilityResponses];
+
+export type RemoveLotPlacementData = {
+    body?: never;
+    path: {
+        versionId: string;
+        lotId: number;
+    };
+    query?: never;
+    url: '/api/v1/versions/{versionId}/lots/{lotId}/placement';
+};
+
+export type RemoveLotPlacementResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type RemoveLotPlacementResponse = RemoveLotPlacementResponses[keyof RemoveLotPlacementResponses];
+
+export type PlaceLotData = {
+    body: LotPlacementRequest;
+    path: {
+        versionId: string;
+        lotId: number;
+    };
+    query?: never;
+    url: '/api/v1/versions/{versionId}/lots/{lotId}/placement';
+};
+
+export type PlaceLotResponses = {
+    /**
+     * OK
+     */
+    200: LotPlacementResponse;
+};
+
+export type PlaceLotResponse = PlaceLotResponses[keyof PlaceLotResponses];
 
 export type ListUnscheduledLotsData = {
     body?: never;

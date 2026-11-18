@@ -7,8 +7,8 @@ using static TireScheduler.Api.Tests.TestData.OrderTestData;
 
 namespace TireScheduler.Api.Tests.Orders;
 
-// F-ORD-5: the order detail. Until tasks M3-4 and M5-1 store placements and progress, a lot is
-// Unscheduled or Cancelled and no quantity is completed.
+// F-ORD-5: the order detail of orders without placements; the placed lots of AC-71 are in
+// Scheduling/PlacementTests.cs. Until task M5-1 stores progress, no quantity is completed.
 public sealed class OrderDetailTests(PostgresFixture postgres)
 {
     private static readonly DateTimeOffset Now = new(2026, 11, 2, 7, 30, 0, TimeSpan.Zero);

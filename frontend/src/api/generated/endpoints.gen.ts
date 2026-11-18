@@ -107,5 +107,11 @@ export const updateUnavailability = (resourceId: Api.UpdateUnavailabilityData['p
 export const deleteUnavailability = (resourceId: Api.DeleteUnavailabilityData['path']['resourceId'], id: Api.DeleteUnavailabilityData['path']['id']) =>
   requestApi<Api.DeleteUnavailabilityResponse>('DELETE', { url: '/api/v1/resources/{resourceId}/unavailabilities/{id}', path: { resourceId, id } } satisfies Api.DeleteUnavailabilityData);
 
+export const placeLot = (versionId: Api.PlaceLotData['path']['versionId'], lotId: Api.PlaceLotData['path']['lotId'], body: Api.PlaceLotData['body']) =>
+  requestApi<Api.PlaceLotResponse>('PUT', { url: '/api/v1/versions/{versionId}/lots/{lotId}/placement', path: { versionId, lotId }, body } satisfies Api.PlaceLotData);
+
+export const removeLotPlacement = (versionId: Api.RemoveLotPlacementData['path']['versionId'], lotId: Api.RemoveLotPlacementData['path']['lotId']) =>
+  requestApi<Api.RemoveLotPlacementResponse>('DELETE', { url: '/api/v1/versions/{versionId}/lots/{lotId}/placement', path: { versionId, lotId } } satisfies Api.RemoveLotPlacementData);
+
 export const listUnscheduledLots = (versionId: Api.ListUnscheduledLotsData['path']['versionId']) =>
   requestApi<Api.ListUnscheduledLotsResponse>('GET', { url: '/api/v1/versions/{versionId}/unscheduled-lots', path: { versionId } } satisfies Api.ListUnscheduledLotsData);

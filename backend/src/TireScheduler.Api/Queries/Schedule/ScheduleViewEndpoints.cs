@@ -3,7 +3,7 @@ using TireScheduler.Api.Security;
 namespace TireScheduler.Api.Queries.Schedule;
 
 // The schedule reads of a version (DEC-17); the placement writes are mapped by the Scheduling
-// module (task M3-4).
+// module (PlacementEndpoints).
 internal static class ScheduleViewEndpoints
 {
     public static void Map(RouteGroupBuilder api)

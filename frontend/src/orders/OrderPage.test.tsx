@@ -167,6 +167,60 @@ describe('order page', () => {
     expect(screen.getByRole('heading', { name: 'Order SO-5' })).toBeInTheDocument();
   });
 
+  it('AC_71 AC_180 shows each live placement, and a Planner moves or removes it in the placement form', async () => {
+    let shownOrder = placedOrder;
+    const requests = stubOrderApi(
+      plannerUser,
+      {
+        'GET /api/v1/resources': () => ({
+          status: 200,
+          body: [{ id: 7, name: 'Press 2', resourceType: { id: 2, name: 'Curing press' }, calendar: { id: 1, name: 'Plant default' }, isActive: true, status: 'Idle' }],
+        }),
+        'DELETE /api/v1/versions/live/lots/22/placement': () => {
+          shownOrder = order;
+          return { status: 204 };
+        },
+      },
+      () => shownOrder,
+    );
+    const user = userEvent.setup();
+    renderApp('/orders/5');
+
+    const lots = await screen.findByRole('table', { name: 'Lots' });
+    const placedRow = within(lots).getByRole('rowheader', { name: '2' }).closest('tr') as HTMLElement;
+    await within(placedRow).findByText('16 Nov 2026, 08:00');
+    expect(within(placedRow).getAllByRole('cell').map((cell) => cell.textContent)).toEqual([
+      '1',
+      '101',
+      '642',
+      'Scheduled',
+      'Press 2',
+      '16 Nov 2026, 08:00',
+      '16 Nov 2026, 18:42',
+      'Move...',
+    ]);
+    expect(within(within(lots).getByRole('rowheader', { name: '1' }).closest('tr') as HTMLElement).getByRole('button', { name: 'Place...' })).toBeInTheDocument();
+
+    await user.click(within(placedRow).getByRole('button', { name: 'Move...' }));
+    const form = await screen.findByRole('form', { name: 'Move lot - Order SO-5, stage 2 Curing press, lot 1' });
+    expect(await within(form).findByLabelText('Machine')).toHaveValue('7');
+    expect(within(form).getByLabelText('Start')).toHaveValue('2026-11-16T08:00');
+    await user.click(within(form).getByRole('button', { name: 'Remove placement' }));
+
+    // Both lots are unplaced again in the order the page reads after the removal.
+    expect(await within(screen.getByRole('table', { name: 'Lots' })).findAllByRole('button', { name: 'Place...' })).toHaveLength(2);
+    expect(screen.queryByRole('form', { name: /^Move lot/ })).not.toBeInTheDocument();
+    expect(requests.some((request) => request.method === 'DELETE' && request.path === '/api/v1/versions/live/lots/22/placement')).toBe(true);
+  });
+
+  it('AC_180 a Viewer sees the placements without place or move actions', async () => {
+    stubOrderApi(viewerUser, {}, () => placedOrder);
+    renderApp('/orders/5');
+
+    expect(await screen.findByText('Press 2')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Place|Move/ })).not.toBeInTheDocument();
+  });
+
   it('AC_23 an unknown order shows the problem', async () => {
     stubApi({
       'GET /api/v1/me': () => ({ status: 200, body: plannerUser }),
@@ -178,6 +232,24 @@ describe('order page', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('This order does not exist.');
   });
 });
+
+// The curing lot placed on Press 2, Mon 2026-11-16 08:00 to 18:42 in Berlin.
+const placedOrder: OrderResponse = {
+  ...order,
+  status: 'Scheduled',
+  operations: order.operations.map((operation) =>
+    operation.sequenceNo === 2
+      ? {
+          ...operation,
+          lots: operation.lots.map((lot) => ({
+            ...lot,
+            status: 'Scheduled' as const,
+            placement: { resource: { id: 7, name: 'Press 2' }, plannedStart: '2026-11-16T07:00:00Z', plannedEnd: '2026-11-16T17:42:00Z' },
+          })),
+        }
+      : operation,
+  ),
+};
 
 function statusOnPage(): string | null {
   return screen.getByText('Status', { selector: 'dt' }).nextElementSibling?.textContent ?? null;

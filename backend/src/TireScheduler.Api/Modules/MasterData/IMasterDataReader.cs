@@ -27,6 +27,34 @@ public interface IMasterDataReader
     Task<ResourceResponse> GetResourceAsync(int resourceId, CancellationToken cancellationToken);
 
     Task<bool> ResourceExistsAsync(int resourceId, CancellationToken cancellationToken);
+
+    // Every calendar with its shifts, and the holidays, in plant-local time (ARCHITECTURE.md
+    // section "Time rules"), for the scheduling engine.
+    Task<PlantWorkingTime> GetWorkingTimeAsync(CancellationToken cancellationToken);
+}
+
+public sealed record PlantWorkingTime
+{
+    public required IReadOnlyList<CalendarWorkingTime> Calendars { get; init; }
+
+    public required IReadOnlyList<DateOnly> Holidays { get; init; }
+}
+
+public sealed record CalendarWorkingTime
+{
+    public required int Id { get; init; }
+
+    public required IReadOnlyList<ShiftWorkingTime> Shifts { get; init; }
+}
+
+// Minutes from plant-local midnight; the end is at most 1440 (A18).
+public sealed record ShiftWorkingTime
+{
+    public required DayOfWeek Weekday { get; init; }
+
+    public required int StartMinuteOfDay { get; init; }
+
+    public required int EndMinuteOfDay { get; init; }
 }
 
 public sealed record ProductReference
