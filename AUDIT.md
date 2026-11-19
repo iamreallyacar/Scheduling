@@ -21,7 +21,9 @@ Each completed finding was fixed by a task; the decision it names gives the reas
 | 11 | The timeline chart took the page's filter state and repeated its filter rule | Task M3-11, DEC-51 |
 | 13 | Backend test classes copied the readers of answers and their factory setup | Task M3-13, DEC-53 |
 | 16 | The schedule page treated a conflict list that had not loaded as an empty one, and two selects fell back to "no choice" for a value they never offer | Task M3-12, DEC-52 |
+| 17 | The whole-minute check of request times was written twice | Task M3-14, DEC-54 |
 | 18 | Test plant figures were implicit and test times were written in several ways | Task M3-13, DEC-53 |
+| 20 | Each rule violation named its rule twice, as a bare string and inside its code | Task M3-14, DEC-54 |
 | 22 | The progress fakes and failing stubs were spread over the test classes | Task M3-13, DEC-53 |
 
 ## Second audit
@@ -56,14 +58,6 @@ The M3 code follows the rules the first audit set up. Records use named required
 - What to do: add a small `FormPanel` component in `src/forms/` (title, problem, pending, submit, cancel, children, extra actions) and one `emptyToNull` function. Do not build a general form-state hook.
 - Task: M4-2, as its first step.
 
-#### 17. The whole-minute check is written twice
-
-- Where: `backend/src/TireScheduler.Api/Modules/Scheduling/PlacementRegister.cs` lines 27 to 31 (inline) and `UnavailabilityRegister.cs` lines 80 to 89 and 111 (`IsWholeMinute`), each with its own message text.
-- Problem: one rule (A2, A40), two forms.
-- Why it matters: the M4 earliest-slot and schedule-whole-order requests take times too and would add a third and fourth copy.
-- What to do: one helper next to `RequestBodyValidation` that returns the field error, used by both registers.
-- Task: M3-14.
-
 ### Minor
 
 Small findings, worth fixing when the file is next touched.
@@ -71,7 +65,6 @@ Small findings, worth fixing when the file is next touched.
 | Item | Finding | Where | Task |
 |---|---|---|---|
 | 19 | The engine's mapping from a generated plant to a `ScheduleSnapshot` does not exist yet. The M4-1 property tests need it; write it once, in the generator project or a shared test helper, not in each test file | `backend/src/TireScheduler.PlantGenerator/GeneratedPlant.cs`, `backend/src/TireScheduler.Engine/ScheduleSnapshot.cs` | M4-1, as its first step |
-| 20 | Each violation names its rule twice, as a bare `"R2"` string and inside its code, so the two can disagree | `backend/src/TireScheduler.Engine/PlacementRules.cs` (every `...Violation("R..."` call), `RuleViolation.cs` | M3-14 |
 | 21 | The generator's load figure adds shift minutes itself instead of using `WorkingPeriods`, so it ignores daylight saving time and would not follow a change to the working-time rule | `backend/src/TireScheduler.PlantGenerator/PlantLoad.cs` lines 32 to 45 | M4-5, as its first step |
 | 23 | The lot title "Order X, stage N Type, lot M" is built in two places, `DAY_MS` is defined twice, and the `en-GB` locale is written in three files | `frontend/src/schedule/PlacementForm.tsx`, `LotPopover.tsx`, `timelineRange.ts`, `TimelineChart.tsx`, `frontend/src/calendar/plantClock.ts` | M3-15 |
 | 24 | Frontend tests repeat `.closest('tr') as HTMLElement` and cast the sent request bodies; `rowOf(name)` and `sentBody(requests, method, path)` helpers in `src/testing/` would remove the casts and fail clearly | `frontend/src/**/*.test.tsx` | M3-15 |

@@ -29,12 +29,12 @@ public sealed class PlacementContext
         List<RuleViolation> violations = RuleViolations(lot, resource, request.PlannedStart, plannedEnd, startIsWorkingTime: plannedEnd is not null);
         if (lot.Progress != LotProgressState.NotStarted)
         {
-            violations.Add(LotViolation("R8", RuleCodes.Started, lot));
+            violations.Add(LotViolation(RuleCodes.Started, lot));
         }
 
         if (lot.OrderIsCancelled)
         {
-            violations.Add(LotViolation("R8", RuleCodes.Cancelled, lot));
+            violations.Add(LotViolation(RuleCodes.Cancelled, lot));
         }
 
         return new PlacementCheck(plannedEnd, violations);
@@ -44,7 +44,7 @@ public sealed class PlacementContext
     internal IReadOnlyList<RuleViolation> ValidateRemoval(int lotId)
     {
         SnapshotLot lot = index.Lot(lotId);
-        return lot.Progress == LotProgressState.NotStarted ? [] : [LotViolation("R8", RuleCodes.Started, lot)];
+        return lot.Progress == LotProgressState.NotStarted ? [] : [LotViolation(RuleCodes.Started, lot)];
     }
 
     // After a shift or holiday change (DEC-44): only the ends that change. A completed lot keeps the
@@ -108,12 +108,12 @@ public sealed class PlacementContext
         List<RuleViolation> violations = [];
         if (resource.ResourceTypeId != lot.ResourceTypeId)
         {
-            violations.Add(ResourceViolation("R1", RuleCodes.ResourceType, resource));
+            violations.Add(ResourceViolation(RuleCodes.ResourceType, resource));
         }
 
         if (!resource.IsActive)
         {
-            violations.Add(ResourceViolation("R1", RuleCodes.Inactive, resource));
+            violations.Add(ResourceViolation(RuleCodes.Inactive, resource));
         }
 
         if (end is { } spanEnd)
@@ -121,13 +121,13 @@ public sealed class PlacementContext
             violations.AddRange(index.PlacementsOn(resource.Id)
                 .Where(other => other.LotId != lot.Id && other.PlannedStart < spanEnd && start < other.PlannedEnd)
                 .OrderBy(other => other.PlannedStart)
-                .Select(other => new RuleViolation("R2", RuleCodes.Overlap, new ConflictItem(ConflictKind.Placement, other.Id), EarliestAllowedStart: null)));
+                .Select(other => new RuleViolation(RuleCodes.Overlap, new ConflictItem(ConflictKind.Placement, other.Id), EarliestAllowedStart: null)));
 
             // A16: the whole span counts, including non-working time in which the lot pauses.
             violations.AddRange(index.UnavailabilitiesOf(resource.Id)
                 .Where(unavailability => unavailability.Start < spanEnd && (unavailability.End is not { } unavailabilityEnd || start < unavailabilityEnd))
                 .OrderBy(unavailability => unavailability.Start)
-                .Select(unavailability => new RuleViolation("R3", RuleCodes.Unavailable, new ConflictItem(ConflictKind.Unavailability, unavailability.Id), EarliestAllowedStart: null)));
+                .Select(unavailability => new RuleViolation(RuleCodes.Unavailable, new ConflictItem(ConflictKind.Unavailability, unavailability.Id), EarliestAllowedStart: null)));
         }
 
         // Lag is elapsed time (A8). The predecessor that holds the start back the most comes first.
@@ -135,27 +135,27 @@ public sealed class PlacementContext
             .Select(link => (link.Placement, EarliestStart: link.Placement.PlannedEnd.AddMinutes(link.MinLagMinutes)))
             .Where(link => start < link.EarliestStart)
             .OrderByDescending(link => link.EarliestStart)
-            .Select(link => new RuleViolation("R4", RuleCodes.Dependency, new ConflictItem(ConflictKind.Lot, link.Placement.LotId), link.EarliestStart)));
+            .Select(link => new RuleViolation(RuleCodes.Dependency, new ConflictItem(ConflictKind.Lot, link.Placement.LotId), link.EarliestStart)));
 
         if (end is { } predecessorEnd)
         {
             violations.AddRange(index.PlacedSuccessors(lot.OperationId)
                 .Where(link => link.Placement.PlannedStart < predecessorEnd.AddMinutes(link.MinLagMinutes))
                 .OrderBy(link => link.Placement.PlannedStart)
-                .Select(link => new RuleViolation("R4", RuleCodes.Dependency, new ConflictItem(ConflictKind.Lot, link.Placement.LotId), EarliestAllowedStart: null)));
+                .Select(link => new RuleViolation(RuleCodes.Dependency, new ConflictItem(ConflictKind.Lot, link.Placement.LotId), EarliestAllowedStart: null)));
         }
 
         if (!startIsWorkingTime)
         {
-            violations.Add(ResourceViolation("R6", RuleCodes.OutsideWorkingTime, resource));
+            violations.Add(ResourceViolation(RuleCodes.OutsideWorkingTime, resource));
         }
 
         return violations;
     }
 
-    private static RuleViolation ResourceViolation(string rule, string code, SnapshotResource resource) =>
-        new(rule, code, new ConflictItem(ConflictKind.Resource, resource.Id), EarliestAllowedStart: null);
+    private static RuleViolation ResourceViolation(string code, SnapshotResource resource) =>
+        new(code, new ConflictItem(ConflictKind.Resource, resource.Id), EarliestAllowedStart: null);
 
-    private static RuleViolation LotViolation(string rule, string code, SnapshotLot lot) =>
-        new(rule, code, new ConflictItem(ConflictKind.Lot, lot.Id), EarliestAllowedStart: null);
+    private static RuleViolation LotViolation(string code, SnapshotLot lot) =>
+        new(code, new ConflictItem(ConflictKind.Lot, lot.Id), EarliestAllowedStart: null);
 }

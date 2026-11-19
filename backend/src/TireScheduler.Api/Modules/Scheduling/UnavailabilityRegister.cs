@@ -77,16 +77,16 @@ internal sealed class UnavailabilityRegister(
         UnavailabilityKind kind = request.Kind.Validated();
         DateTimeOffset start = request.Start.Validated();
         Dictionary<string, IReadOnlyList<string>> fieldErrors = [];
-        if (!IsWholeMinute(start))
+        if (WholeMinuteTime.ErrorOf(start, "start") is { } startError)
         {
-            fieldErrors["start"] = ["The start must be a whole minute."];
+            fieldErrors["start"] = [startError];
         }
 
         if (request.End is { } end)
         {
-            if (!IsWholeMinute(end))
+            if (WholeMinuteTime.ErrorOf(end, "end") is { } endError)
             {
-                fieldErrors["end"] = ["The end must be a whole minute."];
+                fieldErrors["end"] = [endError];
             }
             else if (end <= start)
             {
@@ -106,9 +106,6 @@ internal sealed class UnavailabilityRegister(
         string? reason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim();
         return new CheckedValues { Kind = kind, Start = start.ToUniversalTime(), End = request.End?.ToUniversalTime(), Reason = reason };
     }
-
-    // Times are stored in whole minutes (A2).
-    private static bool IsWholeMinute(DateTimeOffset time) => time.Ticks % TimeSpan.TicksPerMinute == 0;
 
     private static ApiProblemException MachineNotFound() => ApiProblemException.NotFound("This machine");
 

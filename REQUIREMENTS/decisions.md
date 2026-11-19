@@ -61,6 +61,7 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 | DEC-51 | The timeline chart draws the timeline it is given; the page that shows it applies its filters once | Proposed | 2026-11-19 (M3-11) | AUDIT.md item 11 |
 | DEC-52 | The schedule page treats a conflict list that has not loaded as unknown, never as empty | Proposed | 2026-11-19 (M3-12) | AUDIT.md item 16, AC-192 |
 | DEC-53 | API test classes share the readers of answers, one API fixture, the test plant figures and the fakes | Proposed | 2026-11-19 (M3-13) | AUDIT.md items 13, 18 and 22, TESTING.md section "Fixtures and helpers" |
+| DEC-54 | Request times are checked for whole minutes by one helper, and a rule violation reads its rule from its code | Proposed | 2026-11-19 (M3-14) | AUDIT.md items 17 and 20 |
 
 ## Accepted
 
@@ -426,6 +427,13 @@ Made while building M1 (2026-11-10) and M2 (2026-11-18) and already followed by 
 - Reason: the M3 classes copied `Lot`, `ListedOrder` and the factory setup, worked expected ends out from figures that had no name, and wrote times in four ways, one of them with a fixed offset that is wrong in summer; M4 and M5 tests rely on the same plant and M5 replaces the progress fake (AUDIT.md items 13, 18 and 22).
 - Alternatives: one class fixture per test class, rejected because these tests count every lot, machine or conflict of their database and move the clock, so each needs its own; a base test class, rejected because the fixture already carries the setup and composition keeps classes free to take other fixtures; writing expected ends as start plus a lot length everywhere, rejected for ends that pause over a weekend or a holiday, which keep their worked-out time and a comment.
 - Consequences: an expected end within one working period is written as its start plus `CuringLotMinutes` or `BuildingLotMinutes`, so a change to the test plant's cycle times moves those expectations with it, and the ends that cross non-working time still need checking by hand.
+
+### DEC-54 One whole-minute check, and the rule read from its code
+
+- Decision: every register that takes a request time asks `WholeMinuteTime.ErrorOf` (`Errors/`) for the field error of a time that is not a whole minute (A2, A40), and reports it under its own field name. `RuleViolation` takes only its code; its `Rule` is the middle part of the code (`rule.R2.overlap` is R2), and a code of another form throws.
+- Reason: the placement and unavailability registers each wrote the check and its message, and the M4 earliest-slot and whole-order requests take times too (AUDIT.md item 17). Each violation named its rule twice, as a bare string and inside its code, so the two could disagree (AUDIT.md item 20).
+- Alternatives: a validation attribute on the request fields, rejected because the unavailability check sits among field checks that span fields and the attribute would split them; a rule code type that holds the rule and the code, rejected because `RuleViolationProblems` matches the codes as constants, which a type would turn into a chain of comparisons.
+- Consequences: a new rule code must keep the form `rule.<rule>.<name>` of API.md section "Error format", or the first read of its rule fails. A new request time takes its message from the helper, so all of them say "The <time> must be a whole minute."
 
 ## Open
 

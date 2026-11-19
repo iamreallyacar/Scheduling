@@ -24,10 +24,9 @@ internal sealed class PlacementRegister(
     {
         int resourceId = request.ResourceId.Validated();
         DateTimeOffset plannedStart = request.PlannedStart.Validated().ToUniversalTime();
-        // Times are whole minutes (A2, A40).
-        if (plannedStart.Ticks % TimeSpan.TicksPerMinute != 0)
+        if (WholeMinuteTime.ErrorOf(plannedStart, "start") is { } startError)
         {
-            throw ApiProblemException.ValidationFailed("plannedStart", "The start must be a whole minute.");
+            throw ApiProblemException.ValidationFailed("plannedStart", startError);
         }
 
         int versionId = await versions.ResolveAsync(versionPath, cancellationToken);
