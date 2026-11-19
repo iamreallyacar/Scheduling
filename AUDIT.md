@@ -15,6 +15,7 @@ Each completed finding was fixed by a task; the decision it names gives the reas
 | 5 | The frontend endpoint list was written by hand, so the method and response type of a call were not checked against the OpenAPI document | Task M2-12, DEC-37 |
 | 6 | API test data builders lived in test classes and were copied between them | Task M2-13, DEC-38 |
 | 7 | The engine had no rule check a search could call per candidate | Task M3-7, DEC-47 |
+| 8 | Each caller of the snapshot loader had its own hand-written loading scope | Task M3-8, DEC-48 |
 
 ## Second audit
 
@@ -23,14 +24,6 @@ The code was reviewed in four parts: the API project, the engine with the plant 
 The M3 code follows the rules the first audit set up. Records use named required properties, transactions and locks go through `RequestTransaction` and the lock ports, modules talk only through ports, no code reads the system clock, every frontend read uses `queryKeys` and the generated endpoints, the frontend decides no rule, and there are no unexplained escape hatches. The open findings are about what M4 and M5 will build on: the engine's entry points, how engine inputs and lot context are loaded, the schedule page, and the test setup that every new test class copies.
 
 ### Open
-
-#### 8. Each caller of the snapshot loader has its own hand-written loading scope
-
-- Where: `backend/src/TireScheduler.Api/Modules/Scheduling/ScheduleSnapshotLoader.cs` lines 17 to 31 (`ForOrderOnResourceAsync`, one resource plus the order's lots) and 35 to 48 (`ForVersionAsync`, everything); callers in `PlacementRegister.cs` lines 43 and 81.
-- Problem: which rows each rule needs is written only in a comment (lines 17 and 18). Two methods each copy the placement and unavailability projections (lines 24 and 39, 28 and 45).
-- Why it matters: the earliest-slot search and schedule-whole-order look at every resource of a type, so M4 will add a third `For...` method or use the heavy one. A scope that leaves out a row a rule reads (an unavailability for R3, a successor for R4) fails quietly, because the rule simply does not see that row.
-- What to do: give the loader one method that takes a scope (version, resource ids, order ids), and make the two existing methods thin wrappers around it. The comment saying which rule reads which rows then lives in one place, next to the projections.
-- Task: M3-8.
 
 #### 9. Queries readers load every order and every machine to look up a few rows
 

@@ -14,47 +14,44 @@ internal sealed class ScheduleSnapshotLoader(
     IOrderReader orders,
     ILotProgressStates lotProgress)
 {
-    // Enough to check a lot of the order on the resource: R4 compares the order's lots, which are
-    // the only ones its dependencies link (A11); R2 and R3 look only at the resource.
-    public async Task<ScheduleSnapshot> ForOrderOnResourceAsync(int versionId, OrderSchedulingFacts order, int resourceId, CancellationToken cancellationToken)
-    {
-        int[] lotIds = order.Lots.Select(lot => lot.Id).ToArray();
-        List<SnapshotPlacement> placements = await context.Placements
-            .Where(placement => placement.VersionId == versionId && (placement.ResourceId == resourceId || lotIds.Contains(placement.LotId)))
-            .Select(placement => new SnapshotPlacement(placement.Id, placement.LotId, placement.ResourceId, placement.PlannedStart, placement.PlannedEnd))
-            .ToListAsync(cancellationToken);
-        List<SnapshotUnavailability> unavailabilities = await context.Unavailabilities
-            .Where(unavailability => unavailability.ResourceId == resourceId)
-            .Select(unavailability => new SnapshotUnavailability(unavailability.Id, unavailability.ResourceId, unavailability.StartsAt, unavailability.EndsAt))
-            .ToListAsync(cancellationToken);
-        return await BuildAsync([order], placements, unavailabilities, cancellationToken);
-    }
+    // Enough to check a lot of the order on the resource.
+    public Task<ScheduleSnapshot> ForOrderOnResourceAsync(int versionId, OrderSchedulingFacts order, int resourceId, CancellationToken cancellationToken) =>
+        LoadAsync(versionId, new OrdersOnResources { ResourceIds = [resourceId], Orders = [order] }, cancellationToken);
 
     // Every placement of the version with the orders of their lots, for the rules that look at the
     // whole version (FindConflicts, RecomputeEnds).
-    public async Task<ScheduleSnapshot> ForVersionAsync(int versionId, CancellationToken cancellationToken)
+    public Task<ScheduleSnapshot> ForVersionAsync(int versionId, CancellationToken cancellationToken) =>
+        LoadAsync(versionId, scope: null, cancellationToken);
+
+    // The rows each rule reads, so a scope that leaves one out is visible here and not only as a
+    // rule that quietly sees less: R2 the placements on the scoped resources and R3 their
+    // unavailabilities; R4 the lots, dependencies and placements of the scoped orders, whose
+    // dependencies link only their own lots (A11); R8 the progress of those lots; R1 and R6 every
+    // resource and calendar, which are always loaded whole. A scope holds placements of other
+    // orders' lots without those lots, so it serves only checks of its own orders' lots (Validate,
+    // ValidateRemoval); the rules over every placement get the whole version (scope null), whose
+    // orders come from the same placement rows, so every placed lot is in the snapshot.
+    private async Task<ScheduleSnapshot> LoadAsync(int versionId, OrdersOnResources? scope, CancellationToken cancellationToken)
     {
-        List<SnapshotPlacement> placements = await context.Placements
-            .Where(placement => placement.VersionId == versionId)
+        IQueryable<Placement> placements = context.Placements.Where(placement => placement.VersionId == versionId);
+        IQueryable<Unavailability> unavailabilities = context.Unavailabilities;
+        if (scope is not null)
+        {
+            int[] lotIdsOfScope = scope.Orders.SelectMany(order => order.Lots).Select(lot => lot.Id).ToArray();
+            placements = placements.Where(placement => scope.ResourceIds.Contains(placement.ResourceId) || lotIdsOfScope.Contains(placement.LotId));
+            unavailabilities = unavailabilities.Where(unavailability => scope.ResourceIds.Contains(unavailability.ResourceId));
+        }
+
+        List<SnapshotPlacement> snapshotPlacements = await placements
             .Select(placement => new SnapshotPlacement(placement.Id, placement.LotId, placement.ResourceId, placement.PlannedStart, placement.PlannedEnd))
             .ToListAsync(cancellationToken);
-        IReadOnlyList<OrderSchedulingFacts> ordersOfPlacedLots = await orders.ListSchedulingFactsOfLotsAsync(
-            placements.Select(placement => placement.LotId).ToArray(),
-            cancellationToken);
-        List<SnapshotUnavailability> unavailabilities = await context.Unavailabilities
+        IReadOnlyList<OrderSchedulingFacts> ordersInSnapshot = scope?.Orders
+            ?? await orders.ListSchedulingFactsOfLotsAsync(snapshotPlacements.Select(placement => placement.LotId).ToArray(), cancellationToken);
+        int[] lotIdsInSnapshot = ordersInSnapshot.SelectMany(order => order.Lots).Select(lot => lot.Id).ToArray();
+        List<SnapshotUnavailability> snapshotUnavailabilities = await unavailabilities
             .Select(unavailability => new SnapshotUnavailability(unavailability.Id, unavailability.ResourceId, unavailability.StartsAt, unavailability.EndsAt))
             .ToListAsync(cancellationToken);
-        return await BuildAsync(ordersOfPlacedLots, placements, unavailabilities, cancellationToken);
-    }
-
-    private async Task<ScheduleSnapshot> BuildAsync(
-        IReadOnlyList<OrderSchedulingFacts> ordersInSnapshot,
-        List<SnapshotPlacement> placements,
-        List<SnapshotUnavailability> unavailabilities,
-        CancellationToken cancellationToken)
-    {
-        int[] lotIds = ordersInSnapshot.SelectMany(order => order.Lots).Select(lot => lot.Id).ToArray();
-        IReadOnlyDictionary<int, StartedLotState> startedLots = await lotProgress.StartedLotsAsync(lotIds, cancellationToken);
+        IReadOnlyDictionary<int, StartedLotState> startedLots = await lotProgress.StartedLotsAsync(lotIdsInSnapshot, cancellationToken);
         PlantWorkingTime workingTime = await masterData.GetWorkingTimeAsync(cancellationToken);
         IReadOnlyList<ResourceResponse> resources = await masterData.ListResourcesAsync(resourceTypeId: null, isActive: null, cancellationToken);
 
@@ -65,7 +62,7 @@ internal sealed class ScheduleSnapshotLoader(
                 [.. calendar.Shifts.Select(shift => new SnapshotShift(shift.Weekday, shift.StartMinuteOfDay, shift.EndMinuteOfDay))]))],
             workingTime.Holidays.ToHashSet(),
             [.. resources.Select(resource => new SnapshotResource(resource.Id, resource.ResourceType.Id, resource.Calendar.Id, resource.IsActive))],
-            unavailabilities,
+            snapshotUnavailabilities,
             [.. ordersInSnapshot.SelectMany(order => order.Lots.Select(lot => new SnapshotLot(
                 lot.Id,
                 lot.OperationId,
@@ -74,11 +71,20 @@ internal sealed class ScheduleSnapshotLoader(
                 ProgressOf(startedLots, lot.Id),
                 order.IsCancelled)))],
             [.. ordersInSnapshot.SelectMany(order => order.Dependencies).Select(dependency => new StageDependency(dependency.PredecessorOperationId, dependency.SuccessorOperationId, dependency.MinLagMinutes))],
-            placements);
+            snapshotPlacements);
     }
 
     private static LotProgressState ProgressOf(IReadOnlyDictionary<int, StartedLotState> startedLots, int lotId) =>
         !startedLots.TryGetValue(lotId, out StartedLotState state) ? LotProgressState.NotStarted
         : state == StartedLotState.Completed ? LotProgressState.Completed
         : LotProgressState.InProgress;
+
+    // The orders are passed whole, not as ids, because a placement command has already read them
+    // under the order lock.
+    private sealed record OrdersOnResources
+    {
+        public required IReadOnlyCollection<int> ResourceIds { get; init; }
+
+        public required IReadOnlyList<OrderSchedulingFacts> Orders { get; init; }
+    }
 }

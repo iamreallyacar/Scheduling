@@ -55,6 +55,7 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 | DEC-45 | The timeline read takes a required plant-local date range and carries the working periods the engine computes | Proposed | 2026-11-18 (M3-6) | API.md section "Scheduling calls", AC-185 to AC-187, WQ3 |
 | DEC-46 | The timeline marks conflicts from the conflict list, which stays on the schedule page | Proposed | 2026-11-18 (M3-6) | wireframes.md section 2, AC-189 to AC-191 |
 | DEC-47 | One placement context per snapshot checks any number of requests, and the static rule calls build one each | Proposed | 2026-11-18 (M3-7) | [engine README](../backend/src/TireScheduler.Engine/README.md), AUDIT.md item 7 |
+| DEC-48 | The snapshot loader loads a version with a scope of resources and orders, or the whole version, in one method that says which rule reads which rows | Proposed | 2026-11-19 (M3-8) | AUDIT.md item 8 |
 
 ## Accepted
 
@@ -378,6 +379,13 @@ Made while building M1 (2026-11-10) and M2 (2026-11-18) and already followed by 
 - Reason: building the index looks up the time zone and groups every row of the snapshot, so a search that called `PlacementRules.Validate` per candidate would repeat that for every start, and a copy of the rules inside the search would let the M4-1 property tests compare two versions of the rules (AUDIT.md item 7).
 - Alternatives: drop the static methods so every caller builds a context, rejected because each one-off call in the API would then repeat the construction for no gain; make `SnapshotIndex` and the violation list public, rejected because callers would then put the rules together themselves.
 - Consequences: a check that must count earlier proposals as placed (`ScheduleOrderAsap`, task M4-3) builds its context from a snapshot that holds them.
+
+### DEC-48 Snapshot loaded from one scope
+
+- Decision: `ScheduleSnapshotLoader` (Scheduling) builds every snapshot in one private load method that takes a version and either a scope of resource ids with the scheduling facts of their orders, or no scope for the whole version. A scope loads the placements on those resources or of those orders' lots, the unavailabilities of those resources, and the lots, dependencies and progress of those orders; the whole version loads every placement and unavailability and takes its orders from the same placement rows, so every placed lot is in the snapshot. Every resource and calendar is always loaded. The comment on the load method says which rule reads which rows. `ForOrderOnResourceAsync` and `ForVersionAsync` are one-line wrappers that name the scope.
+- Reason: each caller had its own loading query, with the placement and unavailability projections copied and the rows each rule needs written only in a comment on one of them. The earliest-slot search and schedule-whole-order (M4) look at several resources of a type, and a scope that leaves out a row a rule reads fails quietly, because the rule does not see that row (AUDIT.md item 8).
+- Alternatives: order ids in the scope instead of their facts, rejected because a placement command has already read the facts under the order lock and would read them twice; the whole version as a scope of every resource with the orders read first, rejected because the placements would be read twice and a lot placed between the two reads would be in the snapshot without its lot, which the engine rejects; a public load method that takes any scope, rejected because a scope with a few resources holds placements of other orders' lots without those lots, so it suits only checks of its own orders' lots and must not reach `FindConflicts` or `RecomputeEnds`.
+- Consequences: a new kind of check adds a wrapper next to the two existing ones and never writes a loading query; for example the earliest-slot search adds one for the order's lot on every resource of its type.
 
 ## Open
 
