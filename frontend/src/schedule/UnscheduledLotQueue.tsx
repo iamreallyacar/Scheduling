@@ -1,7 +1,7 @@
 import { Link } from 'react-router';
 import type { LotPredecessorResponse } from '../api/generated';
 import { QueryResult } from '../forms/QueryResult';
-import type { PlacementTarget } from './PlacementForm';
+import type { PlacementTarget } from './placementTarget';
 import { useUnscheduledLots } from './scheduleQueries';
 
 /** The lots that wait for placement, in the order the API returns them (F-SCH-7, AC-175). */

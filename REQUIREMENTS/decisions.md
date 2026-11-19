@@ -64,6 +64,7 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 | DEC-54 | Request times are checked for whole minutes by one helper, and a rule violation reads its rule from its code | Proposed | 2026-11-19 (M3-14) | AUDIT.md items 17 and 20 |
 | DEC-55 | The earliest-slot search answers R8 as a rejection, takes the horizon from the caller and breaks ties by the resource names in the snapshot | Proposed | 2026-11-19 (M4-1) | engine README, A45 |
 | DEC-56 | Property tests run the engine on generated plants over fixed seeds, through one mapping in the generator core | Proposed | 2026-11-19 (M4-1) | AUDIT.md item 19, TESTING.md section "Test levels", AC-193 |
+| DEC-57 | Forms share one save frame, and the schedule page keeps its timeline state in a hook of its own | Proposed | 2026-11-19 (M4-2) | AUDIT.md items 12 and 15 |
 
 ## Accepted
 
@@ -450,6 +451,13 @@ Made while building M1 (2026-11-10) and M2 (2026-11-18) and already followed by 
 - Reason: the generator already makes consistent, varied plants from a seed (AC-151), including downtime, lags, holidays and DST weeks, which a property library would have to be taught to build. A fixed seed list makes every failure repeatable. The mapping sits in the generator core because task M4-5 places a schedule there with `ScheduleOrderAsap` and needs the same snapshot (AUDIT.md item 19).
 - Alternatives: FsCheck, rejected because its generators would duplicate the plant generator and its shrinking cannot shrink a plant that must stay consistent; a mapping in a test helper, rejected because M4-5 needs it outside the tests.
 - Consequences: no new package. A failing case is not shrunk; the test case names the seed and start date, and the failure names the lot, the resource and the start. The snapshot ids follow the order of the generated lists, so they are not the ids the loader gets from the API.
+
+### DEC-57 One save frame for forms, and the timeline state out of the schedule page
+
+- Decision: every save form draws its frame through `FormPanel` (`frontend/src/forms`): heading, the server's problem, the fields, the submit button, optional extra actions and an optional cancel button. An empty field or select is sent as null through `numberOrNullIfEmpty`, and `NOTHING_CHOSEN` is the value of a select's "nothing chosen" option (`forms/fieldValues.ts`). The schedule page keeps the layout, the queue toggle and the open placement form; the timeline's reads, filters and selected bar live in `useTimelineView`, drawn by `ScheduleTimeline`, and a placed lot becomes a placement target through `placementTargetOf` (`schedule/placementTarget.ts`).
+- Reason: eight forms repeated the same mutation frame, problem summary and buttons, and the schedule page owned every piece of its state in one component, while M4-2 and M4-4 add more forms and more selection state (AUDIT.md items 12 and 15).
+- Alternatives: a general form-state hook, rejected because the forms share their frame but not their state; `placementTargetOf` and the hook inside the component files, rejected because the lint rule `react-refresh/only-export-components` lets a component file export only components.
+- Consequences: a change to every form, such as a double-submit guard or focus on the first error, is made in `FormPanel`. The page calls `useTimelineView` itself, because the conflict links it builds are also shown by the placement form and the conflict list. The queue and the lots of the order page still build an unplaced target themselves, because it has no placement to copy.
 
 ## Open
 

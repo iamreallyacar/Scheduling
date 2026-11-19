@@ -1,6 +1,6 @@
 import type { OrderResponse } from '../api/generated';
 import { PlantTime } from '../calendar/PlantTime';
-import type { PlacementTarget } from '../schedule/PlacementForm';
+import type { PlacementTarget } from '../schedule/placementTarget';
 import { LOT_STATUS_LABELS } from './orderValues';
 
 interface OrderTablesProps {

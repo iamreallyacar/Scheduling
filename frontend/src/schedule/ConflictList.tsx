@@ -3,7 +3,7 @@ import type { ConflictedPlacementResponse } from '../api/generated';
 import { formatPlantTime } from '../calendar/plantClock';
 import { WithPlantTimeZone } from '../calendar/WithPlantTimeZone';
 import { QueryResult } from '../forms/QueryResult';
-import type { PlacementTarget } from './PlacementForm';
+import { placementTargetOf, type PlacementTarget } from './placementTarget';
 import { useConflictedPlacements } from './scheduleQueries';
 import { ViolationList, type ConflictLinkRenderer } from './ViolationList';
 
@@ -70,10 +70,7 @@ function ConflictTable({ placements, timeZone, onMove, renderConflictLink }: Con
                   <button
                     type="button"
                     onClick={() => {
-                      onMove({
-                        ...placement,
-                        placement: { resourceId: placement.resource.id, plannedStart: placement.plannedStart },
-                      });
+                      onMove(placementTargetOf(placement, placement.resource.id));
                     }}
                   >
                     Move...

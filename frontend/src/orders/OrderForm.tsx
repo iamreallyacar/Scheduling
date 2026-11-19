@@ -1,10 +1,11 @@
 import { useMutation } from '@tanstack/react-query';
-import { useState, type SyntheticEvent } from 'react';
+import { useState } from 'react';
 import { createOrder, updateOrder } from '../api/generated/endpoints.gen';
 import type { OrderPriority, OrderRequest, OrderResponse } from '../api/generated';
 import { problemOf } from '../api/problem';
 import { NumberField, SelectField, TextField, type SelectOption } from '../forms/Fields';
-import { ProblemSummary } from '../forms/ProblemSummary';
+import { NOTHING_CHOSEN, numberOrNullIfEmpty } from '../forms/fieldValues';
+import { FormPanel } from '../forms/FormPanel';
 import { QueryResult } from '../forms/QueryResult';
 import { useProducts } from '../products/productQueries';
 import { ORDER_PRIORITIES } from './orderValues';
@@ -17,7 +18,6 @@ interface OrderFormProps {
   onClose: () => void;
 }
 
-const NOTHING_CHOSEN = '';
 const priorityOptions: SelectOption[] = ORDER_PRIORITIES.map((priority) => ({ value: priority, label: priority }));
 
 // Create and change send the same fields; the server decides what may change (AC-47 to AC-49).
@@ -35,8 +35,8 @@ export function OrderForm({ order, onSaved, onClose }: OrderFormProps) {
       const request: OrderRequest = {
         orderNo,
         customerName,
-        productId: numberOrNull(productId),
-        quantity: numberOrNull(quantity),
+        productId: numberOrNullIfEmpty(productId),
+        quantity: numberOrNullIfEmpty(quantity),
         dueDate: dueDate === '' ? null : dueDate,
         priority,
       };
@@ -51,15 +51,19 @@ export function OrderForm({ order, onSaved, onClose }: OrderFormProps) {
   const problem = problemOf(saveMutation.error);
   const formName = order === null ? 'New order' : `Edit order ${order.orderNo}`;
 
-  const submit = (event: SyntheticEvent) => {
-    event.preventDefault();
-    saveMutation.mutate();
-  };
-
   return (
-    <form className="panel" onSubmit={submit} noValidate aria-label={formName}>
-      <h3>{formName}</h3>
-      <ProblemSummary problem={problem} />
+    <FormPanel
+      accessibleName={formName}
+      heading={formName}
+      problem={problem}
+      pending={saveMutation.isPending}
+      submitLabel="Save"
+      onSubmit={() => {
+        saveMutation.mutate();
+      }}
+      onCancel={onClose}
+      cancelLabel="Close"
+    >
       <TextField label="Order number" name="orderNo" value={orderNo} onChange={setOrderNo} problem={problem} />
       <TextField label="Customer" name="customerName" value={customerName} onChange={setCustomerName} problem={problem} />
       <QueryResult query={products}>
@@ -89,18 +93,6 @@ export function OrderForm({ order, onSaved, onClose }: OrderFormProps) {
         problem={problem}
         options={priorityOptions}
       />
-      <div className="form-actions">
-        <button type="submit" disabled={saveMutation.isPending}>
-          Save
-        </button>
-        <button type="button" onClick={onClose}>
-          Close
-        </button>
-      </div>
-    </form>
+    </FormPanel>
   );
-}
-
-function numberOrNull(text: string): number | null {
-  return text.trim() === '' ? null : Number(text);
 }

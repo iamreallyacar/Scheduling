@@ -19,7 +19,9 @@ Each completed finding was fixed by a task; the decision it names gives the reas
 | 9 | Queries readers loaded every order and every machine to look up a few lots and machine names | Task M3-10, DEC-50 |
 | 10 | Master data was turned into engine calendars in two layers, and the placement and unavailability projections were copied | Task M3-9, DEC-49 |
 | 11 | The timeline chart took the page's filter state and repeated its filter rule | Task M3-11, DEC-51 |
+| 12 | The schedule page component held every piece of page state | Task M4-2, DEC-57 |
 | 13 | Backend test classes copied the readers of answers and their factory setup | Task M3-13, DEC-53 |
+| 15 | Every frontend form repeated the same save frame | Task M4-2, DEC-57 |
 | 16 | The schedule page treated a conflict list that had not loaded as an empty one, and two selects fell back to "no choice" for a value they never offer | Task M3-12, DEC-52 |
 | 17 | The whole-minute check of request times was written twice | Task M3-14, DEC-54 |
 | 18 | Test plant figures were implicit and test times were written in several ways | Task M3-13, DEC-53 |
@@ -39,14 +41,6 @@ The M3 code follows the rules the first audit set up. Records use named required
 
 ### Open
 
-#### 12. The schedule page component holds every piece of page state
-
-- Where: `frontend/src/schedule/SchedulePage.tsx` lines 88 to 191 (`ScheduleContent`); `PlacementTarget` is built in `SchedulePage.tsx` line 107 (`moveTargetOf`), `UnscheduledLotQueue.tsx` line 48 and the move button of `ConflictList.tsx`.
-- Problem: one component owns the open form, the selected bar, both filters, the queue toggle, the link from a violation to its bar and the mapping from a bar to a placement target, and renders everything in one 70-line block.
-- Why it matters: M4-2 adds "Find earliest slot" and M4-4 a proposal review, each with more selection and open-form state. If nothing changes, they land in this component too.
-- What to do: move the timeline part (filters, selection, popover) into its own component or hook, so the page keeps the layout and the open form. Add one `placementTargetOf` function next to `PlacementTarget` for the three places that build one.
-- Task: M4-2, as its first step.
-
 #### 14. The plant time zone is read in two ways with different failure behaviour
 
 - Where: `frontend/src/calendar/calendarQueries.ts` lines 15 to 17 (`usePlantTimeZone`, undefined while loading), `frontend/src/calendar/PlantTime.tsx` lines 6 to 9 (renders nothing without it), `frontend/src/calendar/WithPlantTimeZone.tsx` lines 6 to 18 (throws when there is no calendar); `WithPlantTimeZone` again inside `PlacementForm.tsx` and `ConflictList.tsx`, both below the one in `SchedulePage.tsx`.
@@ -54,14 +48,6 @@ The M3 code follows the rules the first audit set up. Records use named required
 - Why it matters: the M4 proposal screen and the M5 dashboard need the zone too and would add a third way.
 - What to do: read the zone once, near the app shell, into a small context with a `usePlantTimeZone()` that throws when it is missing. Remove the render-prop wrapper and the prop chain.
 - Task: M4-4, as its first step.
-
-#### 15. Every frontend form repeats the same save frame
-
-- Where: `MachineForm.tsx`, `MachineTypesPanel.tsx`, `UnavailabilityForm.tsx`, `ProductForm.tsx`, `HolidayForm.tsx`, `ShiftEditor.tsx`, `OrderForm.tsx`, `PlacementForm.tsx` (all under `frontend/src`).
-- Problem: each form repeats `useMutation` with `onSuccess: onClose`, `problemOf(...)`, `ProblemSummary`, the `form className="panel"` frame and the Save and Cancel buttons. Several also repeat a `NO_..._CHOSEN = ''` constant, the `x === '' ? null : Number(x)` conversion and a comment explaining it.
-- Why it matters: the earliest-slot, proposal and progress forms add three more copies. A change to every form (disable while saving, a double-submit guard, focus on the first error) has to be made in eight files.
-- What to do: add a small `FormPanel` component in `src/forms/` (title, problem, pending, submit, cancel, children, extra actions) and one `emptyToNull` function. Do not build a general form-state hook.
-- Task: M4-2, as its first step.
 
 ### Minor
 

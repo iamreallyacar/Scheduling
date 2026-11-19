@@ -1,9 +1,10 @@
 import { useMutation } from '@tanstack/react-query';
-import { useState, type SyntheticEvent } from 'react';
+import { useState } from 'react';
 import { createResourceType, deleteResourceType, updateResourceType } from '../api/generated/endpoints.gen';
 import type { ResourceTypeResponse } from '../api/generated';
 import { problemOf } from '../api/problem';
 import { TextField } from '../forms/Fields';
+import { FormPanel } from '../forms/FormPanel';
 import { ProblemSummary } from '../forms/ProblemSummary';
 
 interface MachineTypesPanelProps {
@@ -87,24 +88,19 @@ function MachineTypeForm({ resourceType, onClose }: { resourceType: ResourceType
   });
   const problem = problemOf(saveMutation.error);
 
-  const submit = (event: SyntheticEvent) => {
-    event.preventDefault();
-    saveMutation.mutate();
-  };
-
   return (
-    <form className="panel" onSubmit={submit} noValidate aria-label={resourceType === null ? 'Add machine type' : `Rename machine type ${resourceType.name}`}>
-      <h3>{resourceType === null ? 'Add machine type' : `Rename ${resourceType.name}`}</h3>
-      <ProblemSummary problem={problem} />
+    <FormPanel
+      accessibleName={resourceType === null ? 'Add machine type' : `Rename machine type ${resourceType.name}`}
+      heading={resourceType === null ? 'Add machine type' : `Rename ${resourceType.name}`}
+      problem={problem}
+      pending={saveMutation.isPending}
+      submitLabel="Save"
+      onSubmit={() => {
+        saveMutation.mutate();
+      }}
+      onCancel={onClose}
+    >
       <TextField label="Name" name="name" value={name} onChange={setName} problem={problem} />
-      <div className="form-actions">
-        <button type="submit" disabled={saveMutation.isPending}>
-          Save
-        </button>
-        <button type="button" onClick={onClose}>
-          Cancel
-        </button>
-      </div>
-    </form>
+    </FormPanel>
   );
 }

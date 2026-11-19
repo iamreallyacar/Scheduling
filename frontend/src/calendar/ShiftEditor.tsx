@@ -1,13 +1,13 @@
 import { useMutation } from '@tanstack/react-query';
-import { useState, type SyntheticEvent } from 'react';
+import { useState } from 'react';
 import { replaceCalendarShifts } from '../api/generated/endpoints.gen';
 import type { CalendarResponse, DayOfWeek } from '../api/generated';
 import { problemOf } from '../api/problem';
 import { SelectField, TextField, type SelectOption } from '../forms/Fields';
-import { ProblemSummary } from '../forms/ProblemSummary';
+import { NOTHING_CHOSEN } from '../forms/fieldValues';
+import { FormPanel } from '../forms/FormPanel';
 import { addShift, changeShift, draftFromCalendar, removeShift, toShiftsRequest, WEEKDAYS, type ShiftsDraft } from './shiftDraft';
 
-const NOTHING_CHOSEN = '';
 const weekdayOptions: SelectOption[] = [{ value: NOTHING_CHOSEN, label: 'Choose a day' }, ...WEEKDAYS.map((weekday) => ({ value: weekday, label: weekday }))];
 
 // The select offers only its options, so another value is a bug, not a missing choice.
@@ -41,14 +41,17 @@ export function ShiftEditor({ calendar }: { calendar: CalendarResponse }) {
     setDraft(changedDraft);
   };
 
-  const submit = (event: SyntheticEvent) => {
-    event.preventDefault();
-    saveMutation.mutate();
-  };
-
   return (
-    <form onSubmit={submit} noValidate aria-label="Shifts">
-      <ProblemSummary problem={problem} />
+    <FormPanel
+      accessibleName="Shifts"
+      problem={problem}
+      pending={saveMutation.isPending}
+      submitLabel="Save shifts"
+      onSubmit={() => {
+        saveMutation.mutate();
+      }}
+      framed={false}
+    >
       {saveMutation.isSuccess && <p role="status">Shifts saved.</p>}
       {draft.shifts.length === 0 && <p className="page-message">No shifts, so this calendar has no working time.</p>}
       {draft.shifts.map((shift, position) => {
@@ -107,11 +110,6 @@ export function ShiftEditor({ calendar }: { calendar: CalendarResponse }) {
           Add shift
         </button>
       </div>
-      <div className="form-actions">
-        <button type="submit" disabled={saveMutation.isPending}>
-          Save shifts
-        </button>
-      </div>
-    </form>
+    </FormPanel>
   );
 }

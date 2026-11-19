@@ -1,9 +1,9 @@
 import { useMutation } from '@tanstack/react-query';
-import { useState, type SyntheticEvent } from 'react';
+import { useState } from 'react';
 import { createHoliday } from '../api/generated/endpoints.gen';
 import { problemOf } from '../api/problem';
 import { TextField } from '../forms/Fields';
-import { ProblemSummary } from '../forms/ProblemSummary';
+import { FormPanel } from '../forms/FormPanel';
 
 export function HolidayForm() {
   const [date, setDate] = useState('');
@@ -17,22 +17,19 @@ export function HolidayForm() {
   });
   const problem = problemOf(saveMutation.error);
 
-  const submit = (event: SyntheticEvent) => {
-    event.preventDefault();
-    saveMutation.mutate();
-  };
-
   return (
-    <form className="panel" onSubmit={submit} noValidate aria-label="Add holiday">
-      <h3>Add holiday</h3>
-      <ProblemSummary problem={problem} />
+    <FormPanel
+      accessibleName="Add holiday"
+      heading="Add holiday"
+      problem={problem}
+      pending={saveMutation.isPending}
+      submitLabel="Add holiday"
+      onSubmit={() => {
+        saveMutation.mutate();
+      }}
+    >
       <TextField label="Date" name="date" type="date" value={date} onChange={setDate} problem={problem} />
       <TextField label="Name" name="name" value={name} onChange={setName} problem={problem} />
-      <div className="form-actions">
-        <button type="submit" disabled={saveMutation.isPending}>
-          Add holiday
-        </button>
-      </div>
-    </form>
+    </FormPanel>
   );
 }
