@@ -39,4 +39,13 @@ internal static class OrderTestData
             .SelectMany(operation => operation.GetProperty("lots").EnumerateArray())
             .Select(lot => lot.GetProperty("id").GetInt32())
             .ToArray();
+
+    public static JsonElement Lot(JsonElement order, int lotId) =>
+        order.GetProperty("operations").EnumerateArray()
+            .SelectMany(operation => operation.GetProperty("lots").EnumerateArray())
+            .Single(lot => lot.GetProperty("id").GetInt32() == lotId);
+
+    // The order in a page of the order list.
+    public static JsonElement ListedOrder(JsonElement page, int orderId) =>
+        Assert.Single(page.GetProperty("items").EnumerateArray(), item => item.GetProperty("id").GetInt32() == orderId);
 }

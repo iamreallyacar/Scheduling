@@ -60,6 +60,7 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 | DEC-50 | Reads of a few placed lots ask Orders for those lots' context and MasterData for those machines' names, never for every order or machine | Proposed | 2026-11-19 (M3-10) | AUDIT.md item 9 |
 | DEC-51 | The timeline chart draws the timeline it is given; the page that shows it applies its filters once | Proposed | 2026-11-19 (M3-11) | AUDIT.md item 11 |
 | DEC-52 | The schedule page treats a conflict list that has not loaded as unknown, never as empty | Proposed | 2026-11-19 (M3-12) | AUDIT.md item 16, AC-192 |
+| DEC-53 | API test classes share the readers of answers, one API fixture, the test plant figures and the fakes | Proposed | 2026-11-19 (M3-13) | AUDIT.md items 13, 18 and 22, TESTING.md section "Fixtures and helpers" |
 
 ## Accepted
 
@@ -418,6 +419,13 @@ Made while building M1 (2026-11-10) and M2 (2026-11-18) and already followed by 
 - Reason: the page drew every bar as conflict-free while the list loaded or after it failed, and the popover then listed no violations, which replaced a missing answer with a silent default (AUDIT.md item 16, CLAUDE.md section "Code style").
 - Alternatives: waiting for both reads before drawing the timeline, rejected because a failed conflict read would then hide a timeline that loaded; repeating the conflict read's problem above the timeline, rejected because the conflict list below already shows it.
 - Consequences: a re-read that fails after the list has loaded keeps the last loaded list, as the query cache does, so the markers stay and the conflict list below shows the problem. The proposal preview (task M4-4), which joins the same two reads (DEC-46), follows the same rule.
+
+### DEC-53 Shared API test setup, answer readers and fakes
+
+- Decision: a reader of an API answer that more than one test class needs lives in `TestData` next to the builders of its module, as DEC-38 does for builders. A test class whose tests each need a new API makes a `SchedulerApiFixture` through `ForEachTest`, with an optional clock and replaced services, in its constructor and disposes it, instead of creating a factory in `InitializeAsync`. The test plant names its lot quantity and lot lengths (`SchedulingTestData`), and times that mean a plant-local moment are written through `PlantTime.Berlin`, which converts through the plant time zone. Stand-ins for ports sit together in `Fakes/`.
+- Reason: the M3 classes copied `Lot`, `ListedOrder` and the factory setup, worked expected ends out from figures that had no name, and wrote times in four ways, one of them with a fixed offset that is wrong in summer; M4 and M5 tests rely on the same plant and M5 replaces the progress fake (AUDIT.md items 13, 18 and 22).
+- Alternatives: one class fixture per test class, rejected because these tests count every lot, machine or conflict of their database and move the clock, so each needs its own; a base test class, rejected because the fixture already carries the setup and composition keeps classes free to take other fixtures; writing expected ends as start plus a lot length everywhere, rejected for ends that pause over a weekend or a holiday, which keep their worked-out time and a comment.
+- Consequences: an expected end within one working period is written as its start plus `CuringLotMinutes` or `BuildingLotMinutes`, so a change to the test plant's cycle times moves those expectations with it, and the ends that cross non-working time still need checking by hand.
 
 ## Open
 

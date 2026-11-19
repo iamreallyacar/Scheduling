@@ -43,6 +43,23 @@ internal static class SchedulingTestData
         return await ApiSession.ReadJsonAsync(response);
     }
 
+    // The test plant's orders are of this quantity, so each stage has one lot of it. With the cycle
+    // times of CreatePlantAsync a building lot takes 2 hours and a curing lot 4 hours.
+    public const int LotQuantity = 10;
+
+    private const int BuildingCycleMinutes = 12;
+    private const int CuringCycleMinutes = 24;
+
+    public const int BuildingLotMinutes = LotQuantity * BuildingCycleMinutes;
+
+    public const int CuringLotMinutes = LotQuantity * CuringCycleMinutes;
+
+    public static (int ResourceId, DateTimeOffset PlannedStart, DateTimeOffset PlannedEnd) PlacementValues(JsonElement placement) =>
+        (placement.GetProperty("resourceId").GetInt32(), placement.GetProperty("plannedStart").GetDateTimeOffset(), placement.GetProperty("plannedEnd").GetDateTimeOffset());
+
+    // The lot ids of an unscheduled-lots answer, in its order.
+    public static int[] QueuedLotIds(JsonElement queue) => [.. queue.EnumerateArray().Select(lot => lot.GetProperty("id").GetInt32())];
+
     public sealed record TestPlant
     {
         public required int BuildingTypeId { get; init; }
@@ -58,10 +75,6 @@ internal static class SchedulingTestData
         public required int Press2 { get; init; }
     }
 
-    // Plant-local times of the week of Mon 2026-11-16 in Berlin (UTC+1), as the UTC instants the
-    // API and the database take.
-    public static DateTimeOffset Berlin(int day, int hour) => new DateTimeOffset(2026, 11, day, hour, 0, 0, TimeSpan.FromHours(1)).ToUniversalTime();
-
     // Building, then curing with no lag, each on machine types of its own (acceptance-criteria.md section 4).
     public static async Task<TestPlant> CreatePlantAsync(SchedulerApiFactory apiFactory, string prefix)
     {
@@ -69,7 +82,7 @@ internal static class SchedulingTestData
         int buildingTypeId = await CreateResourceTypeAsync(admin, $"{prefix} building");
         int curingTypeId = await CreateResourceTypeAsync(admin, $"{prefix} curing");
         int productId = await CreateProductAsync(admin, prefix);
-        await SaveRoutingAsync(admin, productId, [Stage(1, buildingTypeId, cycleMinutes: 12), Stage(2, curingTypeId, cycleMinutes: 24)], [Dependency(1, 2)]);
+        await SaveRoutingAsync(admin, productId, [Stage(1, buildingTypeId, cycleMinutes: BuildingCycleMinutes), Stage(2, curingTypeId, cycleMinutes: CuringCycleMinutes)], [Dependency(1, 2)]);
         return new TestPlant
         {
             BuildingTypeId = buildingTypeId,

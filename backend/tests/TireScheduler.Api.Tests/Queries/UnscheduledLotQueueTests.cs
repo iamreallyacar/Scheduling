@@ -4,6 +4,7 @@ using TireScheduler.Api.Errors;
 using TireScheduler.Api.Security;
 using static TireScheduler.Api.Tests.TestData.MasterDataTestData;
 using static TireScheduler.Api.Tests.TestData.OrderTestData;
+using static TireScheduler.Api.Tests.TestData.PlantTime;
 using static TireScheduler.Api.Tests.TestData.SchedulingTestData;
 
 namespace TireScheduler.Api.Tests.Queries;
@@ -33,8 +34,7 @@ public sealed class UnscheduledLotQueueTests(PostgresFixture postgres)
         JsonElement deleted = await CreateOrderAsync(planner, NewOrder("SO-D", productId, dueDate: "2026-11-12"));
         HttpResponseMessage deleteResponse = await planner.DeleteAsync(OrderPath(deleted.GetProperty("id").GetInt32()));
         Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
-        // Mon 2026-11-16 08:00 in Berlin.
-        await PlaceLotAsync(planner, LotIds(partlyPlaced)[0], await CreateResourceAsync(admin, "AC-174 builder", buildingTypeId), new DateTimeOffset(2026, 11, 16, 7, 0, 0, TimeSpan.Zero));
+        await PlaceLotAsync(planner, LotIds(partlyPlaced)[0], await CreateResourceAsync(admin, "AC-174 builder", buildingTypeId), Berlin(16, 8));
         using ApiSession viewer = await factory.SignInAsRoleAsync(UserRole.Viewer);
 
         JsonElement queue = await viewer.GetJsonAsync(UnscheduledLotsPath("live"));

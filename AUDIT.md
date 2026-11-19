@@ -19,7 +19,10 @@ Each completed finding was fixed by a task; the decision it names gives the reas
 | 9 | Queries readers loaded every order and every machine to look up a few lots and machine names | Task M3-10, DEC-50 |
 | 10 | Master data was turned into engine calendars in two layers, and the placement and unavailability projections were copied | Task M3-9, DEC-49 |
 | 11 | The timeline chart took the page's filter state and repeated its filter rule | Task M3-11, DEC-51 |
+| 13 | Backend test classes copied the readers of answers and their factory setup | Task M3-13, DEC-53 |
 | 16 | The schedule page treated a conflict list that had not loaded as an empty one, and two selects fell back to "no choice" for a value they never offer | Task M3-12, DEC-52 |
+| 18 | Test plant figures were implicit and test times were written in several ways | Task M3-13, DEC-53 |
+| 22 | The progress fakes and failing stubs were spread over the test classes | Task M3-13, DEC-53 |
 
 ## Second audit
 
@@ -36,14 +39,6 @@ The M3 code follows the rules the first audit set up. Records use named required
 - Why it matters: M4-2 adds "Find earliest slot" and M4-4 a proposal review, each with more selection and open-form state. If nothing changes, they land in this component too.
 - What to do: move the timeline part (filters, selection, popover) into its own component or hook, so the page keeps the layout and the open form. Add one `placementTargetOf` function next to `PlacementTarget` for the three places that build one.
 - Task: M4-2, as its first step.
-
-#### 13. Backend test classes copy JSON read helpers and their factory setup
-
-- Where: `Lot(order, lotId)` in `backend/tests/TireScheduler.Api.Tests/Scheduling/PlacementTests.cs` line 418, with inline copies in `Scheduling/ConflictTests.cs` line 177 and `Orders/OrderLifecycleTests.cs` line 113. `ListedOrder` in `PlacementTests.cs` line 423 and `Queries/OrderStatusTests.cs` line 79. The same field setup, `InitializeAsync` and `DisposeAsync` in `PlacementTests.cs`, `ConflictTests.cs`, `Queries/TimelineTests.cs`, `Queries/MachineStatusTests.cs`, `Queries/OrderStatusTests.cs` and `Orders/OrderLifecycleTests.cs`, each with a differently named start time (`Now`, `CreationTime`, `LastMinuteOfDueDay`, an inline date), while `Scheduling/UnavailabilityTests.cs` uses `SchedulerApiFixture` instead.
-- Problem: DEC-38 moved the data builders into `TestData`, but the M3 classes went back to copying the helpers that read answers, and every class repeats about 15 lines to create its factory.
-- Why it matters: M5 adds progress fields to the lot answer and replaces `FakeLotActivity`, so the same edit would be made in four to six places. Every M4 and M5 test class would copy the setup again.
-- What to do: move `Lot`, `ListedOrder`, `QueuedLotIds` and `PlacementValues` next to `LotIds` in `TestData`. Give the per-class setup one home, for example `SchedulerApiFixture` with optional `clock` and `replaceServices`, and use it in the classes above. Update the TestData paragraph of TESTING.md.
-- Task: M3-13.
 
 #### 14. The plant time zone is read in two ways with different failure behaviour
 
@@ -69,14 +64,6 @@ The M3 code follows the rules the first audit set up. Records use named required
 - What to do: one helper next to `RequestBodyValidation` that returns the field error, used by both registers.
 - Task: M3-14.
 
-#### 18. Test plant figures are implicit and repeated
-
-- Where: the comment "a building lot of 10 tires takes 2 hours, a curing lot 4 hours" in `backend/tests/TireScheduler.Api.Tests/Scheduling/PlacementTests.cs`, `Scheduling/ConflictTests.cs` and `Queries/TimelineTests.cs`; the cycle times in `TestData/SchedulingTestData.cs` line 72; `OrderQuantity = 10` per class; `Berlin(day, hour)` in `SchedulingTestData.cs` line 63, which fixes UTC+1 for November, while `TimelineTests.cs` has its own `Utc` helper.
-- Problem: expected ends such as `Berlin(23, 2)` are worked out by hand from numbers that have no shared name.
-- Why it matters: changing the test plant breaks many expectations at once, and the cause is hard to trace. M4's search tests rely on exactly these durations.
-- What to do: name the lot quantity and the lot hours per stage in `SchedulingTestData` and refer to them in the tests and comments. Use one helper for test times.
-- Task: M3-13.
-
 ### Minor
 
 Small findings, worth fixing when the file is next touched.
@@ -86,7 +73,6 @@ Small findings, worth fixing when the file is next touched.
 | 19 | The engine's mapping from a generated plant to a `ScheduleSnapshot` does not exist yet. The M4-1 property tests need it; write it once, in the generator project or a shared test helper, not in each test file | `backend/src/TireScheduler.PlantGenerator/GeneratedPlant.cs`, `backend/src/TireScheduler.Engine/ScheduleSnapshot.cs` | M4-1, as its first step |
 | 20 | Each violation names its rule twice, as a bare `"R2"` string and inside its code, so the two can disagree | `backend/src/TireScheduler.Engine/PlacementRules.cs` (every `...Violation("R..."` call), `RuleViolation.cs` | M3-14 |
 | 21 | The generator's load figure adds shift minutes itself instead of using `WorkingPeriods`, so it ignores daylight saving time and would not follow a change to the working-time rule | `backend/src/TireScheduler.PlantGenerator/PlantLoad.cs` lines 32 to 45 | M4-5, as its first step |
-| 22 | `FakeLotActivity` lives in `Orders/` but Scheduling tests use it, and the throwing stubs (`FailingLotProgressStates`, the failing recompute) are private to single classes; M5 replaces them and they should be easy to find | `backend/tests/TireScheduler.Api.Tests/Orders/FakeLotActivity.cs`, `Scheduling/PlacementTests.cs` line 428, `Scheduling/ConflictTests.cs` | M3-13 |
 | 23 | The lot title "Order X, stage N Type, lot M" is built in two places, `DAY_MS` is defined twice, and the `en-GB` locale is written in three files | `frontend/src/schedule/PlacementForm.tsx`, `LotPopover.tsx`, `timelineRange.ts`, `TimelineChart.tsx`, `frontend/src/calendar/plantClock.ts` | M3-15 |
 | 24 | Frontend tests repeat `.closest('tr') as HTMLElement` and cast the sent request bodies; `rowOf(name)` and `sentBody(requests, method, path)` helpers in `src/testing/` would remove the casts and fail clearly | `frontend/src/**/*.test.tsx` | M3-15 |
 | 25 | The unchecked cast of `response.json()` has no comment giving its reason | `frontend/src/api/request.ts` line 58 | M3-15 |

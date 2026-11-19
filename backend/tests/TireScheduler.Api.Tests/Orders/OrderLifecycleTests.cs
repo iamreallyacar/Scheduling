@@ -3,29 +3,27 @@ using System.Text.Json;
 using Microsoft.Extensions.Time.Testing;
 using TireScheduler.Api.Errors;
 using TireScheduler.Api.Security;
+using TireScheduler.Api.Tests.Fakes;
 using static TireScheduler.Api.Tests.TestData.MasterDataTestData;
 using static TireScheduler.Api.Tests.TestData.OrderTestData;
+using static TireScheduler.Api.Tests.TestData.PlantTime;
 using static TireScheduler.Api.Tests.TestData.SchedulingTestData;
 
 namespace TireScheduler.Api.Tests.Orders;
 
 // The order rules that depend on placements and progress (A13), with real placements and the
 // progress facts given through FakeLotActivity, and the times the order records on the injected clock.
-public sealed class OrderLifecycleTests(PostgresFixture postgres) : IAsyncLifetime
+public sealed class OrderLifecycleTests : IAsyncDisposable
 {
-    private static readonly DateTimeOffset CreationTime = new(2026, 11, 2, 7, 30, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset CreationTime = Berlin(2, 8, 30);
 
     private readonly FakeLotActivity lotActivity = new();
     private readonly FakeTimeProvider clock = new(CreationTime);
-    private SchedulerApiFactory factory = null!;
+    private readonly SchedulerApiFixture api;
 
-    public ValueTask InitializeAsync()
-    {
-        factory = new SchedulerApiFactory(postgres.NewDatabaseConnectionString(), clock: clock, replaceServices: lotActivity.ReplaceProgressIn);
-        return ValueTask.CompletedTask;
-    }
+    public OrderLifecycleTests(PostgresFixture postgres) => api = SchedulerApiFixture.ForEachTest(postgres, clock: clock, replaceServices: lotActivity.ReplaceProgressIn);
 
-    public ValueTask DisposeAsync() => factory.DisposeAsync();
+    public ValueTask DisposeAsync() => api.DisposeAsync();
 
     [Fact]
     public async Task AC_45_A19_creation_and_cancellation_times_come_from_the_injected_clock()
@@ -101,7 +99,7 @@ public sealed class OrderLifecycleTests(PostgresFixture postgres) : IAsyncLifeti
         Started,
     }
 
-    // A placed lot is placed in the live version on a new machine of its type, Mon 2026-11-16 08:00 in Berlin.
+    // A placed lot is placed in the live version on a new machine of its type.
     private async Task RecordAsync(LotFact lotFact, JsonElement order, int lotId)
     {
         if (lotFact == LotFact.Started)
@@ -113,17 +111,17 @@ public sealed class OrderLifecycleTests(PostgresFixture postgres) : IAsyncLifeti
         int resourceTypeId = order.GetProperty("operations").EnumerateArray()
             .Single(operation => operation.GetProperty("lots").EnumerateArray().Any(lot => lot.GetProperty("id").GetInt32() == lotId))
             .GetProperty("resourceType").GetProperty("id").GetInt32();
-        using ApiSession admin = await factory.SignInAsRoleAsync(UserRole.Admin);
+        using ApiSession admin = await api.Factory.SignInAsRoleAsync(UserRole.Admin);
         int resourceId = await CreateResourceAsync(admin, $"Machine for lot {lotId}", resourceTypeId);
-        using ApiSession planner = await factory.SignInAsRoleAsync(UserRole.Planner);
-        await PlaceLotAsync(planner, lotId, resourceId, new DateTimeOffset(2026, 11, 16, 7, 0, 0, TimeSpan.Zero));
+        using ApiSession planner = await api.Factory.SignInAsRoleAsync(UserRole.Planner);
+        await PlaceLotAsync(planner, lotId, resourceId, Berlin(16, 8));
     }
 
     private async Task<ApiSession> PlannerWithProductAsync(string productCode)
     {
-        using ApiSession admin = await factory.SignInAsRoleAsync(UserRole.Admin);
+        using ApiSession admin = await api.Factory.SignInAsRoleAsync(UserRole.Admin);
         await CreateRoutedProductAsync(admin, productCode);
-        return await factory.SignInAsRoleAsync(UserRole.Planner);
+        return await api.Factory.SignInAsRoleAsync(UserRole.Planner);
     }
 
     private static async Task<int> ProductIdAsync(ApiSession session, string productCode) =>

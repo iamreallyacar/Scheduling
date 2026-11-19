@@ -3,30 +3,26 @@ using Microsoft.Extensions.Time.Testing;
 using TireScheduler.Api.Security;
 using static TireScheduler.Api.Tests.TestData.MasterDataTestData;
 using static TireScheduler.Api.Tests.TestData.OrderTestData;
+using static TireScheduler.Api.Tests.TestData.PlantTime;
 
 namespace TireScheduler.Api.Tests.Queries;
 
 // F-ORD-2 through the order reads of Queries (DEC-29), on a fixed clock in the plant time zone
 // Europe/Berlin, for orders without placements; Scheduled and the late flag from a planned end are
 // in Scheduling/PlacementTests.cs. Until task M5-1 stores progress, no lot is started.
-public sealed class OrderStatusTests(PostgresFixture postgres) : IAsyncLifetime
+public sealed class OrderStatusTests : IAsyncDisposable
 {
     private const string DueDate = "2026-11-10";
 
-    // 2026-11-10 23:59 in Berlin.
-    private static readonly DateTimeOffset LastMinuteOfDueDay = new(2026, 11, 10, 22, 59, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset LastMinuteOfDueDay = Berlin(10, 23, 59);
 
     // A session ends after 12 hours without a request (A21), so the clock starts close to the due day.
     private readonly FakeTimeProvider clock = new(LastMinuteOfDueDay.AddHours(-2));
-    private SchedulerApiFactory factory = null!;
+    private readonly SchedulerApiFixture api;
 
-    public ValueTask InitializeAsync()
-    {
-        factory = new SchedulerApiFactory(postgres.NewDatabaseConnectionString(), clock: clock);
-        return ValueTask.CompletedTask;
-    }
+    public OrderStatusTests(PostgresFixture postgres) => api = SchedulerApiFixture.ForEachTest(postgres, clock: clock);
 
-    public ValueTask DisposeAsync() => factory.DisposeAsync();
+    public ValueTask DisposeAsync() => api.DisposeAsync();
 
     [Fact]
     public async Task AC_53_a_new_order_is_pending_and_not_late_in_the_detail_and_the_list()
@@ -74,10 +70,7 @@ public sealed class OrderStatusTests(PostgresFixture postgres) : IAsyncLifetime
         Assert.Equal(("Pending", true), StatusAndLate(listedAtMidnight));
     }
 
-    private async Task<ApiSession> AdminAsync() => await factory.SignInAsRoleAsync(UserRole.Admin);
-
-    private static JsonElement ListedOrder(JsonElement page, int orderId) =>
-        Assert.Single(page.GetProperty("items").EnumerateArray(), item => item.GetProperty("id").GetInt32() == orderId);
+    private async Task<ApiSession> AdminAsync() => await api.Factory.SignInAsRoleAsync(UserRole.Admin);
 
     private static (string?, bool) StatusAndLate(JsonElement order) =>
         (order.GetProperty("status").GetString(), order.GetProperty("isLate").GetBoolean());

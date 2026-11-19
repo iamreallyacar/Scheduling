@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using TireScheduler.Api.Modules.Orders;
 using TireScheduler.Api.Modules.Scheduling;
 
-namespace TireScheduler.Api.Tests.Orders;
+namespace TireScheduler.Api.Tests.Fakes;
 
 // Stands in for Progress behind the ports of Orders and Scheduling (DEC-16) until Progress stores
 // actual starts and ends (task M5-1), so the rules that depend on started lots can be tested now.

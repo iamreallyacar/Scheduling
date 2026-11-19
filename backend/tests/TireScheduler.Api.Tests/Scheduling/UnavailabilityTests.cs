@@ -3,6 +3,7 @@ using System.Text.Json;
 using TireScheduler.Api.Errors;
 using TireScheduler.Api.Security;
 using static TireScheduler.Api.Tests.TestData.MasterDataTestData;
+using static TireScheduler.Api.Tests.TestData.PlantTime;
 using static TireScheduler.Api.Tests.TestData.SchedulingTestData;
 
 namespace TireScheduler.Api.Tests.Scheduling;
@@ -10,8 +11,7 @@ namespace TireScheduler.Api.Tests.Scheduling;
 // F-MNT-1 through the API: recording, reading, changing and deleting unavailabilities.
 public sealed class UnavailabilityTests(SchedulerApiFixture api) : IClassFixture<SchedulerApiFixture>
 {
-    // Tue 2026-11-17 06:00 in Berlin.
-    private static readonly DateTimeOffset TuesdaySix = new(2026, 11, 17, 5, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset TuesdaySix = Berlin(17, 6);
 
     [Fact]
     public async Task AC_11_AC_166_planner_records_planned_maintenance_and_an_open_breakdown_on_an_inactive_machine()

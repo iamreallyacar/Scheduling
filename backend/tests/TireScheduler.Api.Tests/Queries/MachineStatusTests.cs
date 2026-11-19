@@ -2,32 +2,28 @@ using System.Text.Json;
 using Microsoft.Extensions.Time.Testing;
 using TireScheduler.Api.Security;
 using static TireScheduler.Api.Tests.TestData.MasterDataTestData;
+using static TireScheduler.Api.Tests.TestData.PlantTime;
 using static TireScheduler.Api.Tests.TestData.SchedulingTestData;
 
 namespace TireScheduler.Api.Tests.Queries;
 
 // F-MNT-2 through the machine reads of Queries (DEC-39), on a fixed clock. Running needs lot
 // progress and follows in task M5-1.
-public sealed class MachineStatusTests(PostgresFixture postgres) : IAsyncLifetime
+public sealed class MachineStatusTests : IAsyncDisposable
 {
-    // Tue 2026-11-17 10:00 in Berlin.
-    private static readonly DateTimeOffset Now = new(2026, 11, 17, 9, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Now = Berlin(17, 10);
 
     private readonly FakeTimeProvider clock = new(Now);
-    private SchedulerApiFactory factory = null!;
+    private readonly SchedulerApiFixture api;
 
-    public ValueTask InitializeAsync()
-    {
-        factory = new SchedulerApiFactory(postgres.NewDatabaseConnectionString(), clock: clock);
-        return ValueTask.CompletedTask;
-    }
+    public MachineStatusTests(PostgresFixture postgres) => api = SchedulerApiFixture.ForEachTest(postgres, clock: clock);
 
-    public ValueTask DisposeAsync() => factory.DisposeAsync();
+    public ValueTask DisposeAsync() => api.DisposeAsync();
 
     [Fact]
     public async Task AC_172_status_follows_the_unavailabilities_that_cover_now_in_the_list_and_the_single_read()
     {
-        using ApiSession admin = await factory.SignInAsRoleAsync(UserRole.Admin);
+        using ApiSession admin = await api.Factory.SignInAsRoleAsync(UserRole.Admin);
         int typeId = await CreateResourceTypeAsync(admin, "Curing");
         int brokenId = await CreateResourceAsync(admin, "Press 1", typeId);
         int maintainedId = await CreateResourceAsync(admin, "Press 2", typeId);
@@ -35,14 +31,14 @@ public sealed class MachineStatusTests(PostgresFixture postgres) : IAsyncLifetim
         int idleId = await CreateResourceAsync(admin, "Press 4", typeId);
         int endedJustNowId = await CreateResourceAsync(admin, "Press 5", typeId);
         int startsLaterId = await CreateResourceAsync(admin, "Press 6", typeId);
-        using ApiSession planner = await factory.SignInAsRoleAsync(UserRole.Planner);
+        using ApiSession planner = await api.Factory.SignInAsRoleAsync(UserRole.Planner);
         await CreateUnavailabilityAsync(planner, brokenId, Unavailability("Breakdown", Now.AddDays(-2), end: null));
         await CreateUnavailabilityAsync(planner, maintainedId, Unavailability("Planned", Now, Now.AddHours(1)));
         await CreateUnavailabilityAsync(planner, brokenDuringMaintenanceId, Unavailability("Planned", Now.AddHours(-1), Now.AddHours(1)));
         await CreateUnavailabilityAsync(planner, brokenDuringMaintenanceId, Unavailability("Breakdown", Now.AddMinutes(-30), Now.AddMinutes(30)));
         await CreateUnavailabilityAsync(planner, endedJustNowId, Unavailability("Breakdown", Now.AddHours(-3), Now));
         await CreateUnavailabilityAsync(planner, startsLaterId, Unavailability("Planned", Now.AddMinutes(1), Now.AddHours(2)));
-        using ApiSession viewer = await factory.SignInAsRoleAsync(UserRole.Viewer);
+        using ApiSession viewer = await api.Factory.SignInAsRoleAsync(UserRole.Viewer);
 
         JsonElement listed = await viewer.GetJsonAsync(ResourcesPath);
 
@@ -64,7 +60,7 @@ public sealed class MachineStatusTests(PostgresFixture postgres) : IAsyncLifetim
     [Fact]
     public async Task AC_172_the_status_comes_with_the_machine_fields_and_the_filters_still_apply()
     {
-        using ApiSession admin = await factory.SignInAsRoleAsync(UserRole.Admin);
+        using ApiSession admin = await api.Factory.SignInAsRoleAsync(UserRole.Admin);
         int curingId = await CreateResourceTypeAsync(admin, "Curing");
         int buildingId = await CreateResourceTypeAsync(admin, "Building");
         int pressId = await CreateResourceAsync(admin, "Press 1", curingId);
