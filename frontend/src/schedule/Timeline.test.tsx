@@ -2,7 +2,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ConflictedPlacementResponse, ResourceViewResponse, TimelinePlacementResponse, TimelineResponse } from '../api/generated';
 import { plantCalendar } from '../orders/orderSamples';
-import { plannerUser, stubApi, viewerUser, type FakeApiAnswer, type FakeApiRequest } from '../testing/fakeApi';
+import { plannerUser, problem, stubApi, viewerUser, type FakeApiAnswer, type FakeApiRequest } from '../testing/fakeApi';
 import { renderApp } from '../testing/renderApp';
 
 const TIMELINE_PATH = '/api/v1/versions/live/timeline';
@@ -114,13 +114,16 @@ interface ScheduleStub {
   user?: typeof plannerUser;
   timeline?: (request: FakeApiRequest) => TimelineResponse;
   placeLot?: (request: FakeApiRequest) => FakeApiAnswer;
+  conflicts?: () => FakeApiAnswer | Promise<FakeApiAnswer>;
 }
 
-function stubScheduleApi({ user = viewerUser, timeline = () => twoWeeks, placeLot }: ScheduleStub = {}) {
+const bothConflicts = (): FakeApiAnswer => ({ status: 200, body: [conflictedCuring, conflictedLater] });
+
+function stubScheduleApi({ user = viewerUser, timeline = () => twoWeeks, placeLot, conflicts = bothConflicts }: ScheduleStub = {}) {
   return stubApi({
     'GET /api/v1/me': () => ({ status: 200, body: user }),
     [`GET ${TIMELINE_PATH}`]: (request) => ({ status: 200, body: timeline(request) }),
-    'GET /api/v1/versions/live/conflicts': () => ({ status: 200, body: [conflictedCuring, conflictedLater] }),
+    'GET /api/v1/versions/live/conflicts': conflicts,
     'GET /api/v1/versions/live/unscheduled-lots': () => ({ status: 200, body: [] }),
     'GET /api/v1/calendars': () => ({ status: 200, body: [plantCalendar] }),
     'GET /api/v1/resources': () => ({ status: 200, body: [press1] }),
@@ -340,5 +343,46 @@ describe('timeline', () => {
     await user.click(await within(form).findByRole('button', { name: 'Show placement' }));
 
     expect(screen.getByRole('dialog', { name: 'Order SO-1042, stage 1 Building machine, lot 2' })).toBeInTheDocument();
+  });
+
+  it('AC_192 while the conflict list loads, no bar is marked, the page says so, and the markers follow once it has loaded', async () => {
+    let answerConflicts: (answer: FakeApiAnswer) => void = () => {
+      throw new Error('The conflict list was not requested.');
+    };
+    stubScheduleApi({
+      conflicts: () =>
+        new Promise((resolve) => {
+          answerConflicts = resolve;
+        }),
+    });
+    const user = userEvent.setup();
+    renderApp('/schedule');
+
+    await user.click(await screen.findByRole('button', { name: 'SO-1042/L3' }));
+    expect(screen.getByRole('status')).toHaveTextContent('Loading the conflict markers…');
+    expect(screen.queryByRole('button', { name: /conflicted placements/ })).not.toBeInTheDocument();
+    const popover = screen.getByRole('dialog', { name: 'Order SO-1042, stage 2 Curing press, lot 3' });
+    expect(within(popover).getByText('The broken rules are not known until the conflict list has loaded.')).toBeInTheDocument();
+
+    answerConflicts(bothConflicts());
+    expect(await screen.findByRole('button', { name: '! SO-1042/L3' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '! 2 conflicted placements' })).toBeInTheDocument();
+    const loadedPopover = screen.getByRole('dialog', { name: 'Order SO-1042, stage 2 Curing press, lot 3' });
+    expect(within(within(loadedPopover).getByRole('list', { name: 'Broken rules' })).getAllByRole('listitem')).toHaveLength(3);
+    expect(within(loadedPopover).queryByText('The broken rules are not known until the conflict list has loaded.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Loading the conflict markers…')).not.toBeInTheDocument();
+  });
+
+  it('AC_192 after the conflict list failed, the timeline is shown without markers and the page says so', async () => {
+    stubScheduleApi({ conflicts: () => problem(500, 'server.error', 'The server failed.') });
+    const user = userEvent.setup();
+    renderApp('/schedule');
+
+    expect(await screen.findByText('The conflict markers could not be loaded, so no bar is marked as conflicted.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /conflicted placements/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'SO-1042/L3' }));
+    const popover = screen.getByRole('dialog', { name: 'Order SO-1042, stage 2 Curing press, lot 3' });
+    expect(within(popover).getByText('The broken rules are not known until the conflict list has loaded.')).toBeInTheDocument();
+    expect(within(popover).queryByRole('list', { name: 'Broken rules' })).not.toBeInTheDocument();
   });
 });

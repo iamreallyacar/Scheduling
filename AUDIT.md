@@ -19,6 +19,7 @@ Each completed finding was fixed by a task; the decision it names gives the reas
 | 9 | Queries readers loaded every order and every machine to look up a few lots and machine names | Task M3-10, DEC-50 |
 | 10 | Master data was turned into engine calendars in two layers, and the placement and unavailability projections were copied | Task M3-9, DEC-49 |
 | 11 | The timeline chart took the page's filter state and repeated its filter rule | Task M3-11, DEC-51 |
+| 16 | The schedule page treated a conflict list that had not loaded as an empty one, and two selects fell back to "no choice" for a value they never offer | Task M3-12, DEC-52 |
 
 ## Second audit
 
@@ -59,14 +60,6 @@ The M3 code follows the rules the first audit set up. Records use named required
 - Why it matters: the earliest-slot, proposal and progress forms add three more copies. A change to every form (disable while saving, a double-submit guard, focus on the first error) has to be made in eight files.
 - What to do: add a small `FormPanel` component in `src/forms/` (title, problem, pending, submit, cancel, children, extra actions) and one `emptyToNull` function. Do not build a general form-state hook.
 - Task: M4-2, as its first step.
-
-#### 16. The schedule page treats unloaded conflicts as no conflicts
-
-- Where: `frontend/src/schedule/SchedulePage.tsx` line 105 (`conflictedPlacements.data ?? []`) and line 149 (`?? []` for the popover's violations); smaller cases in `calendar/ShiftEditor.tsx` line 53 (`WEEKDAYS.find(...) ?? ''`) and `orders/OrderFilterForm.tsx` line 47.
-- Problem: the timeline is drawn as soon as its own query loads. While the conflict list is still loading, or after it fails, every bar is drawn as conflict-free, the popover says "no violations" and "only conflicted" hides everything. Nothing marks which of these `??` fallbacks are intended loading placeholders.
-- Why it matters: the project rule is never to replace missing values with silent defaults, and M4's proposal preview joins the same two queries (DEC-46).
-- What to do: wait for both queries before drawing the chart, or show the conflict markers as unavailable when that query has no data. For the selects, narrow the value with a type guard instead of falling back to "no choice".
-- Task: M3-12.
 
 #### 17. The whole-minute check is written twice
 

@@ -7,8 +7,8 @@ import { ViolationList, type ConflictLinkRenderer } from './ViolationList';
 
 interface LotPopoverProps {
   bar: TimelineBar;
-  /** The violations the conflict list holds for the placement; empty when it holds none (DEC-46). */
-  violations: readonly RuleViolation[];
+  /** The violations the conflict list holds for the placement, empty when it holds none (DEC-46); null until the list has loaded (DEC-52). */
+  violations: readonly RuleViolation[] | null;
   timeZone: string;
   renderConflictLink: ConflictLinkRenderer;
   /** Opens the placement form; null when the user cannot plan. */
@@ -40,7 +40,11 @@ export function LotPopover({ bar, violations, timeZone, renderConflictLink, onMo
         <dt>Status</dt>
         <dd>{`${LOT_STATUS_LABELS[placement.status]}, order ${placement.orderIsLate ? 'late' : 'on time'}`}</dd>
       </dl>
-      <ViolationList violations={violations} timeZone={timeZone} renderConflictLink={renderConflictLink} />
+      {violations === null ? (
+        <p className="page-message">The broken rules are not known until the conflict list has loaded.</p>
+      ) : (
+        <ViolationList violations={violations} timeZone={timeZone} renderConflictLink={renderConflictLink} />
+      )}
       <div className="form-actions">
         {onMove !== null && (
           <button type="button" onClick={onMove}>

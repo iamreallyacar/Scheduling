@@ -59,6 +59,7 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 | DEC-49 | Scheduling turns the plant calendars into engine calendars in one place, and the timeline reads its working periods from Scheduling | Proposed | 2026-11-19 (M3-9) | ARCHITECTURE.md section "Structure", AUDIT.md item 10 |
 | DEC-50 | Reads of a few placed lots ask Orders for those lots' context and MasterData for those machines' names, never for every order or machine | Proposed | 2026-11-19 (M3-10) | AUDIT.md item 9 |
 | DEC-51 | The timeline chart draws the timeline it is given; the page that shows it applies its filters once | Proposed | 2026-11-19 (M3-11) | AUDIT.md item 11 |
+| DEC-52 | The schedule page treats a conflict list that has not loaded as unknown, never as empty | Proposed | 2026-11-19 (M3-12) | AUDIT.md item 16, AC-192 |
 
 ## Accepted
 
@@ -410,6 +411,13 @@ Made while building M1 (2026-11-10) and M2 (2026-11-18) and already followed by 
 - Reason: the chart took the page's filters and repeated the filter rule that the page used for the popover, so a drift between the two would draw a bar without a popover or keep a popover for a hidden bar, and the proposal preview (task M4-4) would have had to pass filter props it does not have (AUDIT.md item 11).
 - Alternatives: a filter helper shared by the page and the chart, rejected because the chart would still take filter props a preview does not need; filtering in the API, rejected because the filters change no data and the page switches them without a new read.
 - Consequences: a new screen that shows a timeline, such as the proposal preview, passes the `TimelineResponse` it wants drawn. A conflict link still looks up items on the unfiltered timeline, so it can clear the filters and open a bar they hid (AC-191).
+
+### DEC-52 An unloaded conflict list is unknown, not empty
+
+- Decision: the schedule page draws the timeline as soon as the timeline has loaded, and marks conflicts only from a loaded conflict list. Until the list has loaded, the page says above the timeline that the markers are loading, or that they could not be loaded, the conflicted-placements button is hidden, and a popover says that its broken rules are not known yet (AC-192). The page holds the violations by placement as a map that is null until the list has loaded, so no reader can take a missing list for an empty one.
+- Reason: the page drew every bar as conflict-free while the list loaded or after it failed, and the popover then listed no violations, which replaced a missing answer with a silent default (AUDIT.md item 16, CLAUDE.md section "Code style").
+- Alternatives: waiting for both reads before drawing the timeline, rejected because a failed conflict read would then hide a timeline that loaded; repeating the conflict read's problem above the timeline, rejected because the conflict list below already shows it.
+- Consequences: a re-read that fails after the list has loaded keeps the last loaded list, as the query cache does, so the markers stay and the conflict list below shows the problem. The proposal preview (task M4-4), which joins the same two reads (DEC-46), follows the same rule.
 
 ## Open
 

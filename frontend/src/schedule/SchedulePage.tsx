@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import type { TimelineResponse } from '../api/generated';
+import type { RuleViolation } from '../api/problem';
 import { useSignedInUser } from '../auth/signedInUser';
 import { WithPlantTimeZone } from '../calendar/WithPlantTimeZone';
 import { QueryResult } from '../forms/QueryResult';
@@ -20,6 +21,8 @@ import { useNow } from './useNow';
 const FIRST_DAY_PARAMETER = 'from';
 const ZOOM_PARAMETER = 'zoom';
 const DAY_ZOOM = 'day';
+// A placement the loaded conflict list does not hold breaks no rule.
+const NO_VIOLATIONS: readonly RuleViolation[] = [];
 
 /** The schedule of the live version: the timeline (F-SCH-2), the conflicted placements (F-SCH-4) and the lots that wait for placement (F-SCH-7), as in wireframes.md section 2. A Planner places and moves them (F-SCH-1). */
 export function SchedulePage() {
@@ -102,8 +105,11 @@ function ScheduleContent({ timeZone, nowMs, firstDay, zoom, ...rangeActions }: S
     setOnlyConflicted(false);
     setSelectedPlacementId(placementId);
   });
-  const conflictsByPlacement = new Map((conflictedPlacements.data ?? []).map((conflict) => [conflict.placementId, conflict.violations]));
-  const conflictedPlacementIds: ReadonlySet<number> = new Set(conflictsByPlacement.keys());
+  // Null until the conflict list has loaded: a list that is loading or failed is unknown, not empty (DEC-52).
+  const conflictsByPlacement: ReadonlyMap<number, readonly RuleViolation[]> | null =
+    conflictedPlacements.data === undefined ? null : new Map(conflictedPlacements.data.map((conflict) => [conflict.placementId, conflict.violations]));
+  // Without a loaded list no bar is marked, and the notice above the chart says why.
+  const conflictedPlacementIds: ReadonlySet<number> = new Set(conflictsByPlacement?.keys());
   const moveTargetOf = ({ placement, resource }: TimelineBar): PlacementTarget => ({
     ...placement,
     placement: { resourceId: resource.id, plannedStart: placement.plannedStart },
@@ -136,9 +142,19 @@ function ScheduleContent({ timeZone, nowMs, firstDay, zoom, ...rangeActions }: S
         onOnlyConflicted={setOnlyConflicted}
         {...rangeActions}
       />
+      {conflictsByPlacement === null &&
+        (conflictedPlacements.isError ? (
+          <p className="problem" role="alert">
+            The conflict markers could not be loaded, so no bar is marked as conflicted.
+          </p>
+        ) : (
+          <p className="page-message" role="status">
+            Loading the conflict markers…
+          </p>
+        ))}
       <QueryResult query={timeline}>
         {(loadedTimeline) => {
-          const shownTimeline = timelineShownBy(loadedTimeline, resourceTypeId, onlyConflicted ? conflictedPlacementIds : null);
+          const shownTimeline = timelineShownBy(loadedTimeline, resourceTypeId, onlyConflicted && conflictsByPlacement !== null ? conflictedPlacementIds : null);
           // A selected placement that the shown range or the filters no longer draw has no popover.
           const selectedBar = barsOf(shownTimeline).find((bar) => bar.placement.placementId === selectedPlacementId);
           return (
@@ -146,7 +162,7 @@ function ScheduleContent({ timeZone, nowMs, firstDay, zoom, ...rangeActions }: S
               {selectedBar !== undefined && (
                 <LotPopover
                   bar={selectedBar}
-                  violations={conflictsByPlacement.get(selectedBar.placement.placementId) ?? []}
+                  violations={conflictsByPlacement === null ? null : (conflictsByPlacement.get(selectedBar.placement.placementId) ?? NO_VIOLATIONS)}
                   timeZone={timeZone}
                   renderConflictLink={renderConflictLink}
                   onMove={

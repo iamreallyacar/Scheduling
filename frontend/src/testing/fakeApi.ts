@@ -14,7 +14,8 @@ export interface FakeApiAnswer {
   body?: unknown;
 }
 
-type FakeApiRoute = (request: FakeApiRequest) => FakeApiAnswer;
+// A route may answer later, so a test can look at the page while a read is still loading.
+type FakeApiRoute = (request: FakeApiRequest) => FakeApiAnswer | Promise<FakeApiAnswer>;
 
 export const ANTIFORGERY_HEADER = 'X-TEST-ANTIFORGERY';
 export const ANTIFORGERY_TOKEN = 'test-antiforgery-token';
@@ -55,11 +56,10 @@ export function stubApi(routes: Record<string, FakeApiRoute>): FakeApiRequest[] 
     if (route === undefined) {
       return Promise.reject(new Error(`The test has no route for ${request.method} ${request.path}.`));
     }
-    const answer = route(request);
-    const contentType = answer.status >= 400 ? 'application/problem+json' : 'application/json';
-    return Promise.resolve(
-      new Response(answer.body === undefined ? null : JSON.stringify(answer.body), { status: answer.status, headers: { 'Content-Type': contentType } }),
-    );
+    return Promise.resolve(route(request)).then((answer) => {
+      const contentType = answer.status >= 400 ? 'application/problem+json' : 'application/json';
+      return new Response(answer.body === undefined ? null : JSON.stringify(answer.body), { status: answer.status, headers: { 'Content-Type': contentType } });
+    });
   });
   return requests;
 }
