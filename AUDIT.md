@@ -25,6 +25,7 @@ Each completed finding was fixed by a task; the decision it names gives the reas
 | 18 | Test plant figures were implicit and test times were written in several ways | Task M3-13, DEC-53 |
 | 20 | Each rule violation named its rule twice, as a bare string and inside its code | Task M3-14, DEC-54 |
 | 22 | The progress fakes and failing stubs were spread over the test classes | Task M3-13, DEC-53 |
+| 26 | `check_docs.py` required a criteria section only for the M1 and M2 features | Task M3-16 |
 
 ## Second audit
 
@@ -69,7 +70,6 @@ Small findings, worth fixing when the file is next touched.
 | 23 | The lot title "Order X, stage N Type, lot M" is built in two places, `DAY_MS` is defined twice, and the `en-GB` locale is written in three files | `frontend/src/schedule/PlacementForm.tsx`, `LotPopover.tsx`, `timelineRange.ts`, `TimelineChart.tsx`, `frontend/src/calendar/plantClock.ts` | M3-15 |
 | 24 | Frontend tests repeat `.closest('tr') as HTMLElement` and cast the sent request bodies; `rowOf(name)` and `sentBody(requests, method, path)` helpers in `src/testing/` would remove the casts and fail clearly | `frontend/src/**/*.test.tsx` | M3-15 |
 | 25 | The unchecked cast of `response.json()` has no comment giving its reason | `frontend/src/api/request.ts` line 58 | M3-15 |
-| 26 | `check_docs.py` requires a criteria section only for the M1 and M2 features, named by hand, so the M3 to M5 features are not checked | `scripts/check_docs.py` function `check_criteria` | M3-16 |
 
 ### Looked at and left out
 

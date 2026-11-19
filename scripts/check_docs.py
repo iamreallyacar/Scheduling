@@ -16,8 +16,8 @@ Checks:
   tasks      task IDs in "Depends on" columns and "task X" mentions exist; statuses are valid
   decisions  decisions.md index statuses are valid; Accepted/Proposed entries have a section
   questions  open question IDs (BQ#, WQ#) are defined once in the decisions.md Open table
-  criteria   acceptance criteria IDs are unique; every M1 and M2 feature, every active rule
-             and the engine search operations have a criteria section
+  criteria   acceptance criteria IDs are unique; every feature of a milestone with a started
+             task, every active rule and the engine search operations have a criteria section
   coverage   every active acceptance criterion is assigned to at least one implementation
              task in the TASKS.md Criteria column (ranges such as "AC-1 to AC-15" count)
   coderefs   "x.md section N" and 'x.md section "Heading"' in code comments and config files
@@ -314,6 +314,15 @@ def check_questions() -> None:
 
 
 # ---------------------------------------------------------------- acceptance criteria
+# Features whose criteria sit under a rule or engine search section instead of one of their own.
+CRITERIA_SECTION_OF_FEATURE = {
+    "F-SCH-5": "R4",
+    "F-SCH-6": "R6",
+    "F-SCH-11": "EarliestSlot",
+    "F-SCH-16": "ScheduleOrderAsap",
+}
+
+
 def check_criteria() -> None:
     criteria_md = DOC_PATHS["acceptance-criteria"]
     seen: set[str] = set()
@@ -322,13 +331,16 @@ def check_criteria() -> None:
             err("criteria", criteria_md, i, f"{cells[0]} defined twice")
         seen.add(cells[0])
     sections = {line[4:].split(" ", 1)[0] for _, line in lines(criteria_md) if line.startswith("### ")}
-    milestones = milestone_table(TASKS_MD)
+    for fid in CRITERIA_SECTION_OF_FEATURE:
+        if fid not in FEATURE_DEFS:
+            err("criteria", Path(__file__), 0, f"CRITERIA_SECTION_OF_FEATURE names {fid}, which features.md does not define")
+    # Criteria are written before a milestone is built, so a milestone with a started task needs them all.
+    started = {cells[0].split("-")[0] for _, cells in table_rows(TASKS_MD, r"M\d+-\d+") if cells[-1] in {"Doing", "Done"}}
     required = set()
-    for name in ("M1 Foundation", "M2 Orders"):
-        if name not in milestones:
-            err("criteria", TASKS_MD, 0, f"milestone {name} not found")
-            continue
-        required |= set(re.findall(r"F-[A-Z]+-\d+", milestones[name][1][-1]))
+    for name, (_, cells) in milestone_table(TASKS_MD).items():
+        if name.split(" ", 1)[0] in started:
+            features = re.findall(r"F-[A-Z]+-\d+", cells[-1])
+            required |= {CRITERIA_SECTION_OF_FEATURE.get(fid, fid) for fid in features}
     rules = {c[0] for _, c in table_rows(DOC_PATHS["domain-model"], r"R\d+") if "Retired" not in c[1]}
     required |= rules | {"EarliestSlot", "ScheduleOrderAsap"}
     for missing in sorted(required - sections):
