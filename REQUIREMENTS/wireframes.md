@@ -133,7 +133,9 @@ No slot found (`slot.none`, AC-122, AC-123):
 What task M3-4 builds and what follows:
 
 - Built in task M3-4 (AC-180, AC-181): the header with order, stage, lot, quantity and duration; the Placement part, with "Calculated when saved" for the planned end (WQ1); [Save placement], [Remove placement] for a placed lot, and [Cancel]; the rejected save, which lists each violation's text and code and the earliest allowed start, without the [Show ...] links. The form opens from [Place...] in the queue and from [Place...] or [Move...] on the lots of the order page, which also show each lot's live machine, planned start and planned end (AC-71).
-- Later: "Find earliest slot" and the "Depends on" lines with the earliest start from dependencies come with task M4-2; the [Show ...] links to the conflicting items and "Move..." in the lot popover came with the timeline (task M3-6, AC-191); the read-only form for a started lot with task M5-1, and until then a started lot shows no action.
+- Built in task M4-2 (AC-196 to AC-198): "Find earliest slot", whose machine list is labelled "Search on". The "Depends on" lines with the earliest start from dependencies are deferred to `BACKLOG.md` (DEC-58).
+- Built in task M3-6 (AC-191): the [Show ...] links to the conflicting items and "Move..." in the lot popover.
+- Later: the read-only form for a started lot comes with task M5-1; until then a started lot shows no action.
 
 Behavior:
 

@@ -19,6 +19,15 @@ internal sealed class ScheduleSnapshotLoader(
     public Task<ScheduleSnapshot> ForOrderOnResourceAsync(int versionId, OrderSchedulingFacts order, int resourceId, CancellationToken cancellationToken) =>
         LoadAsync(versionId, new OrdersOnResources { ResourceIds = [resourceId], Orders = [order] }, cancellationToken);
 
+    // Enough to search a lot of the order on every resource of its type (EarliestSlot). Resources
+    // are loaded whole, so a given resource of another type is in the snapshot without its
+    // placements and unavailabilities, which no check reads, because R1 rejects every start on it.
+    public async Task<ScheduleSnapshot> ForOrderOnResourceTypeAsync(int versionId, OrderSchedulingFacts order, int resourceTypeId, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<ResourceResponse> resourcesOfType = await masterData.ListResourcesAsync(resourceTypeId, isActive: null, cancellationToken);
+        return await LoadAsync(versionId, new OrdersOnResources { ResourceIds = [.. resourcesOfType.Select(resource => resource.Id)], Orders = [order] }, cancellationToken);
+    }
+
     // Every placement of the version with the orders of their lots, for the rules that look at the
     // whole version (FindConflicts, RecomputeEnds).
     public Task<ScheduleSnapshot> ForVersionAsync(int versionId, CancellationToken cancellationToken) =>

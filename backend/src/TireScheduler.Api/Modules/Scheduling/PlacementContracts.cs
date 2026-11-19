@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using TireScheduler.Api.Modules.MasterData;
 
 namespace TireScheduler.Api.Modules.Scheduling;
 
@@ -18,6 +19,18 @@ public sealed record LotPlacementResponse
     public required int LotId { get; init; }
 
     public required int ResourceId { get; init; }
+
+    public required DateTimeOffset PlannedStart { get; init; }
+
+    public required DateTimeOffset PlannedEnd { get; init; }
+}
+
+// A suggestion: nothing is saved (AC-126). Times in UTC.
+public sealed record EarliestSlotResponse
+{
+    public required int LotId { get; init; }
+
+    public required NamedReference Resource { get; init; }
 
     public required DateTimeOffset PlannedStart { get; init; }
 

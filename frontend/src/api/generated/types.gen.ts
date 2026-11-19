@@ -69,6 +69,13 @@ export type CurrentUserResponse = {
 
 export type DayOfWeek = 'Sunday' | 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
 
+export type EarliestSlotResponse = {
+    lotId: number;
+    resource: NamedReference;
+    plannedStart: string;
+    plannedEnd: string;
+};
+
 export type HolidayRequest = {
     date: null | string;
     name: string;
@@ -1035,6 +1042,28 @@ export type PlaceLotResponses = {
 };
 
 export type PlaceLotResponse = PlaceLotResponses[keyof PlaceLotResponses];
+
+export type GetEarliestSlotData = {
+    body?: never;
+    path: {
+        versionId: string;
+        lotId: number;
+    };
+    query?: {
+        resourceId?: number;
+        notBefore?: string;
+    };
+    url: '/api/v1/versions/{versionId}/lots/{lotId}/earliest-slot';
+};
+
+export type GetEarliestSlotResponses = {
+    /**
+     * OK
+     */
+    200: EarliestSlotResponse;
+};
+
+export type GetEarliestSlotResponse = GetEarliestSlotResponses[keyof GetEarliestSlotResponses];
 
 export type ListUnscheduledLotsData = {
     body?: never;

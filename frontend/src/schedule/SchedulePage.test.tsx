@@ -2,7 +2,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ConflictedPlacementResponse, ResourceViewResponse, UnscheduledLotResponse } from '../api/generated';
 import { plantCalendar } from '../orders/orderSamples';
-import { type FakeApiAnswer, type FakeApiRequest, plannerUser, sentBody, stubApi, viewerUser } from '../testing/fakeApi';
+import { type FakeApiAnswer, type FakeApiRequest, plannerUser, problem, sentBody, stubApi, viewerUser } from '../testing/fakeApi';
 import { renderApp } from '../testing/renderApp';
 
 const UNSCHEDULED_LOTS_PATH = '/api/v1/versions/live/unscheduled-lots';
@@ -189,6 +189,83 @@ describe('schedule page', () => {
     expect(sentBody(requests, 'PUT', `/api/v1/versions/live/lots/${String(curingLot.id)}/placement`)).toEqual({ resourceId: press2.id, plannedStart: '2026-11-16T07:00:00.000Z' });
   });
 
+  it('AC_196 AC_197 a Planner finds the earliest slot on any machine or a chosen one and uses it without saving', async () => {
+    const requests = stubPlannerApi(
+      () => [curingLot],
+      () => ({ status: 500 }),
+      (request) =>
+        request.query.has('resourceId')
+          ? { status: 200, body: { lotId: curingLot.id, resource: { id: press2.id, name: press2.name }, plannedStart: '2026-11-17T07:00:00Z', plannedEnd: '2026-11-18T03:30:00Z' } }
+          : { status: 200, body: { lotId: curingLot.id, resource: { id: press2.id, name: press2.name }, plannedStart: '2026-11-16T18:00:00Z', plannedEnd: '2026-11-17T14:30:00Z' } },
+    );
+    const user = userEvent.setup();
+    renderApp('/schedule');
+
+    await user.click(await screen.findByRole('button', { name: 'Place...' }));
+    const form = await screen.findByRole('form', { name: /^Place lot/ });
+    const finder = await within(form).findByRole('group', { name: 'Find earliest slot' });
+    const searchMachine = within(finder).getByLabelText('Search on');
+    expect(within(searchMachine).getAllByRole('option').map((option) => option.textContent)).toEqual(['Any Curing press', 'Press 2']);
+    await user.click(within(finder).getByRole('button', { name: 'Find earliest slot' }));
+
+    expect(await within(finder).findByText('Suggested: Press 2, 16 Nov 2026, 19:00 - 17 Nov 2026, 15:30')).toBeInTheDocument();
+    const anySearch = requests.filter((request) => request.path === EARLIEST_SLOT_PATH);
+    expect(anySearch.map((request) => request.query.toString())).toEqual(['']);
+
+    await user.selectOptions(searchMachine, 'Press 2');
+    // Enter in the time field searches; it does not save the placement form around it.
+    await user.type(within(finder).getByLabelText('Not before'), '2026-11-17T08:00');
+    await user.type(within(finder).getByLabelText('Not before'), '{Enter}');
+    expect(await within(finder).findByText('Suggested: Press 2, 17 Nov 2026, 08:00 - 18 Nov 2026, 04:30')).toBeInTheDocument();
+    const chosenSearch = requests.filter((request) => request.path === EARLIEST_SLOT_PATH)[1];
+    expect([chosenSearch?.query.get('resourceId'), chosenSearch?.query.get('notBefore')]).toEqual([String(press2.id), '2026-11-17T07:00:00.000Z']);
+
+    await user.click(within(finder).getByRole('button', { name: 'Use suggestion' }));
+    expect(within(form).getByLabelText('Machine')).toHaveValue(String(press2.id));
+    expect(within(form).getByLabelText('Start')).toHaveValue('2026-11-17T08:00');
+    expect(requests.filter((request) => request.method !== 'GET')).toEqual([]);
+  });
+
+  it('AC_198 a rejected search shows the problem and every broken rule, and the placement fields keep their values', async () => {
+    let searchAnswer: FakeApiAnswer = problem(422, 'slot.none', 'No machine that was searched has a free slot for this lot within 90 days after the search start.');
+    stubPlannerApi(
+      () => [curingLot],
+      () => ({ status: 500 }),
+      () => searchAnswer,
+    );
+    const user = userEvent.setup();
+    renderApp('/schedule');
+
+    await user.click(await screen.findByRole('button', { name: 'Place...' }));
+    const form = await screen.findByRole('form', { name: /^Place lot/ });
+    await user.selectOptions(await within(form).findByLabelText('Machine'), 'Press 2');
+    await user.type(within(form).getByLabelText('Start'), '2026-11-16T08:00');
+    const finder = within(form).getByRole('group', { name: 'Find earliest slot' });
+    await user.click(within(finder).getByRole('button', { name: 'Find earliest slot' }));
+
+    expect(await within(finder).findByRole('alert')).toHaveTextContent('No machine that was searched has a free slot for this lot within 90 days after the search start.');
+    expect(within(finder).queryByRole('button', { name: 'Use suggestion' })).not.toBeInTheDocument();
+
+    searchAnswer = {
+      status: 422,
+      body: {
+        status: 422,
+        code: 'rule.R8.cancelled',
+        detail: "The lot's order is cancelled, so the lot cannot be placed.",
+        rule: 'R8',
+        conflict: { type: 'lot', id: curingLot.id },
+        violations: [{ rule: 'R8', code: 'rule.R8.cancelled', conflict: { type: 'lot', id: curingLot.id }, detail: "The lot's order is cancelled, so the lot cannot be placed.", earliestAllowedStart: null }],
+      },
+    };
+    await user.click(within(finder).getByRole('button', { name: 'Find earliest slot' }));
+    expect(await within(finder).findByText('rule.R8.cancelled')).toBeInTheDocument();
+    expect(within(within(finder).getByRole('list', { name: 'Broken rules' })).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      "The lot's order is cancelled, so the lot cannot be placed. rule.R8.cancelled",
+    ]);
+    expect(within(form).getByLabelText('Machine')).toHaveValue(String(press2.id));
+    expect(within(form).getByLabelText('Start')).toHaveValue('2026-11-16T08:00');
+  });
+
   it('AC_181 a rejected placement lists every broken rule with the earliest allowed start and keeps the entered values', async () => {
     stubPlannerApi(
       () => [curingLot],
@@ -235,8 +312,17 @@ describe('schedule page', () => {
 const press1: ResourceViewResponse = { id: 6, name: 'Press 1', resourceType: curing, calendar: { id: 1, name: 'Plant default' }, isActive: true, status: 'Down' };
 const press2: ResourceViewResponse = { id: 7, name: 'Press 2', resourceType: curing, calendar: { id: 1, name: 'Plant default' }, isActive: true, status: 'Idle' };
 
-function stubPlannerApi(unscheduledLots: () => UnscheduledLotResponse[], placeLot: (request: FakeApiRequest) => FakeApiAnswer) {
+const EARLIEST_SLOT_PATH = `/api/v1/versions/live/lots/${String(curingLot.id)}/earliest-slot`;
+
+function stubPlannerApi(
+  unscheduledLots: () => UnscheduledLotResponse[],
+  placeLot: (request: FakeApiRequest) => FakeApiAnswer,
+  earliestSlot: (request: FakeApiRequest) => FakeApiAnswer = () => {
+    throw new Error('The test did not expect an earliest-slot search.');
+  },
+) {
   return stubApi({
+    [`GET ${EARLIEST_SLOT_PATH}`]: earliestSlot,
     'GET /api/v1/me': () => ({ status: 200, body: plannerUser }),
     [`GET ${UNSCHEDULED_LOTS_PATH}`]: () => ({ status: 200, body: unscheduledLots() }),
     [`GET ${CONFLICTS_PATH}`]: () => ({ status: 200, body: [] }),

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +20,24 @@ internal static class SchedulingTestData
     public static string TimelinePath(string versionId, string query) => $"/api/v1/versions/{versionId}/timeline?{query}";
 
     public static string PlacementPath(string versionId, int lotId) => $"/api/v1/versions/{versionId}/lots/{lotId}/placement";
+
+    // Without resourceId and notBefore the search covers every active machine of the lot's type from now.
+    public static string EarliestSlotPath(string versionId, int lotId, int? resourceId, DateTimeOffset? notBefore)
+    {
+        List<string> query = [];
+        if (resourceId is { } id)
+        {
+            query.Add(string.Create(CultureInfo.InvariantCulture, $"resourceId={id}"));
+        }
+
+        if (notBefore is { } instant)
+        {
+            query.Add($"notBefore={Uri.EscapeDataString(instant.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture))}");
+        }
+
+        string path = $"/api/v1/versions/{versionId}/lots/{lotId}/earliest-slot";
+        return query.Count == 0 ? path : $"{path}?{string.Join('&', query)}";
+    }
 
     public static string UnavailabilitiesPath(int resourceId) => $"{MasterDataTestData.ResourcesPath}/{resourceId}/unavailabilities";
 

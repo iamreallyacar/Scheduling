@@ -2,7 +2,8 @@ using TireScheduler.Api.Security;
 
 namespace TireScheduler.Api.Modules.Scheduling;
 
-// The placement writes of a version (DEC-17); the schedule reads are served by Queries.
+// The placement writes of a version (DEC-17) and the earliest-slot search that suggests one; the
+// schedule reads are served by Queries.
 internal static class PlacementEndpoints
 {
     public static void Map(RouteGroupBuilder api)
@@ -19,5 +20,10 @@ internal static class PlacementEndpoints
             })
             .WithName("RemoveLotPlacement")
             .RequireAuthorization(AccessPolicies.Plan);
+        api.MapGet("/versions/{versionId}/lots/{lotId:int}/earliest-slot", async (string versionId, int lotId, int? resourceId, DateTimeOffset? notBefore, EarliestSlotSearch search, CancellationToken cancellationToken) =>
+                TypedResults.Ok(await search.FindAsync(versionId, lotId, resourceId, notBefore, cancellationToken)))
+            .WithTags("Schedule")
+            .WithName("GetEarliestSlot")
+            .RequireAuthorization(AccessPolicies.Read);
     }
 }

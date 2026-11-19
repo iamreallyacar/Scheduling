@@ -1186,6 +1186,61 @@
         }
       }
     },
+    "/api/v1/versions/{versionId}/lots/{lotId}/earliest-slot": {
+      "get": {
+        "tags": [
+          "Schedule"
+        ],
+        "operationId": "GetEarliestSlot",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lotId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "resourceId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "notBefore",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EarliestSlotResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/versions/{versionId}/unscheduled-lots": {
       "get": {
         "tags": [
@@ -1562,6 +1617,32 @@
           "Friday",
           "Saturday"
         ]
+      },
+      "EarliestSlotResponse": {
+        "required": [
+          "lotId",
+          "resource",
+          "plannedStart",
+          "plannedEnd"
+        ],
+        "type": "object",
+        "properties": {
+          "lotId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "resource": {
+            "$ref": "#/components/schemas/NamedReference"
+          },
+          "plannedStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "plannedEnd": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
       },
       "HolidayRequest": {
         "required": [

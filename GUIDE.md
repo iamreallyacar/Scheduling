@@ -32,6 +32,7 @@ Settings are read from environment variables (or `dotnet user-secrets` for the A
 | `Auth__Lockout__MaxFailedAttempts`, `Auth__Lockout__Minutes` | API | Failed sign-ins in a row before an account is locked, and for how long. Default 5 and 15 (`appsettings.json`) |
 | `Auth__SessionHours` | API | Hours without a request after which a session ends. Default 12 |
 | `Plant__TimeZone` | API | IANA time zone id of the plant, for example `Europe/Berlin`. Every calendar and every shown time uses it (A18). Required; startup stops with an error naming the setting or a value that is not an IANA id. Set to `Europe/Berlin` in `appsettings.Development.json` only |
+| `Scheduling__SearchHorizonDays` | API | How many days after its start the earliest-slot search looks for a slot (AC-123). Default 90 (`appsettings.json`); startup stops with an error naming it if it is not more than 0 |
 | `Security__CookiesRequireHttps` | API | `true` marks the session and anti-forgery cookies HTTPS-only. Default `true`; `false` only in `appsettings.Development.json`. Behind a proxy that ends HTTPS, the proxy must pass the original scheme on (`ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`) |
 | `PlantLoader__Email`, `PlantLoader__Password` | plant loader | Sign-in of the Admin the loader writes as. Required by the loader only; never put them in a committed file |
 | `API_PROXY_TARGET` | frontend dev server | Address of the API for the `/api` proxy. Set in `frontend/.env.development` |

@@ -9,6 +9,10 @@ public static class SchedulingModule
 {
     public static IServiceCollection AddSchedulingModule(this IServiceCollection services)
     {
+        services.AddOptions<SchedulingOptions>()
+            .BindConfiguration(SchedulingOptions.SectionName)
+            .Validate(options => options.SearchHorizonDays > 0, $"Setting {SchedulingOptions.SectionName}:{nameof(SchedulingOptions.SearchHorizonDays)} must be more than 0.")
+            .ValidateOnStart();
         services.AddModuleDbContext<SchedulingDbContext>(SchedulingDbContext.Schema);
         services.AddScoped<UnavailabilityRegister>();
         services.AddScoped<IUnavailabilityReader, UnavailabilityReader>();
@@ -17,6 +21,7 @@ public static class SchedulingModule
         services.AddScoped<IWorkingPeriodReader, WorkingPeriodReader>();
         services.AddScoped<ScheduleSnapshotLoader>();
         services.AddScoped<PlacementRegister>();
+        services.AddScoped<EarliestSlotSearch>();
         services.AddScoped<IPlacementReader, PlacementReader>();
         services.AddScoped<IResourceReferences, UnavailabilityReferences>();
         services.AddScoped<PlacementReferences>();

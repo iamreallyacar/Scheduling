@@ -15,3 +15,7 @@ Chosen so P1 and later features do not force a rewrite:
 - Audit trail (F-AUTH-5): all writes go through module interfaces, so one interception point exists.
 - Optimistic concurrency (F-NFR-3): see API.md section "Conventions".
 - ERP/MES integration (F-NFR-6): add an integration module that talks to the Orders interface.
+
+## Deferred from v1 tasks
+
+- "Depends on" lines in the placement form (`wireframes.md` section 3): each placed predecessor lot with its end and lag, and the earliest start the dependencies allow. Deferred from task M4-2 because it needs a read of the placed predecessor lots that no endpoint gives; the earliest-slot search and the R4 rejection already show that start (DEC-58).

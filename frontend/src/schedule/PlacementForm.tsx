@@ -10,6 +10,7 @@ import { NOTHING_CHOSEN, numberOrNullIfEmpty } from '../forms/fieldValues';
 import { FormPanel } from '../forms/FormPanel';
 import { QueryResult } from '../forms/QueryResult';
 import { useMachines } from '../machines/machineQueries';
+import { EarliestSlotFinder } from './EarliestSlotFinder';
 import { lotTitle } from './lotTitle';
 import type { PlacementTarget } from './placementTarget';
 import { ViolationList, type ConflictLinkRenderer } from './ViolationList';
@@ -21,8 +22,9 @@ interface PlacementFormProps {
   renderConflictLink?: ConflictLinkRenderer;
 }
 
-// F-SCH-1 (wireframes.md section 3). The server checks every rule and computes the planned end,
-// so the form shows "Calculated when saved" (WQ1) and lists the rules a rejected save broke (R7).
+// F-SCH-1 and F-SCH-11 (wireframes.md section 3). The server checks every rule and computes the
+// planned end, so the form shows "Calculated when saved" (WQ1) and lists the rules a rejected save
+// broke (R7). A suggested slot only fills the Placement part; the planner still saves it.
 export function PlacementForm(props: PlacementFormProps) {
   return <WithPlantTimeZone>{(timeZone) => <LoadedPlacementForm {...props} timeZone={timeZone} />}</WithPlantTimeZone>;
 }
@@ -81,21 +83,37 @@ function LoadedPlacementForm({ target, timeZone, onClose, renderConflictLink }: 
       {problem !== null && <ViolationList violations={problem.violations} timeZone={timeZone} renderConflictLink={renderConflictLink} />}
       <QueryResult query={machines}>
         {(loadedMachines) => (
-          <SelectField
-            label="Machine"
-            name="resourceId"
-            value={resourceId}
-            onChange={setResourceId}
-            problem={problem}
-            options={[
-              { value: NOTHING_CHOSEN, label: 'Choose a machine' },
-              ...loadedMachines.map((machine) => ({ value: String(machine.id), label: machine.name })),
-            ]}
+          <EarliestSlotFinder
+            target={target}
+            machines={loadedMachines}
+            timeZone={timeZone}
+            onUse={(slot) => {
+              setResourceId(String(slot.resource.id));
+              setStart(utcToPlantLocal(slot.plannedStart, timeZone));
+            }}
           />
         )}
       </QueryResult>
-      <TextField label="Start" name="plannedStart" type="datetime-local" value={start} onChange={setStart} problem={problem} />
-      <p>Planned end: Calculated when saved</p>
+      <fieldset>
+        <legend>Placement</legend>
+        <QueryResult query={machines}>
+          {(loadedMachines) => (
+            <SelectField
+              label="Machine"
+              name="resourceId"
+              value={resourceId}
+              onChange={setResourceId}
+              problem={problem}
+              options={[
+                { value: NOTHING_CHOSEN, label: 'Choose a machine' },
+                ...loadedMachines.map((machine) => ({ value: String(machine.id), label: machine.name })),
+              ]}
+            />
+          )}
+        </QueryResult>
+        <TextField label="Start" name="plannedStart" type="datetime-local" value={start} onChange={setStart} problem={problem} />
+        <p>Planned end: Calculated when saved</p>
+      </fieldset>
     </FormPanel>
   );
 }

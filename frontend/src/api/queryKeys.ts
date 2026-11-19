@@ -20,6 +20,7 @@ export const queryKeys = {
   unscheduledLots: (versionId: string) => ['versions', versionId, 'unscheduled-lots'],
   conflictedPlacements: (versionId: string) => ['versions', versionId, 'conflicts'],
   timeline: (versionId: string, range: { from: string; to: string }) => ['versions', versionId, 'timeline', range],
+  earliestSlot: (versionId: string, lotId: number, search: { resourceId?: number; notBefore?: string }) => ['versions', versionId, 'lots', lotId, 'earliest-slot', search],
 } as const;
 
 export function isCurrentUserQuery(query: Query): boolean {

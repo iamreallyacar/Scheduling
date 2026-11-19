@@ -1,6 +1,6 @@
 # Acceptance Criteria
 
-Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules and engine search) on 2026-11-06; section 6 in task M2-7 (AC-193 in task M4-1) and section 7 in task M3-2 and section 8 in tasks M3-3, M3-4, M3-5 and M3-6 on 2026-11-18. Sources: [features.md](features.md), [domain-model.md](domain-model.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [decisions.md](decisions.md).
+Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules and engine search) on 2026-11-06 (AC-194 to AC-198 of section 5 in task M4-2); section 6 in task M2-7 (AC-193 in task M4-1) and section 7 in task M3-2 and section 8 in tasks M3-3, M3-4, M3-5 and M3-6 on 2026-11-18. Sources: [features.md](features.md), [domain-model.md](domain-model.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [decisions.md](decisions.md).
 
 ## 1. How to read this
 
@@ -273,6 +273,11 @@ Covers F-SCH-11 and the search in the [engine README](../backend/src/TireSchedul
 | AC-124 | A completed lot, or a lot of a cancelled order | `EarliestSlot` is asked | Rejected under R8, not `slot.none` | Engine |
 | AC-125 | No `notBefore` given | The API is called | The injected clock's now is used | API |
 | AC-126 | Any state | `GET .../earliest-slot` is called | Nothing is saved | API |
+| AC-194 | A lot that has not started, of an order that is not cancelled | A signed-in user of any role calls `GET /api/v1/versions/live/lots/{id}/earliest-slot`, with or without `resourceId` and `notBefore` | 200 with the lot id, the machine (id and name), and the planned start and end in UTC of the slot `EarliestSlot` finds on the given machine or, without `resourceId`, on every active machine of the lot's resource type, within the horizon of the setting `Scheduling__SearchHorizonDays` (GUIDE.md section "Configuration"). A started lot or one of a cancelled order is rejected under R8 with every violation, as a placement is (AC-109, AC-124) | API |
+| AC-195 | A lot | The earliest slot is asked with a `resourceId` that names no machine, with an inactive machine or one of another resource type, for a lot that does not exist or belongs to a deleted order, or in a version that does not exist | A machine that does not exist is rejected, 400 `validation.failed` naming `resourceId`. An inactive machine or one of another type is searched as given (engine README), so the answer is 422 `slot.none`. A missing lot or version answers as in AC-23 | API |
+| AC-196 | The placement form of a Planner (`wireframes.md` section 3) | It is open | Above the Placement part, "Find earliest slot" offers a machine list of "Any &lt;resource type&gt;" followed by the machines of the Placement part, and a not-before time typed on the plant's wall clock, empty meaning now. [Find earliest slot] asks for the earliest slot with the chosen machine's id, none for "Any", and the typed time in UTC, none when empty (A38), and shows the machine, planned start and planned end the API returns on the plant's wall clock. Nothing is saved | UI |
+| AC-197 | A suggested slot in the placement form | The Planner chooses [Use suggestion] | Its machine and start fill the Placement fields; nothing is sent until [Save placement] | UI |
+| AC-198 | The "Find earliest slot" part | The search is rejected, for example with `slot.none` or under R8 | The part shows the `detail` and every violation as in AC-181, and no suggestion; the Placement fields keep their values | UI |
 
 ### ScheduleOrderAsap
 
