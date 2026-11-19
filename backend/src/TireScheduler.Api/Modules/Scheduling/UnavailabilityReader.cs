@@ -25,14 +25,6 @@ internal sealed class UnavailabilityReader(SchedulingDbContext context) : IUnava
             .Where(unavailability => unavailability.StartsAt < rangeEnd && (unavailability.EndsAt == null || rangeStart < unavailability.EndsAt))
             .OrderBy(unavailability => unavailability.StartsAt)
             .ThenBy(unavailability => unavailability.Id)
-            .Select(unavailability => new UnavailabilityResponse
-            {
-                Id = unavailability.Id,
-                ResourceId = unavailability.ResourceId,
-                Kind = unavailability.Kind,
-                Start = unavailability.StartsAt,
-                End = unavailability.EndsAt,
-                Reason = unavailability.Reason,
-            })
+            .Select(UnavailabilityResponses.FromRow)
             .ToListAsync(cancellationToken);
 }

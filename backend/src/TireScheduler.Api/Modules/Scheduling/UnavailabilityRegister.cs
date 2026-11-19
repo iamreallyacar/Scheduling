@@ -22,12 +22,12 @@ internal sealed class UnavailabilityRegister(
             throw MachineNotFound();
         }
 
-        List<Unavailability> unavailabilities = await context.Unavailabilities
+        return await context.Unavailabilities
             .Where(unavailability => unavailability.ResourceId == resourceId)
             .OrderByDescending(unavailability => unavailability.StartsAt)
             .ThenByDescending(unavailability => unavailability.Id)
+            .Select(UnavailabilityResponses.FromRow)
             .ToListAsync(cancellationToken);
-        return [.. unavailabilities.Select(ToResponse)];
     }
 
     public async Task<UnavailabilityResponse> CreateAsync(int resourceId, UnavailabilityRequest request, CancellationToken cancellationToken)
@@ -44,7 +44,7 @@ internal sealed class UnavailabilityRegister(
         context.Unavailabilities.Add(unavailability);
         await context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return ToResponse(unavailability);
+        return UnavailabilityResponses.ToResponse(unavailability);
     }
 
     // No resource lock: the resource keeps this unavailability, so it cannot be deleted meanwhile (AC-20).
@@ -54,7 +54,7 @@ internal sealed class UnavailabilityRegister(
         Unavailability unavailability = await FindAsync(resourceId, unavailabilityId, cancellationToken);
         values.ApplyTo(unavailability);
         await context.SaveChangesAsync(cancellationToken);
-        return ToResponse(unavailability);
+        return UnavailabilityResponses.ToResponse(unavailability);
     }
 
     public async Task DeleteAsync(int resourceId, int unavailabilityId, CancellationToken cancellationToken)
@@ -111,16 +111,6 @@ internal sealed class UnavailabilityRegister(
     private static bool IsWholeMinute(DateTimeOffset time) => time.Ticks % TimeSpan.TicksPerMinute == 0;
 
     private static ApiProblemException MachineNotFound() => ApiProblemException.NotFound("This machine");
-
-    private static UnavailabilityResponse ToResponse(Unavailability unavailability) => new()
-    {
-        Id = unavailability.Id,
-        ResourceId = unavailability.ResourceId,
-        Kind = unavailability.Kind,
-        Start = unavailability.StartsAt,
-        End = unavailability.EndsAt,
-        Reason = unavailability.Reason,
-    };
 
     private sealed record CheckedValues
     {
