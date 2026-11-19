@@ -12,6 +12,10 @@ public interface IOrderReader
     // list (AC-68), for the views derived from every lot (A39).
     Task<IReadOnlyList<OrderDetails>> ListAllDetailsAsync(CancellationToken cancellationToken);
 
+    // The order, stage and lot of each lot, for the views of a few placed lots. Only the lots that
+    // exist and whose order is not deleted are in the answer.
+    Task<IReadOnlyDictionary<int, LotContext>> FindLotContextsAsync(IReadOnlyCollection<int> lotIds, CancellationToken cancellationToken);
+
     // One page of the orders matching the criteria; page and pageSize are 1 or more.
     Task<OrderSummaryPage> ListPageAsync(OrderListCriteria criteria, int page, int pageSize, CancellationToken cancellationToken);
 
@@ -27,6 +31,15 @@ public interface IOrderReader
     // The scheduling facts of every order that holds one of the lots, for the rules over a whole
     // version (FindConflicts). Lots of deleted orders are not found.
     Task<IReadOnlyList<OrderSchedulingFacts>> ListSchedulingFactsOfLotsAsync(IReadOnlyCollection<int> lotIds, CancellationToken cancellationToken);
+}
+
+public sealed record LotContext
+{
+    public required OrderSummary Order { get; init; }
+
+    public required OperationDetails Operation { get; init; }
+
+    public required LotDetails Lot { get; init; }
 }
 
 public sealed record OrderSchedulingFacts

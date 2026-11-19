@@ -16,6 +16,7 @@ Each completed finding was fixed by a task; the decision it names gives the reas
 | 6 | API test data builders lived in test classes and were copied between them | Task M2-13, DEC-38 |
 | 7 | The engine had no rule check a search could call per candidate | Task M3-7, DEC-47 |
 | 8 | Each caller of the snapshot loader had its own hand-written loading scope | Task M3-8, DEC-48 |
+| 9 | Queries readers loaded every order and every machine to look up a few lots and machine names | Task M3-10, DEC-50 |
 | 10 | Master data was turned into engine calendars in two layers, and the placement and unavailability projections were copied | Task M3-9, DEC-49 |
 
 ## Second audit
@@ -25,14 +26,6 @@ The code was reviewed in four parts: the API project, the engine with the plant 
 The M3 code follows the rules the first audit set up. Records use named required properties, transactions and locks go through `RequestTransaction` and the lock ports, modules talk only through ports, no code reads the system clock, every frontend read uses `queryKeys` and the generated endpoints, the frontend decides no rule, and there are no unexplained escape hatches. The open findings are about what M4 and M5 will build on: the engine's entry points, how engine inputs and lot context are loaded, the schedule page, and the test setup that every new test class copies.
 
 ### Open
-
-#### 9. Queries readers load every order and every machine to look up a few rows
-
-- Where: the same lot lookup block in `backend/src/TireScheduler.Api/Queries/Schedule/TimelineReader.cs` lines 79 to 81 and `ConflictedPlacementReader.cs` lines 20 to 22, the same flatten in `UnscheduledLotReader.cs` line 15, all on `IOrderReader.ListAllDetailsAsync` (`Modules/Orders/OrderReader.cs` line 43). The resource names come from `ListResourcesAsync(null, null)` in `ConflictedPlacementReader.cs` line 24 and `Queries/Orders/OrderViewReader.cs` line 135.
-- Problem: to find the order, stage and lot of a handful of placements, each reader loads all orders with their operations, lots and dependencies, then builds the same tuple dictionary by hand. Machine names are found the same way, from the full machine list.
-- Why it matters: the M4 proposal review and the M5 dashboard both need "lot id to order, stage and lot" and machine names. Each new reader would copy the block again and load whole tables on every request.
-- What to do: add `IOrderReader.FindLotContextsAsync(lotIds)` that returns a lot context (order, operation, lot) for those lots only, and `IMasterDataReader.GetResourceNamesAsync(ids)` modelled on `GetResourceTypesAsync`. Use them in the three readers. The unscheduled queue really needs every order and can keep `ListAllDetailsAsync`.
-- Task: M3-10.
 
 #### 11. The timeline chart takes the page's filter state and repeats its filter rule
 

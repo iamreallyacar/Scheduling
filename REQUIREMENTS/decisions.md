@@ -57,6 +57,7 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 | DEC-47 | One placement context per snapshot checks any number of requests, and the static rule calls build one each | Proposed | 2026-11-18 (M3-7) | [engine README](../backend/src/TireScheduler.Engine/README.md), AUDIT.md item 7 |
 | DEC-48 | The snapshot loader loads a version with a scope of resources and orders, or the whole version, in one method that says which rule reads which rows | Proposed | 2026-11-19 (M3-8) | AUDIT.md item 8 |
 | DEC-49 | Scheduling turns the plant calendars into engine calendars in one place, and the timeline reads its working periods from Scheduling | Proposed | 2026-11-19 (M3-9) | ARCHITECTURE.md section "Structure", AUDIT.md item 10 |
+| DEC-50 | Reads of a few placed lots ask Orders for those lots' context and MasterData for those machines' names, never for every order or machine | Proposed | 2026-11-19 (M3-10) | AUDIT.md item 9 |
 
 ## Accepted
 
@@ -394,6 +395,13 @@ Made while building M1 (2026-11-10) and M2 (2026-11-18) and already followed by 
 - Reason: the snapshot and the timeline built engine calendars the same way in two layers, so a new shift field or the M4 search would need both copies changed together, and a missed copy would make the timeline's shading disagree with R6 (AUDIT.md item 10).
 - Alternatives: the mapping in MasterData next to `PlantWorkingTime`, as the audit proposed, rejected because MasterData may not use the engine (ARCHITECTURE.md section "Structure") and would then need a new row in the dependency table; a shared static mapping that Queries calls, rejected because the timeline would still build engine inputs and load the working time itself.
 - Consequences: Queries uses the engine only for the late flag (DEC-30) and the engine's working period type in the port's answer. A per-machine calendar (F-MD-6, P1) changes only the loader and the port.
+
+### DEC-50 Lot context and machine names read for the given ids
+
+- Decision: `IOrderReader.FindLotContextsAsync(lotIds)` answers the order, stage and lot of each given lot as a `LotContext`, loading only the orders that hold those lots, and `IMasterDataReader.GetResourceNamesAsync(ids)` answers the names of the given machines, active or not. The timeline and the conflicted placements read through both, and the order detail reads its machine names through the second. `ListAllDetailsAsync` stays only for the views derived from every lot, such as the unscheduled queue (A39).
+- Reason: each of those readers loaded every order with its operations, lots and dependencies, or the full machine list, to describe a handful of placements, and built the same lot lookup by hand. The proposal review (task M4-4) and the dashboard (task M5-3) need the same lookups and would have copied the block again (AUDIT.md item 9).
+- Alternatives: a lookup over `ListAllDetailsAsync` in one shared Queries helper, rejected because it removes the copies but still loads whole tables on every read; a `LotContext` holding the whole order detail, rejected because no reader needs the other stages or the dependencies.
+- Consequences: a lot that is missing from the answer means its order was deleted, so a reader that expects every lot to be found says why in a comment, as the timeline and the conflict list do.
 
 ## Open
 

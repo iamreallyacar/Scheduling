@@ -158,6 +158,7 @@ public sealed class ConflictTests(PostgresFixture postgres) : IAsyncLifetime
         Assert.Equal(("R3", "rule.R3.unavailable", "unavailability", breakdownId), ViolationValues(breakdownViolation));
         Assert.False(string.IsNullOrWhiteSpace(breakdownViolation.GetProperty("detail").GetString()));
         Assert.Equal(JsonValueKind.Null, breakdownViolation.GetProperty("earliestAllowedStart").ValueKind);
+        Assert.Equal((plant.Press2, "AC183 Press 2"), Reference(conflicts[1].GetProperty("resource")));
         JsonElement inactiveViolation = Assert.Single(conflicts[1].GetProperty("violations").EnumerateArray());
         Assert.Equal(("R1", "rule.R1.inactive", "resource", plant.Press2), ViolationValues(inactiveViolation));
     }

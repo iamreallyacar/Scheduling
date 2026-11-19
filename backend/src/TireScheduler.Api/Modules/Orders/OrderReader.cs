@@ -46,6 +46,20 @@ internal sealed class OrderReader(OrdersDbContext context, IMasterDataReader mas
         return await DetailAsync(orders, cancellationToken);
     }
 
+    public async Task<IReadOnlyDictionary<int, LotContext>> FindLotContextsAsync(IReadOnlyCollection<int> lotIds, CancellationToken cancellationToken)
+    {
+        List<Order> ordersOfLots = await WithOperationsAndDependencies(context.Orders)
+            .Where(o => o.Operations.Any(operation => operation.Lots.Any(lot => lotIds.Contains(lot.Id))))
+            .ToListAsync(cancellationToken);
+        // The orders come whole, so their other lots are left out of the answer here.
+        HashSet<int> wantedLotIds = [.. lotIds];
+        return (await DetailAsync(ordersOfLots, cancellationToken))
+            .SelectMany(order => order.Operations.SelectMany(operation => operation.Lots
+                .Where(lot => wantedLotIds.Contains(lot.Id))
+                .Select(lot => new LotContext { Order = order.Order, Operation = operation, Lot = lot })))
+            .ToDictionary(lotContext => lotContext.Lot.Id);
+    }
+
     private static IQueryable<Order> WithOperationsAndDependencies(IQueryable<Order> orders) =>
         orders
             .Include(o => o.Operations).ThenInclude(operation => operation.Lots)

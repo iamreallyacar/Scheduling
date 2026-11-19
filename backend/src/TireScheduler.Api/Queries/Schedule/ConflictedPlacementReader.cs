@@ -1,5 +1,4 @@
 using TireScheduler.Api.Modules.MasterData;
-using TireScheduler.Api.Modules.MasterData.Machines;
 using TireScheduler.Api.Modules.Orders;
 using TireScheduler.Api.Modules.Scheduling;
 
@@ -17,32 +16,31 @@ internal sealed class ConflictedPlacementReader(IPlacementConflictReader conflic
         }
 
         // Every conflicted lot's order was found by FindConflicts, so each lot is found here.
-        Dictionary<int, (OrderDetails Order, OperationDetails Operation, LotDetails Lot)> lotsById = (await orders.ListAllDetailsAsync(cancellationToken))
-            .SelectMany(order => order.Operations.SelectMany(operation => operation.Lots.Select(lot => (Order: order, Operation: operation, Lot: lot))))
-            .ToDictionary(entry => entry.Lot.Id);
+        IReadOnlyDictionary<int, LotContext> lotsById = await orders.FindLotContextsAsync([.. placementConflicts.Select(conflict => conflict.LotId)], cancellationToken);
         // A resource with placements cannot be deleted (AC-20), so every placement finds its resource.
-        Dictionary<int, NamedReference> resourcesById = (await masterData.ListResourcesAsync(resourceTypeId: null, isActive: null, cancellationToken))
-            .ToDictionary(resource => resource.Id, resource => new NamedReference { Id = resource.Id, Name = resource.Name });
+        IReadOnlyDictionary<int, NamedReference> resourcesById = await masterData.GetResourceNamesAsync(
+            [.. placementConflicts.Select(conflict => conflict.ResourceId).Distinct()],
+            cancellationToken);
 
         return
         [
             .. placementConflicts.Select(conflict =>
             {
-                (OrderDetails order, OperationDetails operation, LotDetails lot) = lotsById[conflict.LotId];
+                LotContext lotContext = lotsById[conflict.LotId];
                 return new ConflictedPlacementResponse
                 {
                     PlacementId = conflict.PlacementId,
                     PlannedStart = conflict.PlannedStart,
                     PlannedEnd = conflict.PlannedEnd,
                     Resource = resourcesById[conflict.ResourceId],
-                    LotId = lot.Id,
-                    LotNo = lot.LotNo,
-                    Quantity = lot.Quantity,
-                    DurationMinutes = lot.DurationMinutes,
-                    OrderId = order.Order.Id,
-                    OrderNo = order.Order.OrderNo,
-                    SequenceNo = operation.SequenceNo,
-                    ResourceType = operation.ResourceType,
+                    LotId = lotContext.Lot.Id,
+                    LotNo = lotContext.Lot.LotNo,
+                    Quantity = lotContext.Lot.Quantity,
+                    DurationMinutes = lotContext.Lot.DurationMinutes,
+                    OrderId = lotContext.Order.Id,
+                    OrderNo = lotContext.Order.OrderNo,
+                    SequenceNo = lotContext.Operation.SequenceNo,
+                    ResourceType = lotContext.Operation.ResourceType,
                     Violations = conflict.Violations,
                 };
             }),

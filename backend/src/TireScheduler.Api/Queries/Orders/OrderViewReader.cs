@@ -1,5 +1,4 @@
 using TireScheduler.Api.Modules.MasterData;
-using TireScheduler.Api.Modules.MasterData.Machines;
 using TireScheduler.Api.Modules.Orders;
 using TireScheduler.Api.Modules.Scheduling;
 
@@ -125,16 +124,8 @@ internal sealed class OrderViewReader(IOrderReader orders, IPlacementReader plac
         placements.PlacementsOfLotsAsync(ScheduleVersionAlias.Live, lotIds, cancellationToken);
 
     // A resource with placements cannot be deleted (AC-20), so every placement finds its resource.
-    private async Task<IReadOnlyDictionary<int, NamedReference>> ResourcesAsync(IEnumerable<PlacementValues> placementValues, CancellationToken cancellationToken)
-    {
-        if (!placementValues.Any())
-        {
-            return new Dictionary<int, NamedReference>();
-        }
-
-        IReadOnlyList<ResourceResponse> allResources = await masterData.ListResourcesAsync(resourceTypeId: null, isActive: null, cancellationToken);
-        return allResources.ToDictionary(resource => resource.Id, resource => new NamedReference { Id = resource.Id, Name = resource.Name });
-    }
+    private Task<IReadOnlyDictionary<int, NamedReference>> ResourcesAsync(IEnumerable<PlacementValues> placementValues, CancellationToken cancellationToken) =>
+        masterData.GetResourceNamesAsync([.. placementValues.Select(placement => placement.ResourceId).Distinct()], cancellationToken);
 
     private static OrderStatus StatusOf(OrderSummary order, IReadOnlyDictionary<int, PlacementValues> livePlacements) =>
         OrderStatusRules.Derive(order.CancelledAt, isAnyLotPlacedInVersion: order.LotIds.Any(livePlacements.ContainsKey));

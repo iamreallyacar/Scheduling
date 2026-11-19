@@ -20,6 +20,9 @@ public interface IMasterDataReader
     // Only the ids that exist are in the answer.
     Task<IReadOnlyDictionary<int, NamedReference>> GetResourceTypesAsync(IReadOnlyCollection<int> resourceTypeIds, CancellationToken cancellationToken);
 
+    // Active or not; only the ids that exist are in the answer.
+    Task<IReadOnlyDictionary<int, NamedReference>> GetResourceNamesAsync(IReadOnlyCollection<int> resourceIds, CancellationToken cancellationToken);
+
     // By type, then name (AC-30); a null filter value matches every resource.
     Task<IReadOnlyList<ResourceResponse>> ListResourcesAsync(int? resourceTypeId, bool? isActive, CancellationToken cancellationToken);
 

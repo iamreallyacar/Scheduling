@@ -77,10 +77,8 @@ internal sealed class TimelineReader(
         }
 
         // A live placement keeps its order from being deleted (A13), so every placed lot is found.
-        Dictionary<int, (OrderDetails Order, OperationDetails Operation, LotDetails Lot)> lotsById = (await orders.ListAllDetailsAsync(cancellationToken))
-            .SelectMany(order => order.Operations.SelectMany(operation => operation.Lots.Select(lot => (Order: order, Operation: operation, Lot: lot))))
-            .ToDictionary(entry => entry.Lot.Id);
-        List<OrderSummary> ordersInRange = [.. placementsInRange.Select(placement => lotsById[placement.LotId].Order.Order).DistinctBy(order => order.Id)];
+        IReadOnlyDictionary<int, LotContext> lotsById = await orders.FindLotContextsAsync([.. placementsInRange.Select(placement => placement.LotId)], cancellationToken);
+        List<OrderSummary> ordersInRange = [.. placementsInRange.Select(placement => lotsById[placement.LotId].Order).DistinctBy(order => order.Id)];
         IReadOnlyDictionary<int, PlacementValues> placementsOfTheirLots = await placements.PlacementsOfLotsAsync(
             versionId,
             [.. ordersInRange.SelectMany(order => order.LotIds)],
@@ -94,23 +92,23 @@ internal sealed class TimelineReader(
         [
             .. placementsInRange.Select(placement =>
             {
-                (OrderDetails order, OperationDetails operation, LotDetails lot) = lotsById[placement.LotId];
+                LotContext lotContext = lotsById[placement.LotId];
                 return (placement.ResourceId, new TimelinePlacementResponse
                 {
                     PlacementId = placement.Id,
                     PlannedStart = placement.PlannedStart,
                     PlannedEnd = placement.PlannedEnd,
-                    LotId = lot.Id,
-                    LotNo = lot.LotNo,
-                    Quantity = lot.Quantity,
-                    DurationMinutes = lot.DurationMinutes,
-                    Status = LotStatusRules.Derive(order.Order.CancelledAt, isPlacedInVersion: true),
-                    OrderId = order.Order.Id,
-                    OrderNo = order.Order.OrderNo,
-                    Product = order.Order.Product,
-                    OrderIsLate = isLateByOrder[order.Order.Id],
-                    SequenceNo = operation.SequenceNo,
-                    ResourceType = operation.ResourceType,
+                    LotId = lotContext.Lot.Id,
+                    LotNo = lotContext.Lot.LotNo,
+                    Quantity = lotContext.Lot.Quantity,
+                    DurationMinutes = lotContext.Lot.DurationMinutes,
+                    Status = LotStatusRules.Derive(lotContext.Order.CancelledAt, isPlacedInVersion: true),
+                    OrderId = lotContext.Order.Id,
+                    OrderNo = lotContext.Order.OrderNo,
+                    Product = lotContext.Order.Product,
+                    OrderIsLate = isLateByOrder[lotContext.Order.Id],
+                    SequenceNo = lotContext.Operation.SequenceNo,
+                    ResourceType = lotContext.Operation.ResourceType,
                 });
             }),
         ];

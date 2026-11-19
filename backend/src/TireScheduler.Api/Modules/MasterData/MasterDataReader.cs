@@ -67,6 +67,12 @@ internal sealed class MasterDataReader(MasterDataDbContext context, MachineRegis
             .Select(type => new NamedReference { Id = type.Id, Name = type.Name })
             .ToDictionaryAsync(type => type.Id, cancellationToken);
 
+    public async Task<IReadOnlyDictionary<int, NamedReference>> GetResourceNamesAsync(IReadOnlyCollection<int> resourceIds, CancellationToken cancellationToken) =>
+        await context.Resources
+            .Where(resource => resourceIds.Contains(resource.Id))
+            .Select(resource => new NamedReference { Id = resource.Id, Name = resource.Name })
+            .ToDictionaryAsync(resource => resource.Id, cancellationToken);
+
     public Task<IReadOnlyList<ResourceResponse>> ListResourcesAsync(int? resourceTypeId, bool? isActive, CancellationToken cancellationToken) =>
         machines.ListAsync(resourceTypeId, isActive, cancellationToken);
 
