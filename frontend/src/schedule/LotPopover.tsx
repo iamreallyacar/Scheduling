@@ -2,6 +2,7 @@ import { Link } from 'react-router';
 import type { RuleViolation } from '../api/problem';
 import { LOT_STATUS_LABELS } from '../orders/orderValues';
 import { formatPlantTime } from '../calendar/plantClock';
+import { lotTitle } from './lotTitle';
 import type { TimelineBar } from './timelineBars';
 import { ViolationList, type ConflictLinkRenderer } from './ViolationList';
 
@@ -19,7 +20,7 @@ interface LotPopoverProps {
 /** A bar's lot as the API returns it (AC-190). Removal goes through the placement form (DEC-46). */
 export function LotPopover({ bar, violations, timeZone, renderConflictLink, onMove, onClose }: LotPopoverProps) {
   const { placement, resource } = bar;
-  const title = `Order ${placement.orderNo}, stage ${String(placement.sequenceNo)} ${placement.resourceType.name}, lot ${String(placement.lotNo)}`;
+  const title = lotTitle(placement);
   return (
     <section role="dialog" aria-label={title} className="panel timeline-popover">
       <div className="popover-heading">

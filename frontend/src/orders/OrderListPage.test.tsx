@@ -1,9 +1,10 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { CurrentUserResponse, OrderPageResponse, OrderRequest } from '../api/generated';
-import { adminUser, plannerUser, problem, stubApi, viewerUser, type FakeApiAnswer, type FakeApiRequest } from '../testing/fakeApi';
+import type { CurrentUserResponse, OrderPageResponse } from '../api/generated';
+import { adminUser, type FakeApiAnswer, type FakeApiRequest, plannerUser, problem, sentBody, stubApi, viewerUser } from '../testing/fakeApi';
 import { renderApp } from '../testing/renderApp';
 import { order, passengerTire, plantCalendar, summaryOf, truckTire } from './orderSamples';
+import { rowOf } from '../testing/rowOf';
 
 type OrderPageAnswer = OrderPageResponse | ((request: FakeApiRequest) => OrderPageResponse);
 
@@ -29,7 +30,7 @@ describe('order list', () => {
     stubOrderListApi(viewerUser, onePage);
     renderApp('/orders');
 
-    const row = (await screen.findByRole('rowheader', { name: 'SO-5' })).closest('tr') as HTMLElement;
+    const row = rowOf(await screen.findByRole('rowheader', { name: 'SO-5' }));
     expect(within(row).getByRole('link', { name: 'SO-5' })).toHaveAttribute('href', '/orders/5');
     expect(row).toHaveTextContent('Tire Shop North');
     expect(row).toHaveTextContent('PS-205');
@@ -42,7 +43,7 @@ describe('order list', () => {
     stubOrderListApi(viewerUser, { ...onePage, items: [{ ...summaryOf(order), status: 'InProgress', isLate: true }] });
     renderApp('/orders');
 
-    const row = (await screen.findByRole('rowheader', { name: 'SO-5' })).closest('tr') as HTMLElement;
+    const row = rowOf(await screen.findByRole('rowheader', { name: 'SO-5' }));
     expect(within(row).getByText('In Progress')).toBeInTheDocument();
     expect(within(row).getByText('Late')).toBeInTheDocument();
   });
@@ -174,8 +175,7 @@ describe('order list', () => {
     await user.click(within(form).getByRole('button', { name: 'Save' }));
 
     expect(await screen.findByRole('heading', { name: 'Order SO-5' })).toBeInTheDocument();
-    const sent = requests.find((request) => request.method === 'POST' && request.path === '/api/v1/orders')?.body as OrderRequest;
-    expect(sent).toEqual({ orderNo: 'SO-5', customerName: 'Tire Shop North', productId: 3, quantity: 101, dueDate: '2026-12-01', priority: 'High' });
+    expect(sentBody(requests, 'POST', '/api/v1/orders')).toEqual({ orderNo: 'SO-5', customerName: 'Tire Shop North', productId: 3, quantity: 101, dueDate: '2026-12-01', priority: 'High' });
   });
 
   it('AC_26 AC_46 a rejected order shows each field error next to its field and keeps the entered values', async () => {

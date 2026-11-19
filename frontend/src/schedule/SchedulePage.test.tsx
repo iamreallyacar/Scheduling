@@ -2,7 +2,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ConflictedPlacementResponse, ResourceViewResponse, UnscheduledLotResponse } from '../api/generated';
 import { plantCalendar } from '../orders/orderSamples';
-import { plannerUser, stubApi, viewerUser, type FakeApiAnswer, type FakeApiRequest } from '../testing/fakeApi';
+import { type FakeApiAnswer, type FakeApiRequest, plannerUser, sentBody, stubApi, viewerUser } from '../testing/fakeApi';
 import { renderApp } from '../testing/renderApp';
 
 const UNSCHEDULED_LOTS_PATH = '/api/v1/versions/live/unscheduled-lots';
@@ -186,7 +186,7 @@ describe('schedule page', () => {
     expect(screen.queryByRole('form')).not.toBeInTheDocument();
     const machineRequest = requests.find((request) => request.path === '/api/v1/resources');
     expect([machineRequest?.query.get('resourceTypeId'), machineRequest?.query.get('isActive')]).toEqual(['2', 'true']);
-    expect(requests.find((request) => request.method === 'PUT')?.body).toEqual({ resourceId: press2.id, plannedStart: '2026-11-16T07:00:00.000Z' });
+    expect(sentBody(requests, 'PUT', `/api/v1/versions/live/lots/${String(curingLot.id)}/placement`)).toEqual({ resourceId: press2.id, plannedStart: '2026-11-16T07:00:00.000Z' });
   });
 
   it('AC_181 a rejected placement lists every broken rule with the earliest allowed start and keeps the entered values', async () => {

@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { CalendarResponse, CalendarShiftsRequest, CurrentUserResponse, HolidayResponse } from '../api/generated';
-import { adminUser, plannerUser, problem, stubApi, viewerUser, type FakeApiAnswer, type FakeApiRequest } from '../testing/fakeApi';
+import type { CalendarResponse, CurrentUserResponse, HolidayResponse } from '../api/generated';
+import { adminUser, type FakeApiAnswer, type FakeApiRequest, plannerUser, problem, sentBody, stubApi, viewerUser } from '../testing/fakeApi';
 import { renderApp } from '../testing/renderApp';
 
 const SHIFTS_PATH = '/api/v1/calendars/1/shifts';
@@ -60,8 +60,7 @@ describe('plant calendar', () => {
     await user.click(screen.getByRole('button', { name: 'Save shifts' }));
 
     expect(await screen.findByRole('status')).toHaveTextContent('Shifts saved.');
-    const saved = requests.find((request) => request.method === 'PUT' && request.path === SHIFTS_PATH)?.body as CalendarShiftsRequest;
-    expect(saved).toEqual({
+    expect(sentBody(requests, 'PUT', SHIFTS_PATH)).toEqual({
       shifts: [
         { weekday: 'Monday', start: '00:00', end: '08:00' },
         { weekday: 'Friday', start: '16:00', end: '24:00' },
@@ -109,7 +108,7 @@ describe('plant calendar', () => {
     await user.click(within(form).getByRole('button', { name: 'Add holiday' }));
 
     expect(await within(screen.getByRole('table', { name: 'Holidays' })).findByText('Christmas Day')).toBeInTheDocument();
-    expect(requests.find((request) => request.method === 'POST' && request.path === '/api/v1/holidays')?.body).toEqual({ date: '2027-12-25', name: 'Christmas Day' });
+    expect(sentBody(requests, 'POST', '/api/v1/holidays')).toEqual({ date: '2027-12-25', name: 'Christmas Day' });
     expect(within(form).getByLabelText('Name')).toHaveValue('');
   });
 

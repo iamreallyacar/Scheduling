@@ -1,9 +1,10 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { CurrentUserResponse, OrderResponse } from '../api/generated';
-import { plannerUser, problem, stubApi, viewerUser, type FakeApiAnswer, type FakeApiRequest } from '../testing/fakeApi';
+import { type FakeApiAnswer, type FakeApiRequest, plannerUser, problem, sentBody, stubApi, viewerUser } from '../testing/fakeApi';
 import { renderApp } from '../testing/renderApp';
 import { order, passengerTire, plantCalendar, summaryOf, truckTire } from './orderSamples';
+import { rowOf } from '../testing/rowOf';
 
 const ORDER_PATH = '/api/v1/orders/5';
 
@@ -33,9 +34,9 @@ describe('order page', () => {
     expect(screen.getByText('PS-205 Passenger 205/55 R16')).toBeInTheDocument();
     expect(await screen.findByText('18 Nov 2026, 10:30')).toBeInTheDocument();
     expect(screen.getByText('0 of 202 tires completed')).toBeInTheDocument();
-    const operationRow = within(screen.getByRole('table', { name: 'Operations' })).getByRole('rowheader', { name: '2' }).closest('tr') as HTMLElement;
+    const operationRow = rowOf(within(screen.getByRole('table', { name: 'Operations' })).getByRole('rowheader', { name: '2' }));
     expect(operationRow.textContent).toBe('2Curing press10130122');
-    const lotRow = within(screen.getByRole('table', { name: 'Lots' })).getByRole('rowheader', { name: '2' }).closest('tr') as HTMLElement;
+    const lotRow = rowOf(within(screen.getByRole('table', { name: 'Lots' })).getByRole('rowheader', { name: '2' }));
     expect(lotRow.textContent).toBe('21101642Unscheduled');
     expect(within(screen.getByRole('table', { name: 'Dependencies' })).getByRole('row', { name: '1 2 120' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Edit|Cancel|Delete/ })).not.toBeInTheDocument();
@@ -65,7 +66,7 @@ describe('order page', () => {
 
     expect(await screen.findByText('Fleet Service')).toBeInTheDocument();
     expect(screen.queryByRole('form')).not.toBeInTheDocument();
-    expect(requests.find((request) => request.method === 'PUT')?.body).toEqual({
+    expect(sentBody(requests, 'PUT', ORDER_PATH)).toEqual({
       orderNo: 'SO-5',
       customerName: 'Fleet Service',
       productId: 3,
@@ -187,7 +188,7 @@ describe('order page', () => {
     renderApp('/orders/5');
 
     const lots = await screen.findByRole('table', { name: 'Lots' });
-    const placedRow = within(lots).getByRole('rowheader', { name: '2' }).closest('tr') as HTMLElement;
+    const placedRow = rowOf(within(lots).getByRole('rowheader', { name: '2' }));
     await within(placedRow).findByText('16 Nov 2026, 08:00');
     expect(within(placedRow).getAllByRole('cell').map((cell) => cell.textContent)).toEqual([
       '1',
@@ -199,7 +200,7 @@ describe('order page', () => {
       '16 Nov 2026, 18:42',
       'Move...',
     ]);
-    expect(within(within(lots).getByRole('rowheader', { name: '1' }).closest('tr') as HTMLElement).getByRole('button', { name: 'Place...' })).toBeInTheDocument();
+    expect(within(rowOf(within(lots).getByRole('rowheader', { name: '1' }))).getByRole('button', { name: 'Place...' })).toBeInTheDocument();
 
     await user.click(within(placedRow).getByRole('button', { name: 'Move...' }));
     const form = await screen.findByRole('form', { name: 'Move lot - Order SO-5, stage 2 Curing press, lot 1' });

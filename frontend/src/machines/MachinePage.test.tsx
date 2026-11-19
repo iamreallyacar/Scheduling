@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { CurrentUserResponse, ResourceViewResponse, UnavailabilityResponse } from '../api/generated';
-import { plannerUser, problem, stubApi, viewerUser, type FakeApiAnswer, type FakeApiRequest } from '../testing/fakeApi';
+import { type FakeApiAnswer, type FakeApiRequest, plannerUser, problem, sentBody, stubApi, viewerUser } from '../testing/fakeApi';
 import { renderApp } from '../testing/renderApp';
 
 const press: ResourceViewResponse = {
@@ -66,7 +66,7 @@ describe('machine page', () => {
     await user.click(within(form).getByRole('button', { name: 'Save' }));
 
     expect(await screen.findByRole('button', { name: 'Record unavailability' })).toBeInTheDocument();
-    expect(requests.find((request) => request.method === 'POST')?.body).toEqual({
+    expect(sentBody(requests, 'POST', UNAVAILABILITIES)).toEqual({
       kind: 'Breakdown',
       start: '2026-11-19T06:30:00.000Z',
       end: null,
@@ -88,7 +88,7 @@ describe('machine page', () => {
     await user.click(within(form).getByRole('button', { name: 'Save' }));
 
     expect(await screen.findByRole('button', { name: 'Record unavailability' })).toBeInTheDocument();
-    expect(requests.find((request) => request.method === 'PUT')?.body).toEqual({
+    expect(sentBody(requests, 'PUT', `${UNAVAILABILITIES}/7`)).toEqual({
       kind: 'Breakdown',
       start: '2026-11-18T08:00:00.000Z',
       end: '2026-11-18T12:15:00.000Z',

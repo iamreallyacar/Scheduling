@@ -1,4 +1,4 @@
-import { utcToPlantLocal } from '../calendar/plantClock';
+import { DAY_MS, DISPLAY_LOCALE, utcToPlantLocal } from '../calendar/plantClock';
 
 // The days the timeline shows (A44). Dates are plant-local and written YYYY-MM-DD, as the API
 // takes them; date arithmetic runs on UTC dates so the browser zone and DST never shift a day.
@@ -6,8 +6,6 @@ import { utcToPlantLocal } from '../calendar/plantClock';
 export type TimelineZoom = 'day' | 'two-weeks';
 
 export const DAYS_SHOWN: Readonly<Record<TimelineZoom, number>> = { day: 1, 'two-weeks': 14 };
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function plantToday(timeZone: string, now: Date): string {
   return utcToPlantLocal(now.toISOString(), timeZone).slice(0, 10);
@@ -34,7 +32,7 @@ export function lastShownDay(firstDay: string, zoom: TimelineZoom): string {
 
 /** "Mon 16 Nov 2026". */
 export function formatPlantDate(date: string): string {
-  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).formatToParts(
+  const parts = new Intl.DateTimeFormat(DISPLAY_LOCALE, { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).formatToParts(
     new Date(dateToUtcMs(date)),
   );
   return parts

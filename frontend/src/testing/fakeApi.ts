@@ -63,3 +63,12 @@ export function stubApi(routes: Record<string, FakeApiRoute>): FakeApiRequest[] 
   });
   return requests;
 }
+
+/** The body of the one request sent as "METHOD /path"; fails when none or several were sent. */
+export function sentBody(requests: readonly FakeApiRequest[], method: string, path: string): unknown {
+  const matching = requests.filter((request) => request.method === method && request.path === path);
+  if (matching.length !== 1) {
+    throw new Error(`Expected one ${method} ${path} request, but ${String(matching.length)} were sent.`);
+  }
+  return matching[0]?.body;
+}

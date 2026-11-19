@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { CurrentUserResponse } from '../api/generated';
-import { adminUser, notSignedIn, problem, stubApi } from '../testing/fakeApi';
+import { adminUser, notSignedIn, problem, sentBody, stubApi } from '../testing/fakeApi';
 import { renderApp } from '../testing/renderApp';
 
 describe('sign in', () => {
@@ -28,7 +28,7 @@ describe('sign in', () => {
     expect(await screen.findByRole('heading', { name: 'Products' })).toBeInTheDocument();
     expect(await screen.findByRole('rowheader', { name: 'PS-205' })).toBeInTheDocument();
     expect(screen.getByText('Ada Admin (Admin)')).toBeInTheDocument();
-    expect(requests.find((request) => request.path === '/api/v1/auth/sign-in')?.body).toEqual({ email: 'ada@plant.test', password: 'Secret-1' });
+    expect(sentBody(requests, 'POST', '/api/v1/auth/sign-in')).toEqual({ email: 'ada@plant.test', password: 'Secret-1' });
   });
 
   it('AC_2 AC_26 shows the rejection and keeps the entered email', async () => {

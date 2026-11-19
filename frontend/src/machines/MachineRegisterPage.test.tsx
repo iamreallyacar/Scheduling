@@ -1,8 +1,9 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { CurrentUserResponse, ResourceTypeResponse, ResourceViewResponse } from '../api/generated';
-import { adminUser, plannerUser, problem, stubApi, viewerUser, type FakeApiRequest } from '../testing/fakeApi';
+import { adminUser, type FakeApiRequest, plannerUser, problem, sentBody, stubApi, viewerUser } from '../testing/fakeApi';
 import { renderApp } from '../testing/renderApp';
+import { rowOf } from '../testing/rowOf';
 
 const building: ResourceTypeResponse = { id: 1, name: 'Building machine', kind: 'Machine' };
 const curing: ResourceTypeResponse = { id: 2, name: 'Curing press', kind: 'Machine' };
@@ -30,11 +31,10 @@ describe('machine register', () => {
     stubApi(stubMachineApi(viewerUser));
     renderApp('/machines');
 
-    const pressRow = (await screen.findByRole('rowheader', { name: 'Press 1' })).closest('tr');
-    expect(pressRow).not.toBeNull();
-    expect(within(pressRow as HTMLElement).getByText('Curing press')).toBeInTheDocument();
-    expect(within(pressRow as HTMLElement).getByText('Plant default')).toBeInTheDocument();
-    expect(within(pressRow as HTMLElement).getByText('No')).toBeInTheDocument();
+    const pressRow = rowOf(await screen.findByRole('rowheader', { name: 'Press 1' }));
+    expect(within(pressRow).getByText('Curing press')).toBeInTheDocument();
+    expect(within(pressRow).getByText('Plant default')).toBeInTheDocument();
+    expect(within(pressRow).getByText('No')).toBeInTheDocument();
     expect(screen.getByRole('rowheader', { name: 'Builder 1' })).toBeInTheDocument();
   });
 
@@ -42,10 +42,10 @@ describe('machine register', () => {
     stubApi(stubMachineApi(viewerUser));
     renderApp('/machines');
 
-    const pressRow = (await screen.findByRole('rowheader', { name: 'Press 1' })).closest('tr');
-    expect(within(pressRow as HTMLElement).getByText('Maintenance')).toBeInTheDocument();
-    expect(within(screen.getByRole('rowheader', { name: 'Builder 1' }).closest('tr') as HTMLElement).getByText('Idle')).toBeInTheDocument();
-    expect(within(pressRow as HTMLElement).getByRole('link', { name: 'Press 1' })).toHaveAttribute('href', '/machines/20');
+    const pressRow = rowOf(await screen.findByRole('rowheader', { name: 'Press 1' }));
+    expect(within(pressRow).getByText('Maintenance')).toBeInTheDocument();
+    expect(within(rowOf(screen.getByRole('rowheader', { name: 'Builder 1' }))).getByText('Idle')).toBeInTheDocument();
+    expect(within(pressRow).getByRole('link', { name: 'Press 1' })).toHaveAttribute('href', '/machines/20');
   });
 
   it('AC_30 passes the type and active filters to the server', async () => {
@@ -99,7 +99,7 @@ describe('machine register', () => {
     await user.click(within(form).getByRole('button', { name: 'Save' }));
 
     await screen.findByRole('button', { name: 'Add machine' });
-    expect(requests.find((request) => request.method === 'PUT')?.body).toEqual({ name: 'Press A', resourceTypeId: 1, isActive: true });
+    expect(sentBody(requests, 'PUT', '/api/v1/resources/20')).toEqual({ name: 'Press A', resourceTypeId: 1, isActive: true });
   });
 
   it('AC_26 a rejected machine form shows the field errors and keeps the entered name', async () => {

@@ -1,8 +1,9 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { CurrentUserResponse, ProductResponse, ResourceTypeResponse, RoutingRequest, RoutingResponse } from '../api/generated';
-import { adminUser, plannerUser, problem, stubApi, viewerUser, type FakeApiAnswer, type FakeApiRequest } from '../testing/fakeApi';
+import type { CurrentUserResponse, ProductResponse, ResourceTypeResponse, RoutingResponse } from '../api/generated';
+import { adminUser, type FakeApiAnswer, type FakeApiRequest, plannerUser, problem, sentBody, stubApi, viewerUser } from '../testing/fakeApi';
 import { renderApp } from '../testing/renderApp';
+import { rowOf } from '../testing/rowOf';
 
 const ROUTING_PATH = '/api/v1/products/1/routing';
 const passengerTire: ProductResponse = { id: 1, code: 'PS-205', name: 'Passenger 205/55 R16', spec: null };
@@ -33,17 +34,13 @@ function stubRoutingApi(currentUser: CurrentUserResponse, routing: RoutingRespon
   });
 }
 
-function savedRequest(requests: FakeApiRequest[]): RoutingRequest {
-  return requests.find((request) => request.method === 'PUT' && request.path === ROUTING_PATH)?.body as RoutingRequest;
-}
-
 describe('routing of a product', () => {
   it.each([viewerUser, plannerUser])('AC_15 $role reads the routing and sees no edit actions', async (currentUser) => {
     stubRoutingApi(currentUser, threeStageRouting);
     renderApp('/products/1/routing');
 
     expect(await screen.findByRole('heading', { name: 'Routing of PS-205' })).toBeInTheDocument();
-    const curingRow = (await screen.findByRole('rowheader', { name: 'Stage 2' })).closest('tr');
+    const curingRow = rowOf(await screen.findByRole('rowheader', { name: 'Stage 2' }));
     expect(curingRow).toHaveTextContent('Curing press');
     expect(curingRow).toHaveTextContent('30');
     expect(within(screen.getByRole('table', { name: 'Dependencies' })).getByText('45')).toBeInTheDocument();
@@ -77,7 +74,7 @@ describe('routing of a product', () => {
     await user.click(screen.getByRole('button', { name: 'Save routing' }));
 
     expect(await screen.findByRole('status')).toHaveTextContent('Routing saved.');
-    expect(savedRequest(requests)).toEqual({
+    expect(sentBody(requests, 'PUT', ROUTING_PATH)).toEqual({
       stages: [
         { sequenceNo: 1, resourceTypeId: 1, setupMinutes: null, cycleMinutes: 5, unitsPerCycle: null },
         { sequenceNo: 2, resourceTypeId: 2, setupMinutes: null, cycleMinutes: 12, unitsPerCycle: 4 },
@@ -101,7 +98,7 @@ describe('routing of a product', () => {
     await user.click(screen.getByRole('button', { name: 'Save routing' }));
 
     await screen.findByRole('status');
-    expect(savedRequest(requests).dependencies).toEqual([
+    expect(sentBody(requests, 'PUT', ROUTING_PATH)).toHaveProperty('dependencies', [
       { predecessorSequenceNo: 2, successorSequenceNo: 3, minLagMinutes: 45 },
       { predecessorSequenceNo: 1, successorSequenceNo: 3, minLagMinutes: 0 },
     ]);
@@ -119,7 +116,7 @@ describe('routing of a product', () => {
     expect(screen.queryByRole('group', { name: 'Dependency 2' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Save routing' }));
     await screen.findByRole('status');
-    expect(savedRequest(requests)).toEqual({
+    expect(sentBody(requests, 'PUT', ROUTING_PATH)).toEqual({
       stages: [
         { sequenceNo: 1, resourceTypeId: 2, setupMinutes: 30, cycleMinutes: 12, unitsPerCycle: 4 },
         { sequenceNo: 2, resourceTypeId: 3, setupMinutes: 0, cycleMinutes: 2, unitsPerCycle: 1 },

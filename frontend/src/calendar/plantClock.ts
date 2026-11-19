@@ -3,10 +3,13 @@
 // as a date and time field holds it: YYYY-MM-DDTHH:mm.
 
 const MINUTE_MS = 60_000;
-const DAY_MS = 24 * 60 * MINUTE_MS;
+export const DAY_MS = 24 * 60 * MINUTE_MS;
+
+// Dates and times are shown in British style: day before month, 24-hour clock.
+export const DISPLAY_LOCALE = 'en-GB';
 
 export function formatPlantTime(utc: string, timeZone: string): string {
-  return new Intl.DateTimeFormat('en-GB', { timeZone, dateStyle: 'medium', timeStyle: 'short' }).format(new Date(utc));
+  return new Intl.DateTimeFormat(DISPLAY_LOCALE, { timeZone, dateStyle: 'medium', timeStyle: 'short' }).format(new Date(utc));
 }
 
 export function utcToPlantLocal(utc: string, timeZone: string): string {

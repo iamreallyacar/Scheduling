@@ -25,6 +25,9 @@ Each completed finding was fixed by a task; the decision it names gives the reas
 | 18 | Test plant figures were implicit and test times were written in several ways | Task M3-13, DEC-53 |
 | 20 | Each rule violation named its rule twice, as a bare string and inside its code | Task M3-14, DEC-54 |
 | 22 | The progress fakes and failing stubs were spread over the test classes | Task M3-13, DEC-53 |
+| 23 | The lot title, the day length and the date locale were each written in several frontend files | Task M3-15 |
+| 24 | Frontend tests found table rows and sent bodies through casts | Task M3-15 |
+| 25 | The unchecked cast of `response.json()` in `request.ts` had to say why; the comment was already in place when M3-15 started | Task M3-15 |
 | 26 | `check_docs.py` required a criteria section only for the M1 and M2 features | Task M3-16 |
 
 ## Second audit
@@ -67,9 +70,6 @@ Small findings, worth fixing when the file is next touched.
 |---|---|---|---|
 | 19 | The engine's mapping from a generated plant to a `ScheduleSnapshot` does not exist yet. The M4-1 property tests need it; write it once, in the generator project or a shared test helper, not in each test file | `backend/src/TireScheduler.PlantGenerator/GeneratedPlant.cs`, `backend/src/TireScheduler.Engine/ScheduleSnapshot.cs` | M4-1, as its first step |
 | 21 | The generator's load figure adds shift minutes itself instead of using `WorkingPeriods`, so it ignores daylight saving time and would not follow a change to the working-time rule | `backend/src/TireScheduler.PlantGenerator/PlantLoad.cs` lines 32 to 45 | M4-5, as its first step |
-| 23 | The lot title "Order X, stage N Type, lot M" is built in two places, `DAY_MS` is defined twice, and the `en-GB` locale is written in three files | `frontend/src/schedule/PlacementForm.tsx`, `LotPopover.tsx`, `timelineRange.ts`, `TimelineChart.tsx`, `frontend/src/calendar/plantClock.ts` | M3-15 |
-| 24 | Frontend tests repeat `.closest('tr') as HTMLElement` and cast the sent request bodies; `rowOf(name)` and `sentBody(requests, method, path)` helpers in `src/testing/` would remove the casts and fail clearly | `frontend/src/**/*.test.tsx` | M3-15 |
-| 25 | The unchecked cast of `response.json()` has no comment giving its reason | `frontend/src/api/request.ts` line 58 | M3-15 |
 
 ### Looked at and left out
 

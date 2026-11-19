@@ -10,6 +10,7 @@ import { SelectField, TextField } from '../forms/Fields';
 import { ProblemSummary } from '../forms/ProblemSummary';
 import { QueryResult } from '../forms/QueryResult';
 import { useMachines } from '../machines/machineQueries';
+import { lotTitle } from './lotTitle';
 import { ViolationList, type ConflictLinkRenderer } from './ViolationList';
 
 /** The lot the form places, as the queue or the order page shows it. */
@@ -57,7 +58,7 @@ function LoadedPlacementForm({ target, timeZone, onClose, renderConflictLink }: 
   });
   const removeMutation = useMutation({ mutationFn: () => removeLotPlacement(SCHEDULE_VERSION, target.lotId), onSuccess: onClose });
   const problem = problemOf(saveMutation.error) ?? problemOf(removeMutation.error);
-  const title = `${target.placement === null ? 'Place' : 'Move'} lot - Order ${target.orderNo}, stage ${String(target.sequenceNo)} ${target.resourceType.name}, lot ${String(target.lotNo)}`;
+  const title = `${target.placement === null ? 'Place' : 'Move'} lot - ${lotTitle(target)}`;
 
   const submit = (event: SyntheticEvent) => {
     event.preventDefault();

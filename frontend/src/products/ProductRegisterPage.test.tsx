@@ -1,8 +1,9 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { CurrentUserResponse, ProductResponse } from '../api/generated';
-import { adminUser, plannerUser, problem, stubApi, viewerUser } from '../testing/fakeApi';
+import { adminUser, plannerUser, problem, sentBody, stubApi, viewerUser } from '../testing/fakeApi';
 import { renderApp } from '../testing/renderApp';
+import { rowOf } from '../testing/rowOf';
 
 const passengerTire: ProductResponse = { id: 1, code: 'PS-205', name: 'Passenger 205/55 R16', spec: '91V' };
 
@@ -18,10 +19,10 @@ describe('product register', () => {
     stubApi(stubProductApi(viewerUser, [passengerTire]));
     renderApp('/products');
 
-    const row = (await screen.findByRole('rowheader', { name: 'PS-205' })).closest('tr');
+    const row = rowOf(await screen.findByRole('rowheader', { name: 'PS-205' }));
     expect(row).not.toBeNull();
-    expect(within(row as HTMLElement).getByText('Passenger 205/55 R16')).toBeInTheDocument();
-    expect(within(row as HTMLElement).getByText('91V')).toBeInTheDocument();
+    expect(within(row).getByText('Passenger 205/55 R16')).toBeInTheDocument();
+    expect(within(row).getByText('91V')).toBeInTheDocument();
   });
 
   it('links each product to its routing', async () => {
@@ -91,7 +92,7 @@ describe('product register', () => {
 
     expect(await screen.findByRole('rowheader', { name: 'TR-315' })).toBeInTheDocument();
     expect(screen.queryByRole('form')).not.toBeInTheDocument();
-    expect(requests.find((request) => request.method === 'POST' && request.path === '/api/v1/products')?.body).toEqual({ code: 'TR-315', name: 'Truck 315/80', spec: '' });
+    expect(sentBody(requests, 'POST', '/api/v1/products')).toEqual({ code: 'TR-315', name: 'Truck 315/80', spec: '' });
   });
 
   it('AC_20 shows why a product could not be deleted', async () => {

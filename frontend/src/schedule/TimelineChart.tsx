@@ -1,5 +1,5 @@
 import type { TimelineResourceResponse, TimelineResponse } from '../api/generated';
-import { formatPlantTime, plantLocalToUtc } from '../calendar/plantClock';
+import { DISPLAY_LOCALE, formatPlantTime, plantLocalToUtc } from '../calendar/plantClock';
 import { RESOURCE_STATUS_LABELS, UNAVAILABILITY_KIND_LABELS } from '../machines/machineValues';
 import { addDays, DAYS_SHOWN, type TimelineZoom } from './timelineRange';
 
@@ -163,7 +163,7 @@ function ticksOf(firstDay: string, zoom: TimelineZoom, timeZone: string): { loca
     return Array.from({ length: DAYS_SHOWN[zoom] }, (_, dayOffset) => addDays(firstDay, dayOffset)).map((day) => {
       const local = `${day}T00:00`;
       const utc = plantLocalToUtc(local, timeZone);
-      return { local, utc, label: new Intl.DateTimeFormat('en-GB', { timeZone, weekday: 'short', day: 'numeric' }).format(new Date(utc)) };
+      return { local, utc, label: new Intl.DateTimeFormat(DISPLAY_LOCALE, { timeZone, weekday: 'short', day: 'numeric' }).format(new Date(utc)) };
     });
   }
   return Array.from({ length: 24 / HOURS_BETWEEN_DAY_TICKS }, (_, tickIndex) => {
