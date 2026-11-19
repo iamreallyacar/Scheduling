@@ -16,6 +16,7 @@ Each completed finding was fixed by a task; the decision it names gives the reas
 | 6 | API test data builders lived in test classes and were copied between them | Task M2-13, DEC-38 |
 | 7 | The engine had no rule check a search could call per candidate | Task M3-7, DEC-47 |
 | 8 | Each caller of the snapshot loader had its own hand-written loading scope | Task M3-8, DEC-48 |
+| 10 | Master data was turned into engine calendars in two layers, and the placement and unavailability projections were copied | Task M3-9, DEC-49 |
 
 ## Second audit
 
@@ -32,14 +33,6 @@ The M3 code follows the rules the first audit set up. Records use named required
 - Why it matters: the M4 proposal review and the M5 dashboard both need "lot id to order, stage and lot" and machine names. Each new reader would copy the block again and load whole tables on every request.
 - What to do: add `IOrderReader.FindLotContextsAsync(lotIds)` that returns a lot context (order, operation, lot) for those lots only, and `IMasterDataReader.GetResourceNamesAsync(ids)` modelled on `GetResourceTypesAsync`. Use them in the three readers. The unscheduled queue really needs every order and can keep `ListAllDetailsAsync`.
 - Task: M3-10.
-
-#### 10. Master data is turned into engine calendars in two layers
-
-- Where: `backend/src/TireScheduler.Api/Modules/Scheduling/ScheduleSnapshotLoader.cs` lines 63 to 65 and `backend/src/TireScheduler.Api/Queries/Schedule/TimelineReader.cs` line 131 build `SnapshotCalendar` and `SnapshotShift` the same way. Smaller copies are in `Modules/Scheduling/PlacementReader.cs` (the `PlacementValues` projection, lines 25 and 47) and the `UnavailabilityResponse` mapping in `UnavailabilityRegister.cs` line 100 and `UnavailabilityReader.cs` line 255.
-- Problem: the timeline (Queries) builds engine inputs itself instead of asking the module that owns them, so `TimelineReader` grows a fifth job: working periods, next to loading, the late flag, grouping and mapping.
-- Why it matters: when a shift gains a field, or M4 needs working periods for the search, every copy must change together. If one copy is missed, the timeline's shading and R6 disagree.
-- What to do: put one calendar mapping where `PlantWorkingTime` lives and have both callers use it. The timeline then asks for working periods instead of building them. Turn the repeated placement and unavailability projections into one static selector each.
-- Task: M3-9.
 
 #### 11. The timeline chart takes the page's filter state and repeats its filter rule
 

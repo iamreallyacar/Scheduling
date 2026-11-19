@@ -12,6 +12,7 @@ namespace TireScheduler.Api.Queries.Schedule;
 internal sealed class TimelineReader(
     IPlacementReader placements,
     IUnavailabilityReader unavailabilities,
+    IWorkingPeriodReader workingPeriods,
     IOrderReader orders,
     IMasterDataReader masterData,
     MachineViewReader machines,
@@ -28,7 +29,7 @@ internal sealed class TimelineReader(
             .ToLookup(placement => placement.ResourceId, placement => placement.Response);
         ILookup<int, UnavailabilityResponse> unavailabilitiesByResource = (await unavailabilities.OverlappingAsync(rangeStart, rangeEnd, cancellationToken))
             .ToLookup(unavailability => unavailability.ResourceId);
-        IReadOnlyDictionary<int, IReadOnlyList<TimePeriodResponse>> workingPeriodsByCalendar = await WorkingPeriodsAsync(rangeStart, rangeEnd, cancellationToken);
+        IReadOnlyDictionary<int, IReadOnlyList<WorkingPeriod>> workingPeriodsByCalendar = await workingPeriods.WorkingPeriodsByCalendarAsync(rangeStart, rangeEnd, cancellationToken);
 
         // Listed by type name, then name (AC-30); an inactive machine with nothing to show is left out (A43).
         IEnumerable<ResourceViewResponse> shownMachines = (await machines.ListAsync(resourceTypeId: null, isActive: null, cancellationToken))
@@ -53,7 +54,7 @@ internal sealed class TimelineReader(
                                 Name = machine.Name,
                                 IsActive = machine.IsActive,
                                 Status = machine.Status,
-                                WorkingPeriods = workingPeriodsByCalendar[machine.Calendar.Id],
+                                WorkingPeriods = [.. workingPeriodsByCalendar[machine.Calendar.Id].Select(period => new TimePeriodResponse { Start = period.Start, End = period.End })],
                                 Unavailabilities = [.. unavailabilitiesByResource[machine.Id]],
                                 Placements = [.. placementsByResource[machine.Id]],
                             }),
@@ -113,27 +114,5 @@ internal sealed class TimelineReader(
                 });
             }),
         ];
-    }
-
-    // Only the engine reads the plant-local shift times (ARCHITECTURE.md section "Time rules").
-    private async Task<IReadOnlyDictionary<int, IReadOnlyList<TimePeriodResponse>>> WorkingPeriodsAsync(
-        DateTimeOffset rangeStart,
-        DateTimeOffset rangeEnd,
-        CancellationToken cancellationToken)
-    {
-        PlantWorkingTime workingTime = await masterData.GetWorkingTimeAsync(cancellationToken);
-        HashSet<DateOnly> holidays = [.. workingTime.Holidays];
-        return workingTime.Calendars.ToDictionary(
-            calendar => calendar.Id,
-            IReadOnlyList<TimePeriodResponse> (calendar) =>
-            [
-                .. WorkingPeriods.Between(
-                        new SnapshotCalendar(calendar.Id, [.. calendar.Shifts.Select(shift => new SnapshotShift(shift.Weekday, shift.StartMinuteOfDay, shift.EndMinuteOfDay))]),
-                        holidays,
-                        masterData.PlantTimeZoneId,
-                        rangeStart,
-                        rangeEnd)
-                    .Select(period => new TimePeriodResponse { Start = period.Start, End = period.End }),
-            ]);
     }
 }

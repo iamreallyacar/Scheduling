@@ -56,6 +56,7 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 | DEC-46 | The timeline marks conflicts from the conflict list, which stays on the schedule page | Proposed | 2026-11-18 (M3-6) | wireframes.md section 2, AC-189 to AC-191 |
 | DEC-47 | One placement context per snapshot checks any number of requests, and the static rule calls build one each | Proposed | 2026-11-18 (M3-7) | [engine README](../backend/src/TireScheduler.Engine/README.md), AUDIT.md item 7 |
 | DEC-48 | The snapshot loader loads a version with a scope of resources and orders, or the whole version, in one method that says which rule reads which rows | Proposed | 2026-11-19 (M3-8) | AUDIT.md item 8 |
+| DEC-49 | Scheduling turns the plant calendars into engine calendars in one place, and the timeline reads its working periods from Scheduling | Proposed | 2026-11-19 (M3-9) | ARCHITECTURE.md section "Structure", AUDIT.md item 10 |
 
 ## Accepted
 
@@ -386,6 +387,13 @@ Made while building M1 (2026-11-10) and M2 (2026-11-18) and already followed by 
 - Reason: each caller had its own loading query, with the placement and unavailability projections copied and the rows each rule needs written only in a comment on one of them. The earliest-slot search and schedule-whole-order (M4) look at several resources of a type, and a scope that leaves out a row a rule reads fails quietly, because the rule does not see that row (AUDIT.md item 8).
 - Alternatives: order ids in the scope instead of their facts, rejected because a placement command has already read the facts under the order lock and would read them twice; the whole version as a scope of every resource with the orders read first, rejected because the placements would be read twice and a lot placed between the two reads would be in the snapshot without its lot, which the engine rejects; a public load method that takes any scope, rejected because a scope with a few resources holds placements of other orders' lots without those lots, so it suits only checks of its own orders' lots and must not reach `FindConflicts` or `RecomputeEnds`.
 - Consequences: a new kind of check adds a wrapper next to the two existing ones and never writes a loading query; for example the earliest-slot search adds one for the order's lot on every resource of its type.
+
+### DEC-49 Engine calendars built in one place
+
+- Decision: `EngineWorkingTimeLoader` (Scheduling) is the only code that turns the calendars, shifts and holidays of `IMasterDataReader.GetWorkingTimeAsync` into the engine's `SnapshotCalendar` values, with the plant time zone. `ScheduleSnapshotLoader` builds every snapshot with it, and the public read port `IWorkingPeriodReader` (Scheduling) answers the working periods of every calendar in a range through the engine's `WorkingPeriods.Between`. The timeline (Queries) asks that port for the working periods instead of building calendars itself, and keeps only the mapping to its answer. The placement values and the unavailability answer are each projected by one selector in Scheduling.
+- Reason: the snapshot and the timeline built engine calendars the same way in two layers, so a new shift field or the M4 search would need both copies changed together, and a missed copy would make the timeline's shading disagree with R6 (AUDIT.md item 10).
+- Alternatives: the mapping in MasterData next to `PlantWorkingTime`, as the audit proposed, rejected because MasterData may not use the engine (ARCHITECTURE.md section "Structure") and would then need a new row in the dependency table; a shared static mapping that Queries calls, rejected because the timeline would still build engine inputs and load the working time itself.
+- Consequences: Queries uses the engine only for the late flag (DEC-30) and the engine's working period type in the port's answer. A per-machine calendar (F-MD-6, P1) changes only the loader and the port.
 
 ## Open
 

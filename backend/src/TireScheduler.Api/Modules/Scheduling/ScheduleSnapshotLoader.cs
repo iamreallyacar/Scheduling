@@ -11,6 +11,7 @@ namespace TireScheduler.Api.Modules.Scheduling;
 internal sealed class ScheduleSnapshotLoader(
     SchedulingDbContext context,
     IMasterDataReader masterData,
+    EngineWorkingTimeLoader workingTimeLoader,
     IOrderReader orders,
     ILotProgressStates lotProgress)
 {
@@ -52,15 +53,13 @@ internal sealed class ScheduleSnapshotLoader(
             .Select(unavailability => new SnapshotUnavailability(unavailability.Id, unavailability.ResourceId, unavailability.StartsAt, unavailability.EndsAt))
             .ToListAsync(cancellationToken);
         IReadOnlyDictionary<int, StartedLotState> startedLots = await lotProgress.StartedLotsAsync(lotIdsInSnapshot, cancellationToken);
-        PlantWorkingTime workingTime = await masterData.GetWorkingTimeAsync(cancellationToken);
+        EngineWorkingTime workingTime = await workingTimeLoader.LoadAsync(cancellationToken);
         IReadOnlyList<ResourceResponse> resources = await masterData.ListResourcesAsync(resourceTypeId: null, isActive: null, cancellationToken);
 
         return new ScheduleSnapshot(
-            masterData.PlantTimeZoneId,
-            [.. workingTime.Calendars.Select(calendar => new SnapshotCalendar(
-                calendar.Id,
-                [.. calendar.Shifts.Select(shift => new SnapshotShift(shift.Weekday, shift.StartMinuteOfDay, shift.EndMinuteOfDay))]))],
-            workingTime.Holidays.ToHashSet(),
+            workingTime.TimeZoneId,
+            workingTime.Calendars,
+            workingTime.Holidays,
             [.. resources.Select(resource => new SnapshotResource(resource.Id, resource.ResourceType.Id, resource.Calendar.Id, resource.IsActive))],
             snapshotUnavailabilities,
             [.. ordersInSnapshot.SelectMany(order => order.Lots.Select(lot => new SnapshotLot(

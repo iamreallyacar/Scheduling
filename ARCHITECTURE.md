@@ -50,7 +50,7 @@ flowchart LR
 | Orders | Order, Operation, OperationDependency, Lot | MasterData (routing at order creation), Engine (lot duration, DEC-28) |
 | Scheduling | ScheduleVersion, Placement, Unavailability; calls the engine | MasterData (resources, calendars), Orders (lots, dependencies), Engine |
 | Progress | LotProgress | Orders, Scheduling (a lot must be placed in the live version before it starts) |
-| Queries | Read models only, including all derived statuses and `isLate`; serves the order reads (DEC-29), the machine reads (DEC-39), the unscheduled-lots queue, the conflicted placements and the timeline | All modules, read-only; Engine (late flag, DEC-30; working periods, DEC-45) |
+| Queries | Read models only, including all derived statuses and `isLate`; serves the order reads (DEC-29), the machine reads (DEC-39), the unscheduled-lots queue, the conflicted placements and the timeline | All modules, read-only; Engine (late flag, DEC-30); the working periods come from Scheduling (DEC-49) |
 | Engine | Scheduling rules and search over plain values | Nothing |
 | Plant generator (`TireScheduler.PlantGenerator`) | Parameters, presets and a seeded synthetic plant as plain values | Engine (lot duration) |
 | Plant loader (`TireScheduler.PlantLoader`) | Writing a generated plant into a running API as an Admin | Plant generator; the API over HTTP only |

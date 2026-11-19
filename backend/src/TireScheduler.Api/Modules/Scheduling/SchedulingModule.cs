@@ -13,6 +13,8 @@ public static class SchedulingModule
         services.AddScoped<UnavailabilityRegister>();
         services.AddScoped<IUnavailabilityReader, UnavailabilityReader>();
         services.AddScoped<ScheduleVersions>();
+        services.AddScoped<EngineWorkingTimeLoader>();
+        services.AddScoped<IWorkingPeriodReader, WorkingPeriodReader>();
         services.AddScoped<ScheduleSnapshotLoader>();
         services.AddScoped<PlacementRegister>();
         services.AddScoped<IPlacementReader, PlacementReader>();
