@@ -74,6 +74,7 @@ internal sealed class ScheduleSnapshotLoader(
             [.. ordersInSnapshot.SelectMany(order => order.Lots.Select(lot => new SnapshotLot(
                 lot.Id,
                 lot.OperationId,
+                lot.SequenceNo,
                 lot.DurationMinutes,
                 lot.ResourceTypeId,
                 ProgressOf(startedLots, lot.Id),

@@ -36,7 +36,7 @@ Backend, in `backend/tests/TireScheduler.Engine.Tests`:
 
 - `TestPlant`: the plant of the examples in `acceptance-criteria.md` section 4 as an engine snapshot (Press 1, Press 2, Builder 1, the plant default calendar in `Europe/Berlin`), with `With...` methods that add lots, placements, unavailabilities, dependencies, holidays and shifts, and the days of one winter week as UTC instants.
 - `RuleAssert`: checks that a placement is accepted, or rejected with a given first code and conflict.
-- `PlantSnapshot.From` (in the generator core): a generated plant as an unplaced engine snapshot, for the property tests (AC-193, DEC-56). `EarliestSlotPropertyTests` first places some lots at random starts that pass `Validate`, so the search meets placements and dependencies too.
+- `PlantSnapshot.From` (in the generator core): a generated plant as an unplaced engine snapshot, for the property tests (AC-193, DEC-56). `GeneratedPlants` holds the seeds and start dates of the property tests and first places some lots at random starts that pass `Validate`, so the searches meet placements and dependencies too; it also gives the lot ids of each generated order, which `ScheduleOrderAsapPropertyTests` proposes one order at a time.
 
 Frontend, in `frontend/src/testing`:
 

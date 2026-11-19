@@ -62,8 +62,9 @@ internal static class TestPlant
         int resourceTypeId = CuringType,
         int? operationId = null,
         LotProgressState progress = LotProgressState.NotStarted,
-        bool orderIsCancelled = false) =>
-        snapshot with { Lots = [.. snapshot.Lots, new SnapshotLot(lotId, operationId ?? lotId, durationMinutes, resourceTypeId, progress, orderIsCancelled)] };
+        bool orderIsCancelled = false,
+        int sequenceNo = 1) =>
+        snapshot with { Lots = [.. snapshot.Lots, new SnapshotLot(lotId, operationId ?? lotId, sequenceNo, durationMinutes, resourceTypeId, progress, orderIsCancelled)] };
 
     public static ScheduleSnapshot WithPlacement(this ScheduleSnapshot snapshot, int placementId, int lotId, int resourceId, DateTimeOffset plannedStart, DateTimeOffset plannedEnd) =>
         snapshot with { Placements = [.. snapshot.Placements, new SnapshotPlacement(placementId, lotId, resourceId, plannedStart, plannedEnd)] };

@@ -66,6 +66,7 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 | DEC-56 | Property tests run the engine on generated plants over fixed seeds, through one mapping in the generator core | Proposed | 2026-11-19 (M4-1) | AUDIT.md item 19, TESTING.md section "Test levels", AC-193 |
 | DEC-57 | Forms share one save frame, and the schedule page keeps its timeline state in a hook of its own | Proposed | 2026-11-19 (M4-2) | AUDIT.md items 12 and 15 |
 | DEC-58 | The earliest-slot read: any role, a snapshot of the lot's type and order, 400 for an unknown machine and `slot.none` for an unfit one, asked on a button press | Proposed | 2026-11-19 (M4-2) | API.md section "Scheduling calls", AC-194 to AC-198 |
+| DEC-59 | The whole-order proposal orders lots by their dependencies and stage numbers, rejects a cancelled order as a whole and searches each lot on the proposals so far | Proposed | 2026-11-19 (M4-3) | engine README, AC-127 to AC-131 |
 
 ## Accepted
 
@@ -466,6 +467,13 @@ Made while building M1 (2026-11-10) and M2 (2026-11-18) and already followed by 
 - Reason: the search changes nothing (AC-126), and a Viewer reads everything (ARCHITECTURE.md section "Access rules"). An unknown id is a wrong reference, as in a placement (AC-177), while R1 belongs to the engine, so the API does not check the machine's type or state before the search. A mutation would read every query on screen again after it (DEC-36), and a query that ran as the fields change would search on every typed character; searching again asks again, because a search from now gives a new answer as time passes, and a changed field, or a form opened again, shows no suggestion made for other values or at another time.
 - Alternatives: the Plan policy, rejected because the read changes nothing; an inactive or wrong-type machine answered with its R1 rejection, rejected because the API would repeat R1 before the engine; serving the read from Queries, rejected because the snapshot loader belongs to Scheduling (DEC-48). The "Depends on" lines that `wireframes.md` section 3 gave to this task, with the end of each placed predecessor lot and the earliest start they allow, are deferred to the backlog: they need a read of the placed predecessor lots that no endpoint gives, and the search and the R4 rejection (AC-91) already show the earliest start the dependencies allow.
 - Consequences: `ProblemCodes.SlotNone` holds `slot.none` for the proposal too. The form's search machine list is labelled "Search on", so it does not share the label "Machine" with the Placement part.
+
+### DEC-59 The whole-order proposal in the engine
+
+- Decision: `ScheduleOrderAsap.Propose` takes a snapshot and the lot ids of one order. It puts the lots in dependency order, choosing among the lots whose predecessors have all come the lower sequence number and then the lower lot id, and calls `EarliestSlot.Find` for each unplaced lot on a snapshot that holds the proposals so far as placements with ids below zero. The first lot without a slot ends the search and is named, so a proposal holds every unplaced lot or none. A lot of a cancelled order rejects the whole order with its R8 violations, even when every lot is placed. `SnapshotLot` carries the sequence number of its operation's stage, filled by the snapshot loader from Orders and by `PlantSnapshot` from the generated stage.
+- Reason: AC-129 breaks ties by the sequence number, which the snapshot did not hold, and the engine keeps that rule as it keeps the tie-break by name (DEC-55). A routing may link a stage to one with a lower number, as long as there is no cycle, so the numbers alone are no dependency order. A `PlacementContext` never counts an earlier request as placed (DEC-47). AC-133 rejects a cancelled order whatever is placed.
+- Alternatives: the caller passing the lots in sequence order, rejected for the reason of DEC-55; an index that takes extra placements instead of indexing the snapshot again for every lot, left until task M4-5 shows that the `plant` or `stress` preset is too slow, because the `small` preset and an order of a few lots are fast.
+- Consequences: `SchedulingLotFacts` (Orders) carries the sequence number, and AC-193 checks the mapping. The proposal endpoint (task M4-4) maps `LotWithoutSlot` to 422 `slot.none` naming the lot and `Violations` to the rejection of a placement.
 
 ## Open
 

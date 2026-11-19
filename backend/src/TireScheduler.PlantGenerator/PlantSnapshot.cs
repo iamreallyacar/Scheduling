@@ -36,6 +36,7 @@ public static class PlantSnapshot
                 lots.Add(new SnapshotLot(
                     operationId,
                     operationId,
+                    stage.SequenceNo,
                     checked((int)durationMinutes),
                     machineTypeIds[stage.MachineTypeName],
                     LotProgressState.NotStarted,

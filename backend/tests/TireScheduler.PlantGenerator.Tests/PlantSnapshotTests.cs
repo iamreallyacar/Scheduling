@@ -67,6 +67,7 @@ public sealed class PlantSnapshotTests
                 SnapshotLot lot = snapshot.Lots[lotIndex++];
                 Assert.Equal(LotDuration.Minutes(stage.SetupMinutes, stage.CycleMinutes, stage.UnitsPerCycle, order.Quantity), lot.DurationMinutes);
                 Assert.Equal(typeIdByMachineType[stage.MachineTypeName], lot.ResourceTypeId);
+                Assert.Equal(stage.SequenceNo, lot.SequenceNo);
                 Assert.Equal(LotProgressState.NotStarted, lot.Progress);
                 Assert.False(lot.OrderIsCancelled);
                 lotBySequenceNo[stage.SequenceNo] = lot;

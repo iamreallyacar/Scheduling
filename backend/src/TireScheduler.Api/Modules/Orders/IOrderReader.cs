@@ -57,6 +57,8 @@ public sealed record SchedulingLotFacts
 
     public required int OperationId { get; init; }
 
+    public required int SequenceNo { get; init; }
+
     public required int ResourceTypeId { get; init; }
 
     public required int DurationMinutes { get; init; }

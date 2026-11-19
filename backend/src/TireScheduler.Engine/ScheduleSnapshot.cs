@@ -24,9 +24,12 @@ public sealed record SnapshotResource(int Id, string Name, int ResourceTypeId, i
 // No end means the resource is blocked from the start onward (R3).
 public sealed record SnapshotUnavailability(int Id, int ResourceId, DateTimeOffset Start, DateTimeOffset? End);
 
+// The sequence number is the lot's stage in its order's routing; it breaks ties between stages
+// that may be proposed in either order (AC-129).
 public sealed record SnapshotLot(
     int Id,
     int OperationId,
+    int SequenceNo,
     int DurationMinutes,
     int ResourceTypeId,
     LotProgressState Progress,

@@ -2,34 +2,23 @@ using TireScheduler.PlantGenerator;
 
 namespace TireScheduler.Engine.Tests;
 
-// AC-115 and AC-116 over generated plants (DEC-32). Some lots are placed first at random starts
-// that pass Validate, so the search meets placements and dependencies as well as downtime.
-// 2027-03-22 is the week of the spring-forward change in Europe/Berlin.
+// AC-115 and AC-116 over generated plants (DEC-32), some of whose lots are placed first.
 public sealed class EarliestSlotPropertyTests
 {
-    private const string Berlin = "Europe/Berlin";
-    private const int PlacementAttemptsPerLot = 5;
+    private const string Berlin = GeneratedPlants.Berlin;
     private const int StartGridMinutes = 15;
 
     private static readonly TimeSpan Horizon = TimeSpan.FromDays(90);
 
-    public static TheoryData<int, DateOnly> Plants() => new()
-    {
-        { 1, new DateOnly(2026, 11, 16) },
-        { 42, new DateOnly(2027, 3, 22) },
-        { 2026, new DateOnly(2026, 10, 26) },
-        { -7, new DateOnly(2027, 3, 22) },
-    };
-
     [Theory]
-    [MemberData(nameof(Plants))]
+    [MemberData(nameof(GeneratedPlants.Cases), MemberType = typeof(GeneratedPlants))]
     public void AC_115_AC_116_every_slot_passes_Validate_and_no_earlier_minute_on_its_resource_does(int seed, DateOnly startDate)
     {
         GeneratedPlant plant = SyntheticPlant.Generate(PlantPresets.Small, seed, startDate);
         DateTimeOffset planStart = PlantTime.StartOfDay(plant.StartDate, Berlin);
         int planMinutes = (int)(PlantTime.StartOfDay(plant.EndDate, Berlin) - planStart).TotalMinutes;
         SeededRandom random = new(seed);
-        ScheduleSnapshot snapshot = WithSomeLotsPlaced(PlantSnapshot.From(plant, Berlin), random, planStart, planMinutes);
+        ScheduleSnapshot snapshot = GeneratedPlants.WithSomeLotsPlaced(PlantSnapshot.From(plant, Berlin), random, planStart, planMinutes);
         PlacementContext context = new(snapshot);
 
         int slotsFound = 0;
@@ -73,27 +62,5 @@ public sealed class EarliestSlotPropertyTests
                 Assert.False(context.Validate(new PlacementRequest(lot.Id, resource.Id, start)).IsAccepted, $"Lot {lot.Id} got no slot but fits on resource {resource.Id} at {start:O}.");
             }
         }
-    }
-
-    private static ScheduleSnapshot WithSomeLotsPlaced(ScheduleSnapshot snapshot, SeededRandom random, DateTimeOffset planStart, int planMinutes)
-    {
-        int placementId = 1;
-        foreach (SnapshotLot lot in snapshot.Lots)
-        {
-            SnapshotResource[] resourcesOfType = [.. snapshot.Resources.Where(resource => resource.ResourceTypeId == lot.ResourceTypeId)];
-            for (int attempt = 0; attempt < PlacementAttemptsPerLot; attempt++)
-            {
-                SnapshotResource resource = resourcesOfType[random.Next(0, resourcesOfType.Length)];
-                DateTimeOffset start = planStart.AddMinutes(StartGridMinutes * random.Next(0, planMinutes / StartGridMinutes));
-                PlacementCheck check = PlacementRules.Validate(snapshot, new PlacementRequest(lot.Id, resource.Id, start));
-                if (check.IsAccepted && check.PlannedEnd is { } plannedEnd)
-                {
-                    snapshot = snapshot.WithPlacement(placementId++, lot.Id, resource.Id, start, plannedEnd);
-                    break;
-                }
-            }
-        }
-
-        return snapshot;
     }
 }

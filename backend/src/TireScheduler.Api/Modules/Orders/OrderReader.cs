@@ -189,6 +189,7 @@ internal sealed class OrderReader(OrdersDbContext context, IMasterDataReader mas
             {
                 Id = lot.Id,
                 OperationId = operation.Id,
+                SequenceNo = operation.SequenceNo,
                 ResourceTypeId = operation.ResourceTypeId,
                 DurationMinutes = lot.DurationMinutes,
             }))

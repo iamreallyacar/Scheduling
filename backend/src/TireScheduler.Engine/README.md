@@ -1,6 +1,6 @@
 # Scheduling engine
 
-Inputs, operations and search of the scheduling engine. The rules it keeps are in `ARCHITECTURE.md` section "Engine rules". `LotDuration` came with task M2-3, `PlantTime` and `OrderLateness` with task M2-4 (`PlantTime.LocalToUtc` with task M3-2), `PlacementRules` with task M3-1 (`PlacementContext` with task M3-7), and `WorkingPeriods` and `PlantTime.StartOfDay` with task M3-6; `EarliestSlot` with task M4-1; `ScheduleOrderAsap` follows in task M4-3. Their expected behavior, including the worked examples, is in [acceptance-criteria.md](../../../REQUIREMENTS/acceptance-criteria.md) sections 4 and 5.
+Inputs, operations and search of the scheduling engine. The rules it keeps are in `ARCHITECTURE.md` section "Engine rules". `LotDuration` came with task M2-3, `PlantTime` and `OrderLateness` with task M2-4 (`PlantTime.LocalToUtc` with task M3-2), `PlacementRules` with task M3-1 (`PlacementContext` with task M3-7), and `WorkingPeriods` and `PlantTime.StartOfDay` with task M3-6; `EarliestSlot` with task M4-1, and `ScheduleOrderAsap` with task M4-3. Their expected behavior, including the worked examples, is in [acceptance-criteria.md](../../../REQUIREMENTS/acceptance-criteria.md) sections 4 and 5.
 
 ## Inputs
 
@@ -10,10 +10,10 @@ A `ScheduleSnapshot` for one schedule version, loaded by the caller:
 - Resources: id, name, type, calendar, isActive. The name breaks ties in the earliest-slot search (DEC-55).
 - Unavailabilities: id, resource, start, end (open end allowed). Both kinds block the same way (R3).
 - Placements of the version: id, lot, resource, start, stored planned end.
-- Lots: id, operation, duration, resource type, progress (not started, In Progress, Completed), order cancelled flag.
+- Lots: id, operation, the sequence number of the operation's stage, duration, resource type, progress (not started, In Progress, Completed), order cancelled flag. The sequence number breaks ties in the whole-order proposal (AC-129).
 - Operation dependencies with lag.
 
-A lot or resource asked about that is not in the snapshot is an `ArgumentException`, because the caller loads the snapshot for the rows it asks about. A lot duration below one minute is an `ArgumentOutOfRangeException`; Orders computes durations with `LotDuration`, which never gives less.
+A lot or resource asked about that is not in the snapshot is an `ArgumentException`, because the caller loads the snapshot for the rows it asks about, and so is a lot given twice to `ScheduleOrderAsap`. A lot duration below one minute is an `ArgumentOutOfRangeException`; Orders computes durations with `LotDuration`, which never gives less.
 
 ## Operations
 
@@ -31,7 +31,7 @@ A lot or resource asked about that is not in the snapshot is an `ArgumentExcepti
 | `PlacementRules.Validate(snapshot, request)` | The planned end and every violated rule with its conflicting item, in rule order (R1-R4, R6, R8; A35). Accepted when there are none. The lot's own current placement is ignored |
 | `PlacementRules.ValidateRemoval(snapshot, lot)` | The R8 violation if the lot has started; removing never breaks another rule |
 | `EarliestSlot.Find(snapshot, request)` | For the request's lot, resources (none given: every active resource of the lot's type; given ones are searched as given, so an inactive one or one of another type gets no slot), `notBefore` and horizon: on each resource the earliest start that passes `Validate`. Across resources the slot with the earliest end wins; on a tie the earlier start, then the resource name, then the id. The lot's own current placement is ignored. A started lot or one of a cancelled order gets its R8 violations instead (AC-124); otherwise the result has no slot if nothing fits within the horizon (DEC-55) |
-| `ScheduleOrderAsap(order lots, notBefore)` | A proposal: each unplaced lot in dependency order gets its `EarliestSlot`, with earlier proposals counted as placed. Existing placements never move. Fails as a whole if any lot cannot be placed |
+| `ScheduleOrderAsap.Propose(snapshot, request)` | For the request's lots of one order, `notBefore` and horizon: a proposal in which each unplaced lot, in dependency order, gets its `EarliestSlot` on every active resource of its type, with the earlier proposals counted as placed. Among lots whose predecessors have all come, the lower sequence number comes first, then the lower lot id. Existing placements never move. There is no proposal when a lot has no slot within the horizon, and the result names that lot (AC-131), or when the order is cancelled or a lot to propose has started, and the result holds the R8 violations (AC-133, DEC-59) |
 | `PlacementRules.FindConflicts(snapshot)` | Existing placements that now break a rule, each with its violations, checked with the stored planned ends; completed lots are left out (`ARCHITECTURE.md` section "Persistence rules", A36) |
 
 ## Working time
