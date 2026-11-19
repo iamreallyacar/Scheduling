@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState, type SyntheticEvent } from 'react';
 import { replaceCalendarShifts } from '../api/generated/endpoints.gen';
-import type { CalendarResponse } from '../api/generated';
+import type { CalendarResponse, DayOfWeek } from '../api/generated';
 import { problemOf } from '../api/problem';
 import { SelectField, TextField, type SelectOption } from '../forms/Fields';
 import { ProblemSummary } from '../forms/ProblemSummary';
@@ -9,6 +9,18 @@ import { addShift, changeShift, draftFromCalendar, removeShift, toShiftsRequest,
 
 const NOTHING_CHOSEN = '';
 const weekdayOptions: SelectOption[] = [{ value: NOTHING_CHOSEN, label: 'Choose a day' }, ...WEEKDAYS.map((weekday) => ({ value: weekday, label: weekday }))];
+
+// The select offers only its options, so another value is a bug, not a missing choice.
+function weekdayOfOption(optionValue: string): DayOfWeek | typeof NOTHING_CHOSEN {
+  if (optionValue === NOTHING_CHOSEN) {
+    return NOTHING_CHOSEN;
+  }
+  const weekday = WEEKDAYS.find((day) => day === optionValue);
+  if (weekday === undefined) {
+    throw new Error(`The weekday select offered "${optionValue}", which is no weekday.`);
+  }
+  return weekday;
+}
 
 // The shifts of a calendar are edited together and saved as one weekly list (A26). Field names
 // are the paths the API uses in `errors`, so each message lands next to its field.
@@ -50,7 +62,7 @@ export function ShiftEditor({ calendar }: { calendar: CalendarResponse }) {
               name={`${fieldPath}.weekday`}
               value={shift.weekday}
               onChange={(weekday) => {
-                edit(changeShift(draft, shift.key, { weekday: WEEKDAYS.find((day) => day === weekday) ?? '' }));
+                edit(changeShift(draft, shift.key, { weekday: weekdayOfOption(weekday) }));
               }}
               problem={problem}
               options={weekdayOptions}

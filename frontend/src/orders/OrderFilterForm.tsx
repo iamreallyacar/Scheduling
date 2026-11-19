@@ -16,9 +16,11 @@ interface OrderFilterFormProps {
 const DESCENDING_PREFIX = '-';
 const ANY = '';
 
-// The list item fields the server sorts by (AC-68); the first is shown when the address names none.
+// Shown when the address names no sort.
+const DEFAULT_SORT_FIELD = 'dueDate';
+// The list item fields the server sorts by (AC-68).
 const sortFieldOptions: SelectOption[] = [
-  { value: 'dueDate', label: 'Due date' },
+  { value: DEFAULT_SORT_FIELD, label: 'Due date' },
   { value: 'orderNo', label: 'Order number' },
   { value: 'customerName', label: 'Customer' },
   { value: 'priority', label: 'Priority' },
@@ -44,7 +46,7 @@ export function OrderFilterForm({ query, problem, onApply }: OrderFilterFormProp
   const [dueFrom, setDueFrom] = useState(query.dueFrom ?? '');
   const [dueTo, setDueTo] = useState(query.dueTo ?? '');
   const [priorities, setPriorities] = useState<readonly string[]>(query.priority ?? []);
-  const [sortField, setSortField] = useState(query.sort?.replace(DESCENDING_PREFIX, '') ?? sortFieldOptions[0]?.value ?? '');
+  const [sortField, setSortField] = useState(query.sort?.replace(DESCENDING_PREFIX, '') ?? DEFAULT_SORT_FIELD);
   const [isDescending, setIsDescending] = useState(query.sort?.startsWith(DESCENDING_PREFIX) ?? false);
 
   function apply(event: SyntheticEvent<HTMLFormElement>) {
