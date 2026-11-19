@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
+import type { TimelineResponse } from '../api/generated';
 import { useSignedInUser } from '../auth/signedInUser';
 import { WithPlantTimeZone } from '../calendar/WithPlantTimeZone';
 import { QueryResult } from '../forms/QueryResult';
@@ -102,11 +103,7 @@ function ScheduleContent({ timeZone, nowMs, firstDay, zoom, ...rangeActions }: S
     setSelectedPlacementId(placementId);
   });
   const conflictsByPlacement = new Map((conflictedPlacements.data ?? []).map((conflict) => [conflict.placementId, conflict.violations]));
-  const isDrawn = (bar: TimelineBar) =>
-    (resourceTypeId === null || bar.resourceTypeId === resourceTypeId) && (!onlyConflicted || conflictsByPlacement.has(bar.placement.placementId));
-  // A selected placement that the shown range or the filters no longer draw has no popover.
-  const selectedBar =
-    timeline.data === undefined ? undefined : barsOf(timeline.data).find((bar) => bar.placement.placementId === selectedPlacementId && isDrawn(bar));
+  const conflictedPlacementIds: ReadonlySet<number> = new Set(conflictsByPlacement.keys());
   const moveTargetOf = ({ placement, resource }: TimelineBar): PlacementTarget => ({
     ...placement,
     placement: { resourceId: resource.id, plannedStart: placement.plannedStart },
@@ -139,39 +136,44 @@ function ScheduleContent({ timeZone, nowMs, firstDay, zoom, ...rangeActions }: S
         onOnlyConflicted={setOnlyConflicted}
         {...rangeActions}
       />
-      {selectedBar !== undefined && (
-        <LotPopover
-          bar={selectedBar}
-          violations={conflictsByPlacement.get(selectedBar.placement.placementId) ?? []}
-          timeZone={timeZone}
-          renderConflictLink={renderConflictLink}
-          onMove={
-            canPlan
-              ? () => {
-                  setLotInForm(moveTargetOf(selectedBar));
-                }
-              : null
-          }
-          onClose={() => {
-            setSelectedPlacementId(null);
-          }}
-        />
-      )}
       <QueryResult query={timeline}>
-        {(loadedTimeline) => (
-          <TimelineChart
-            timeline={loadedTimeline}
-            firstDay={firstDay}
-            zoom={zoom}
-            timeZone={timeZone}
-            nowMs={nowMs}
-            resourceTypeId={resourceTypeId}
-            conflictedPlacementIds={new Set(conflictsByPlacement.keys())}
-            onlyConflicted={onlyConflicted}
-            selectedPlacementId={selectedPlacementId}
-            onSelect={setSelectedPlacementId}
-          />
-        )}
+        {(loadedTimeline) => {
+          const shownTimeline = timelineShownBy(loadedTimeline, resourceTypeId, onlyConflicted ? conflictedPlacementIds : null);
+          // A selected placement that the shown range or the filters no longer draw has no popover.
+          const selectedBar = barsOf(shownTimeline).find((bar) => bar.placement.placementId === selectedPlacementId);
+          return (
+            <>
+              {selectedBar !== undefined && (
+                <LotPopover
+                  bar={selectedBar}
+                  violations={conflictsByPlacement.get(selectedBar.placement.placementId) ?? []}
+                  timeZone={timeZone}
+                  renderConflictLink={renderConflictLink}
+                  onMove={
+                    canPlan
+                      ? () => {
+                          setLotInForm(moveTargetOf(selectedBar));
+                        }
+                      : null
+                  }
+                  onClose={() => {
+                    setSelectedPlacementId(null);
+                  }}
+                />
+              )}
+              <TimelineChart
+                timeline={shownTimeline}
+                firstDay={firstDay}
+                zoom={zoom}
+                timeZone={timeZone}
+                nowMs={nowMs}
+                conflictedPlacementIds={conflictedPlacementIds}
+                selectedPlacementId={selectedPlacementId}
+                onSelect={setSelectedPlacementId}
+              />
+            </>
+          );
+        }}
       </QueryResult>
       <ConflictList onMove={canPlan ? setLotInForm : null} renderConflictLink={renderConflictLink} />
       <button
@@ -186,4 +188,21 @@ function ScheduleContent({ timeZone, nowMs, firstDay, zoom, ...rangeActions }: S
       {!queueHidden && <UnscheduledLotQueue onPlace={canPlan ? setLotInForm : null} />}
     </>
   );
+}
+
+// The toolbar's filters, applied once: the chart draws the result and the popover opens only on a bar in
+// it. A null resource type shows every type; null placement ids show every bar.
+function timelineShownBy(timeline: TimelineResponse, resourceTypeId: number | null, onlyPlacementIds: ReadonlySet<number> | null): TimelineResponse {
+  return {
+    ...timeline,
+    resourceTypes: timeline.resourceTypes
+      .filter((resourceType) => resourceTypeId === null || resourceType.id === resourceTypeId)
+      .map((resourceType) => ({
+        ...resourceType,
+        resources: resourceType.resources.map((resource) => ({
+          ...resource,
+          placements: resource.placements.filter((placement) => onlyPlacementIds === null || onlyPlacementIds.has(placement.placementId)),
+        })),
+      })),
+  };
 }

@@ -9,10 +9,8 @@ interface TimelineChartProps {
   zoom: TimelineZoom;
   timeZone: string;
   nowMs: number;
-  /** Null shows every resource type. */
-  resourceTypeId: number | null;
+  /** The placements drawn as conflicted (DEC-46). */
   conflictedPlacementIds: ReadonlySet<number>;
-  onlyConflicted: boolean;
   selectedPlacementId: number | null;
   onSelect: (placementId: number) => void;
 }
@@ -25,11 +23,10 @@ interface ShownRange {
 const HOURS_BETWEEN_DAY_TICKS = 6;
 
 // F-SCH-2, read-only (wireframes.md section 2): what the API returns, drawn on the shown range. The
-// chart decides no rule; it only places what it is given (AC-189).
-export function TimelineChart(props: TimelineChartProps) {
-  const { timeline, resourceTypeId, nowMs } = props;
+// chart decides no rule and filters nothing; it draws every machine and bar it is given (AC-189), so
+// the caller decides what is shown.
+export function TimelineChart({ timeline, firstDay, zoom, timeZone, nowMs, conflictedPlacementIds, selectedPlacementId, onSelect }: TimelineChartProps) {
   const range: ShownRange = { startMs: Date.parse(timeline.start), endMs: Date.parse(timeline.end) };
-  const shownTypes = timeline.resourceTypes.filter((resourceType) => resourceTypeId === null || resourceType.id === resourceTypeId);
   const nowIsShown = range.startMs <= nowMs && nowMs < range.endMs;
 
   return (
@@ -40,7 +37,7 @@ export function TimelineChart(props: TimelineChartProps) {
           <th scope="col">Status</th>
           <th scope="col" className="timeline-scale-cell">
             <div className="timeline-scale">
-              {ticksOf(props).map((tick) => (
+              {ticksOf(firstDay, zoom, timeZone).map((tick) => (
                 <span key={tick.local} className="timeline-tick" style={{ left: spanStyle(range, Date.parse(tick.utc), range.endMs).left }}>
                   {tick.label}
                 </span>
@@ -50,7 +47,7 @@ export function TimelineChart(props: TimelineChartProps) {
           </th>
         </tr>
       </thead>
-      {shownTypes.map((resourceType) => (
+      {timeline.resourceTypes.map((resourceType) => (
         <tbody key={resourceType.id}>
           <tr>
             <th scope="rowgroup" colSpan={3} className="timeline-group">
@@ -58,7 +55,16 @@ export function TimelineChart(props: TimelineChartProps) {
             </th>
           </tr>
           {resourceType.resources.map((resource) => (
-            <MachineRow key={resource.id} {...props} resource={resource} range={range} nowLineMs={nowIsShown ? nowMs : null} />
+            <MachineRow
+              key={resource.id}
+              resource={resource}
+              range={range}
+              nowLineMs={nowIsShown ? nowMs : null}
+              timeZone={timeZone}
+              conflictedPlacementIds={conflictedPlacementIds}
+              selectedPlacementId={selectedPlacementId}
+              onSelect={onSelect}
+            />
           ))}
         </tbody>
       ))}
@@ -66,17 +72,17 @@ export function TimelineChart(props: TimelineChartProps) {
   );
 }
 
-function MachineRow({
-  resource,
-  range,
-  nowLineMs,
-  timeZone,
-  conflictedPlacementIds,
-  onlyConflicted,
-  selectedPlacementId,
-  onSelect,
-}: TimelineChartProps & { resource: TimelineResourceResponse; range: ShownRange; nowLineMs: number | null }) {
-  const shownPlacements = resource.placements.filter((placement) => !onlyConflicted || conflictedPlacementIds.has(placement.placementId));
+interface MachineRowProps {
+  resource: TimelineResourceResponse;
+  range: ShownRange;
+  nowLineMs: number | null;
+  timeZone: string;
+  conflictedPlacementIds: ReadonlySet<number>;
+  selectedPlacementId: number | null;
+  onSelect: (placementId: number) => void;
+}
+
+function MachineRow({ resource, range, nowLineMs, timeZone, conflictedPlacementIds, selectedPlacementId, onSelect }: MachineRowProps) {
   return (
     <tr>
       <th scope="row">{resource.isActive ? resource.name : `${resource.name} (inactive)`}</th>
@@ -98,7 +104,7 @@ function MachineRow({
             </div>
           ))}
           {nowLineMs !== null && <div aria-hidden="true" className="timeline-now" style={{ left: spanStyle(range, nowLineMs, range.endMs).left }} />}
-          {shownPlacements.map((placement) => {
+          {resource.placements.map((placement) => {
             const isConflicted = conflictedPlacementIds.has(placement.placementId);
             return (
               <button
@@ -152,7 +158,7 @@ function nonWorkingSpans(resource: TimelineResourceResponse, range: ShownRange):
 }
 
 // One tick a day for two weeks, and every few hours for one day, at their instants on the plant clock.
-function ticksOf({ firstDay, zoom, timeZone }: TimelineChartProps): { local: string; utc: string; label: string }[] {
+function ticksOf(firstDay: string, zoom: TimelineZoom, timeZone: string): { local: string; utc: string; label: string }[] {
   if (zoom === 'two-weeks') {
     return Array.from({ length: DAYS_SHOWN[zoom] }, (_, dayOffset) => addDays(firstDay, dayOffset)).map((day) => {
       const local = `${day}T00:00`;

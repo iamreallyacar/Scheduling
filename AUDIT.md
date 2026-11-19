@@ -18,6 +18,7 @@ Each completed finding was fixed by a task; the decision it names gives the reas
 | 8 | Each caller of the snapshot loader had its own hand-written loading scope | Task M3-8, DEC-48 |
 | 9 | Queries readers loaded every order and every machine to look up a few lots and machine names | Task M3-10, DEC-50 |
 | 10 | Master data was turned into engine calendars in two layers, and the placement and unavailability projections were copied | Task M3-9, DEC-49 |
+| 11 | The timeline chart took the page's filter state and repeated its filter rule | Task M3-11, DEC-51 |
 
 ## Second audit
 
@@ -27,20 +28,12 @@ The M3 code follows the rules the first audit set up. Records use named required
 
 ### Open
 
-#### 11. The timeline chart takes the page's filter state and repeats its filter rule
-
-- Where: `frontend/src/schedule/SchedulePage.tsx` lines 105 and 106 (`isDrawn`), `frontend/src/schedule/TimelineChart.tsx` line 36 (`shownTypes`) and line 79 (`shownPlacements`); the chart's props at lines 6 to 18.
-- Problem: which bars are shown is decided twice, once by the page for the popover and once by the chart for drawing. The chart's props are the page's filters (`resourceTypeId`, `onlyConflicted`, `conflictedPlacementIds`) and selection. Its row component takes all of the chart's props, through a spread.
-- Why it matters: M4-4 plans to reuse `TimelineChart` to preview a proposal. That screen would have to pass dummy filter props, or the chart would gain more flags. If the two filters drift, a bar is drawn without a popover, or the other way round.
-- What to do: filter once in the page (with `barsOf` and `TimelineBar`, which already exist) and pass the chart a filtered `TimelineResponse` plus the conflicted ids it marks. Give the row component only the props it uses.
-- Task: M3-11.
-
 #### 12. The schedule page component holds every piece of page state
 
-- Where: `frontend/src/schedule/SchedulePage.tsx` lines 87 to 189 (`ScheduleContent`); `PlacementTarget` is built in `SchedulePage.tsx` line 110 (`moveTargetOf`), `UnscheduledLotQueue.tsx` line 48 and the move button of `ConflictList.tsx`.
+- Where: `frontend/src/schedule/SchedulePage.tsx` lines 88 to 191 (`ScheduleContent`); `PlacementTarget` is built in `SchedulePage.tsx` line 107 (`moveTargetOf`), `UnscheduledLotQueue.tsx` line 48 and the move button of `ConflictList.tsx`.
 - Problem: one component owns the open form, the selected bar, both filters, the queue toggle, the link from a violation to its bar and the mapping from a bar to a placement target, and renders everything in one 70-line block.
 - Why it matters: M4-2 adds "Find earliest slot" and M4-4 a proposal review, each with more selection and open-form state. If nothing changes, they land in this component too.
-- What to do: move the timeline part (filters, selection, popover) into its own component or hook, so the page keeps the layout and the open form. Add one `placementTargetOf` function next to `PlacementTarget` for the three places that build one. Doing finding 11 first makes this smaller.
+- What to do: move the timeline part (filters, selection, popover) into its own component or hook, so the page keeps the layout and the open form. Add one `placementTargetOf` function next to `PlacementTarget` for the three places that build one.
 - Task: M4-2, as its first step.
 
 #### 13. Backend test classes copy JSON read helpers and their factory setup
@@ -69,7 +62,7 @@ The M3 code follows the rules the first audit set up. Records use named required
 
 #### 16. The schedule page treats unloaded conflicts as no conflicts
 
-- Where: `frontend/src/schedule/SchedulePage.tsx` line 104 (`conflictedPlacements.data ?? []`) and line 145 (`?? []` for the popover's violations); smaller cases in `calendar/ShiftEditor.tsx` line 53 (`WEEKDAYS.find(...) ?? ''`) and `orders/OrderFilterForm.tsx` line 47.
+- Where: `frontend/src/schedule/SchedulePage.tsx` line 105 (`conflictedPlacements.data ?? []`) and line 149 (`?? []` for the popover's violations); smaller cases in `calendar/ShiftEditor.tsx` line 53 (`WEEKDAYS.find(...) ?? ''`) and `orders/OrderFilterForm.tsx` line 47.
 - Problem: the timeline is drawn as soon as its own query loads. While the conflict list is still loading, or after it fails, every bar is drawn as conflict-free, the popover says "no violations" and "only conflicted" hides everything. Nothing marks which of these `??` fallbacks are intended loading placeholders.
 - Why it matters: the project rule is never to replace missing values with silent defaults, and M4's proposal preview joins the same two queries (DEC-46).
 - What to do: wait for both queries before drawing the chart, or show the conflict markers as unavailable when that query has no data. For the selects, narrow the value with a type guard instead of falling back to "no choice".

@@ -58,6 +58,7 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 | DEC-48 | The snapshot loader loads a version with a scope of resources and orders, or the whole version, in one method that says which rule reads which rows | Proposed | 2026-11-19 (M3-8) | AUDIT.md item 8 |
 | DEC-49 | Scheduling turns the plant calendars into engine calendars in one place, and the timeline reads its working periods from Scheduling | Proposed | 2026-11-19 (M3-9) | ARCHITECTURE.md section "Structure", AUDIT.md item 10 |
 | DEC-50 | Reads of a few placed lots ask Orders for those lots' context and MasterData for those machines' names, never for every order or machine | Proposed | 2026-11-19 (M3-10) | AUDIT.md item 9 |
+| DEC-51 | The timeline chart draws the timeline it is given; the page that shows it applies its filters once | Proposed | 2026-11-19 (M3-11) | AUDIT.md item 11 |
 
 ## Accepted
 
@@ -402,6 +403,13 @@ Made while building M1 (2026-11-10) and M2 (2026-11-18) and already followed by 
 - Reason: each of those readers loaded every order with its operations, lots and dependencies, or the full machine list, to describe a handful of placements, and built the same lot lookup by hand. The proposal review (task M4-4) and the dashboard (task M5-3) need the same lookups and would have copied the block again (AUDIT.md item 9).
 - Alternatives: a lookup over `ListAllDetailsAsync` in one shared Queries helper, rejected because it removes the copies but still loads whole tables on every read; a `LotContext` holding the whole order detail, rejected because no reader needs the other stages or the dependencies.
 - Consequences: a lot that is missing from the answer means its order was deleted, so a reader that expects every lot to be found says why in a comment, as the timeline and the conflict list do.
+
+### DEC-51 Timeline chart draws what it is given
+
+- Decision: `TimelineChart` (`frontend/src/schedule`) draws every resource type, machine and bar of the `TimelineResponse` it is given and takes no filter state; it marks the conflicted placement ids and the selected bar it is passed. The schedule page applies the resource type and conflicted-only filters once, to the loaded timeline, and opens the popover only on a bar of that filtered timeline.
+- Reason: the chart took the page's filters and repeated the filter rule that the page used for the popover, so a drift between the two would draw a bar without a popover or keep a popover for a hidden bar, and the proposal preview (task M4-4) would have had to pass filter props it does not have (AUDIT.md item 11).
+- Alternatives: a filter helper shared by the page and the chart, rejected because the chart would still take filter props a preview does not need; filtering in the API, rejected because the filters change no data and the page switches them without a new read.
+- Consequences: a new screen that shows a timeline, such as the proposal preview, passes the `TimelineResponse` it wants drawn. A conflict link still looks up items on the unfiltered timeline, so it can clear the filters and open a bar they hid (AC-191).
 
 ## Open
 
