@@ -23,6 +23,7 @@ Each completed finding was fixed by a task; the decision it names gives the reas
 | 16 | The schedule page treated a conflict list that had not loaded as an empty one, and two selects fell back to "no choice" for a value they never offer | Task M3-12, DEC-52 |
 | 17 | The whole-minute check of request times was written twice | Task M3-14, DEC-54 |
 | 18 | Test plant figures were implicit and test times were written in several ways | Task M3-13, DEC-53 |
+| 19 | The engine had no mapping from a generated plant to a `ScheduleSnapshot` for the property tests | Task M4-1, DEC-56 |
 | 20 | Each rule violation named its rule twice, as a bare string and inside its code | Task M3-14, DEC-54 |
 | 22 | The progress fakes and failing stubs were spread over the test classes | Task M3-13, DEC-53 |
 | 23 | The lot title, the day length and the date locale were each written in several frontend files | Task M3-15 |
@@ -68,7 +69,6 @@ Small findings, worth fixing when the file is next touched.
 
 | Item | Finding | Where | Task |
 |---|---|---|---|
-| 19 | The engine's mapping from a generated plant to a `ScheduleSnapshot` does not exist yet. The M4-1 property tests need it; write it once, in the generator project or a shared test helper, not in each test file | `backend/src/TireScheduler.PlantGenerator/GeneratedPlant.cs`, `backend/src/TireScheduler.Engine/ScheduleSnapshot.cs` | M4-1, as its first step |
 | 21 | The generator's load figure adds shift minutes itself instead of using `WorkingPeriods`, so it ignores daylight saving time and would not follow a change to the working-time rule | `backend/src/TireScheduler.PlantGenerator/PlantLoad.cs` lines 32 to 45 | M4-5, as its first step |
 
 ### Looked at and left out

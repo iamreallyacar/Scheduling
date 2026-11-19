@@ -41,7 +41,7 @@ public sealed class PlacementContextTests
         PlacementContext context = new(plant with
         {
             Calendars = [.. plant.Calendars, new SnapshotCalendar(MorningCalendarId, morningShifts)],
-            Resources = [.. plant.Resources, new SnapshotResource(MorningPress, CuringType, MorningCalendarId, IsActive: true)],
+            Resources = [.. plant.Resources, new SnapshotResource(MorningPress, "Morning press", CuringType, MorningCalendarId, IsActive: true)],
         });
 
         Assert.Equal(Tue(12), context.EndAfter(MorningPress, Mon(10), 600));

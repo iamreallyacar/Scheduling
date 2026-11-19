@@ -1,13 +1,13 @@
 # Scheduling engine
 
-Inputs, operations and search of the scheduling engine. The rules it keeps are in `ARCHITECTURE.md` section "Engine rules". `LotDuration` came with task M2-3, `PlantTime` and `OrderLateness` with task M2-4 (`PlantTime.LocalToUtc` with task M3-2), `PlacementRules` with task M3-1 (`PlacementContext` with task M3-7), and `WorkingPeriods` and `PlantTime.StartOfDay` with task M3-6; `EarliestSlot` and `ScheduleOrderAsap` follow in tasks M4-1 and M4-3. Their expected behavior, including the worked examples, is in [acceptance-criteria.md](../../../REQUIREMENTS/acceptance-criteria.md) sections 4 and 5.
+Inputs, operations and search of the scheduling engine. The rules it keeps are in `ARCHITECTURE.md` section "Engine rules". `LotDuration` came with task M2-3, `PlantTime` and `OrderLateness` with task M2-4 (`PlantTime.LocalToUtc` with task M3-2), `PlacementRules` with task M3-1 (`PlacementContext` with task M3-7), and `WorkingPeriods` and `PlantTime.StartOfDay` with task M3-6; `EarliestSlot` with task M4-1; `ScheduleOrderAsap` follows in task M4-3. Their expected behavior, including the worked examples, is in [acceptance-criteria.md](../../../REQUIREMENTS/acceptance-criteria.md) sections 4 and 5.
 
 ## Inputs
 
 A `ScheduleSnapshot` for one schedule version, loaded by the caller:
 
 - Calendars with their shifts (plant-local minutes of the day), plant holidays, plant time zone id.
-- Resources: id, type, calendar, isActive.
+- Resources: id, name, type, calendar, isActive. The name breaks ties in the earliest-slot search (DEC-55).
 - Unavailabilities: id, resource, start, end (open end allowed). Both kinds block the same way (R3).
 - Placements of the version: id, lot, resource, start, stored planned end.
 - Lots: id, operation, duration, resource type, progress (not started, In Progress, Completed), order cancelled flag.
@@ -30,7 +30,7 @@ A lot or resource asked about that is not in the snapshot is an `ArgumentExcepti
 | `PlacementRules.RecomputeEnds(snapshot)` | The new planned end of every placement whose end changes under the snapshot's working time. Completed lots and starts outside working time keep their stored end (A42). Used after a shift or holiday change (DEC-44) |
 | `PlacementRules.Validate(snapshot, request)` | The planned end and every violated rule with its conflicting item, in rule order (R1-R4, R6, R8; A35). Accepted when there are none. The lot's own current placement is ignored |
 | `PlacementRules.ValidateRemoval(snapshot, lot)` | The R8 violation if the lot has started; removing never breaks another rule |
-| `EarliestSlot(lot, resources?, notBefore)` | On each given resource (default: every active resource of the lot's type) the earliest start that passes `Validate`. Across resources the slot with the earliest end wins; on a tie the earlier start, then the resource name. The lot's own current placement is ignored. None if nothing fits within the horizon |
+| `EarliestSlot.Find(snapshot, request)` | For the request's lot, resources (none given: every active resource of the lot's type; given ones are searched as given, so an inactive one or one of another type gets no slot), `notBefore` and horizon: on each resource the earliest start that passes `Validate`. Across resources the slot with the earliest end wins; on a tie the earlier start, then the resource name, then the id. The lot's own current placement is ignored. A started lot or one of a cancelled order gets its R8 violations instead (AC-124); otherwise the result has no slot if nothing fits within the horizon (DEC-55) |
 | `ScheduleOrderAsap(order lots, notBefore)` | A proposal: each unplaced lot in dependency order gets its `EarliestSlot`, with earlier proposals counted as placed. Existing placements never move. Fails as a whole if any lot cannot be placed |
 | `PlacementRules.FindConflicts(snapshot)` | Existing placements that now break a rule, each with its violations, checked with the stored planned ends; completed lots are left out (`ARCHITECTURE.md` section "Persistence rules", A36) |
 
@@ -40,6 +40,6 @@ Each shift of a local date becomes a UTC period from the first occurrence of its
 
 ## Earliest slot search
 
-On each candidate resource the earliest feasible start is always one of these points, so only they are tried, in time order: `notBefore`, the dependency earliest start (`domain-model.md` section 4), the start of each working period, and the end of each placement and unavailability on that resource. The first that passes `Validate` wins; one `PlacementContext` checks every candidate (DEC-47). The horizon (default 90 days) is a setting, so the search always ends.
+On each candidate resource the earliest feasible start is always one of these points, so only they are tried, in time order: `notBefore`, the end plus lag of each placed predecessor lot (`domain-model.md` section 4), the start of each working period, and the end of each placement and unavailability on that resource. Later starts never give earlier ends, so a start held back by an item becomes feasible no earlier than that item ends. The first point that passes `Validate` wins; one `PlacementContext` checks every candidate (DEC-47). Starts are whole minutes: `notBefore` with seconds counts from the next whole minute (A45). The caller passes the horizon (AC-123), and a slot must start before it ends, so the search always ends.
 
 `notBefore` defaults to now, which the caller passes in from the injected clock.

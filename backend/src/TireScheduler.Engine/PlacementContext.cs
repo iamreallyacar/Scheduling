@@ -14,6 +14,9 @@ public sealed class PlacementContext
         index = new SnapshotIndex(snapshot);
     }
 
+    // For a search that reads the same index to choose its candidates (EarliestSlot).
+    internal PlacementContext(SnapshotIndex index) => this.index = index;
+
     // Null when the start is outside the resource's working time (R6).
     public DateTimeOffset? EndAfter(int resourceId, DateTimeOffset plannedStart, int durationMinutes) =>
         index.WorkingTimeOf(index.Resource(resourceId)).EndAfter(plannedStart, durationMinutes);
@@ -27,6 +30,14 @@ public sealed class PlacementContext
         DateTimeOffset? plannedEnd = index.WorkingTimeOf(resource).EndAfter(request.PlannedStart, lot.DurationMinutes);
 
         List<RuleViolation> violations = RuleViolations(lot, resource, request.PlannedStart, plannedEnd, startIsWorkingTime: plannedEnd is not null);
+        violations.AddRange(LotViolations(lot));
+        return new PlacementCheck(plannedEnd, violations);
+    }
+
+    // R8 for placing or moving the lot anywhere, at any time.
+    internal static IReadOnlyList<RuleViolation> LotViolations(SnapshotLot lot)
+    {
+        List<RuleViolation> violations = [];
         if (lot.Progress != LotProgressState.NotStarted)
         {
             violations.Add(LotViolation(RuleCodes.Started, lot));
@@ -37,7 +48,7 @@ public sealed class PlacementContext
             violations.Add(LotViolation(RuleCodes.Cancelled, lot));
         }
 
-        return new PlacementCheck(plannedEnd, violations);
+        return violations;
     }
 
     // Removing a placement breaks no other rule (AC-99); only a started lot stays where it is (A17).

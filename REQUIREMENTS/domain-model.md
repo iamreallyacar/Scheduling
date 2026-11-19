@@ -226,6 +226,7 @@ Order progress (F-PRG-2) = completed quantity / total quantity over the lots of 
 | A42 | When the shifts or holidays change, a placement whose start is no longer in working time keeps its stored planned end, because no new end exists (A35), and `FindConflicts` lists it under R6 (AC-108) until the planner moves it. The ends of completed lots are not recomputed, because their placement is the record of where they ran (A36) |
 | A43 | An inactive machine appears on the timeline only when it holds a placement in the shown range, which is then an R1 conflict (A15); one with nothing in the range has nothing to show. Its unavailabilities are shown with it |
 | A44 | The timeline shows one day or two weeks, and two weeks start on the Monday of the current plant week by default. The API takes up to 31 days, which covers the F-NFR-5 size (about 25 machines over 2 weeks) and a month, and keeps the answer small, and only days in the years 2000 to 2999, which a plant schedule never leaves, so the day arithmetic never reaches the ends of the calendar |
+| A45 | The earliest-slot search tries whole minutes only, because a placement start is one (A40): a `notBefore` with seconds counts from the next whole minute. The horizon counts from there, and a slot must start before the horizon ends; it may end after it |
 
 ## 8. Out of the model for v1
 

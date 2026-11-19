@@ -60,7 +60,7 @@ internal sealed class ScheduleSnapshotLoader(
             workingTime.TimeZoneId,
             workingTime.Calendars,
             workingTime.Holidays,
-            [.. resources.Select(resource => new SnapshotResource(resource.Id, resource.ResourceType.Id, resource.Calendar.Id, resource.IsActive))],
+            [.. resources.Select(resource => new SnapshotResource(resource.Id, resource.Name, resource.ResourceType.Id, resource.Calendar.Id, resource.IsActive))],
             snapshotUnavailabilities,
             [.. ordersInSnapshot.SelectMany(order => order.Lots.Select(lot => new SnapshotLot(
                 lot.Id,

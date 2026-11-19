@@ -7,7 +7,7 @@ How the project is tested. The commands to run are in CLAUDE.md, section VERIFIC
 | Level | What | Tooling |
 |---|---|---|
 | Unit | Engine: every Engine-level acceptance criterion, including the worked examples and DST cases, and the late flag (DEC-30). Generator: every Generator-level criterion, in `TireScheduler.PlantGenerator.Tests`, for every preset over several seeds and start dates, including DST weeks | xUnit v3 |
-| Property | Engine: any slot returned by `EarliestSlot` passes `Validate`; no feasible start exists before it; `ScheduleOrderAsap` proposals pass `Validate` together | FsCheck or similar, added in task M4-1 with the first property criteria (AC-115, AC-116, AC-127) |
+| Property | Engine: any slot returned by `EarliestSlot` passes `Validate`; no feasible start exists before it; `ScheduleOrderAsap` proposals pass `Validate` together. The cases are generated plants over a list of seeds and start dates, including a DST week (DEC-56) | xUnit v3 theories over `SyntheticPlant` and `PlantSnapshot` |
 | Module integration | Each module against a real PostgreSQL, including constraints, locking and soft delete | xUnit v3 with Testcontainers |
 | API | Auth and role policies, problem-details shape, rule violations returned as 422 with `rule` and `conflict` | `WebApplicationFactory` |
 | Architecture | Module dependency table in `ARCHITECTURE.md` section "Structure" holds between module namespaces; the engine project references no module; the generator core references only the engine, and neither the engine nor the API references it | NetArchTest |
@@ -36,6 +36,7 @@ Backend, in `backend/tests/TireScheduler.Engine.Tests`:
 
 - `TestPlant`: the plant of the examples in `acceptance-criteria.md` section 4 as an engine snapshot (Press 1, Press 2, Builder 1, the plant default calendar in `Europe/Berlin`), with `With...` methods that add lots, placements, unavailabilities, dependencies, holidays and shifts, and the days of one winter week as UTC instants.
 - `RuleAssert`: checks that a placement is accepted, or rejected with a given first code and conflict.
+- `PlantSnapshot.From` (in the generator core): a generated plant as an unplaced engine snapshot, for the property tests (AC-193, DEC-56). `EarliestSlotPropertyTests` first places some lots at random starts that pass `Validate`, so the search meets placements and dependencies too.
 
 Frontend, in `frontend/src/testing`:
 
@@ -48,7 +49,8 @@ Frontend, in `frontend/src/testing`:
 ## Known gaps
 
 - No CI runs the checks yet; they are run by hand (CLAUDE.md, section VERIFICATION TOOLS).
-- The property tests and their library come with task M4-1, and Playwright with the first end-to-end flow.
+- Playwright comes with the first end-to-end flow.
+- The property tests run fixed seeds and do not shrink a failing case; a failure names the lot, the resource and the start, and the seed is in the test case (DEC-56).
 - The started and completed lots of AC-19, AC-49, AC-51, AC-112, AC-113 and AC-50 come from `FakeLotActivity` until task M5-1 tests them with real progress.
 - Order status and `isLate` are tested with real placements but without progress, so In Progress, Completed and the completion time do not occur until task M5-1 adds them.
 

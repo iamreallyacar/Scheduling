@@ -18,7 +18,8 @@ public sealed record SnapshotCalendar(int Id, IReadOnlyList<SnapshotShift> Shift
 // Minutes from plant-local midnight; a shift never crosses midnight, so the end is at most 1440 (A18).
 public sealed record SnapshotShift(DayOfWeek Weekday, int StartMinuteOfDay, int EndMinuteOfDay);
 
-public sealed record SnapshotResource(int Id, int ResourceTypeId, int CalendarId, bool IsActive);
+// The name breaks ties between equally good slots on different resources (AC-118).
+public sealed record SnapshotResource(int Id, string Name, int ResourceTypeId, int CalendarId, bool IsActive);
 
 // No end means the resource is blocked from the start onward (R3).
 public sealed record SnapshotUnavailability(int Id, int ResourceId, DateTimeOffset Start, DateTimeOffset? End);

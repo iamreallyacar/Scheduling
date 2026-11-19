@@ -62,6 +62,8 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 | DEC-52 | The schedule page treats a conflict list that has not loaded as unknown, never as empty | Proposed | 2026-11-19 (M3-12) | AUDIT.md item 16, AC-192 |
 | DEC-53 | API test classes share the readers of answers, one API fixture, the test plant figures and the fakes | Proposed | 2026-11-19 (M3-13) | AUDIT.md items 13, 18 and 22, TESTING.md section "Fixtures and helpers" |
 | DEC-54 | Request times are checked for whole minutes by one helper, and a rule violation reads its rule from its code | Proposed | 2026-11-19 (M3-14) | AUDIT.md items 17 and 20 |
+| DEC-55 | The earliest-slot search answers R8 as a rejection, takes the horizon from the caller and breaks ties by the resource names in the snapshot | Proposed | 2026-11-19 (M4-1) | engine README, A45 |
+| DEC-56 | Property tests run the engine on generated plants over fixed seeds, through one mapping in the generator core | Proposed | 2026-11-19 (M4-1) | AUDIT.md item 19, TESTING.md section "Test levels", AC-193 |
 
 ## Accepted
 
@@ -434,6 +436,20 @@ Made while building M1 (2026-11-10) and M2 (2026-11-18) and already followed by 
 - Reason: the placement and unavailability registers each wrote the check and its message, and the M4 earliest-slot and whole-order requests take times too (AUDIT.md item 17). Each violation named its rule twice, as a bare string and inside its code, so the two could disagree (AUDIT.md item 20).
 - Alternatives: a validation attribute on the request fields, rejected because the unavailability check sits among field checks that span fields and the attribute would split them; a rule code type that holds the rule and the code, rejected because `RuleViolationProblems` matches the codes as constants, which a type would turn into a chain of comparisons.
 - Consequences: a new rule code must keep the form `rule.<rule>.<name>` of API.md section "Error format", or the first read of its rule fails. A new request time takes its message from the helper, so all of them say "The <time> must be a whole minute."
+
+### DEC-55 Earliest-slot search: R8 rejection, horizon from the caller, ties by name
+
+- Decision: `EarliestSlot.Find` answers a lot that has started or belongs to a cancelled order with its R8 violations and no slot, and otherwise a slot or none. The caller passes the horizon, and the search tries whole minutes from `notBefore` up to the horizon's end (A45). `SnapshotResource` carries the machine name, which breaks a tie of end and start between resources (AC-118), and then the id.
+- Reason: AC-124 asks for an R8 rejection rather than `slot.none`, and R8 holds whatever the resource and start, so checking it once before the search keeps the two answers apart. The engine reads no configuration, so the horizon setting belongs to the API (task M4-2). A placement start is a whole minute (A40), so a slot with seconds could not be saved.
+- Alternatives: a tie-break by id, rejected because AC-118 names the resource name, which a planner can see; letting the caller sort resources by name, rejected because the order of the given ids would then carry a rule the caller cannot see.
+- Consequences: the snapshot loader fills the name from the machine reads. The R8 check of a lot lives in `PlacementContext.LotViolations`, which `Validate` uses too.
+
+### DEC-56 Property tests over generated plants, mapped in the generator core
+
+- Decision: the engine property tests (AC-115, AC-116, later AC-127) are xUnit theories over a fixed list of seeds and start dates, each a `small` plant from `SyntheticPlant.Generate`, turned into a snapshot by `PlantSnapshot.From` in `TireScheduler.PlantGenerator` (AC-193). The engine test project references the generator core for this.
+- Reason: the generator already makes consistent, varied plants from a seed (AC-151), including downtime, lags, holidays and DST weeks, which a property library would have to be taught to build. A fixed seed list makes every failure repeatable. The mapping sits in the generator core because task M4-5 places a schedule there with `ScheduleOrderAsap` and needs the same snapshot (AUDIT.md item 19).
+- Alternatives: FsCheck, rejected because its generators would duplicate the plant generator and its shrinking cannot shrink a plant that must stay consistent; a mapping in a test helper, rejected because M4-5 needs it outside the tests.
+- Consequences: no new package. A failing case is not shrunk; the test case names the seed and start date, and the failure names the lot, the resource and the start. The snapshot ids follow the order of the generated lists, so they are not the ids the loader gets from the API.
 
 ## Open
 

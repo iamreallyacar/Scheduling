@@ -1,6 +1,6 @@
 # Acceptance Criteria
 
-Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules and engine search) on 2026-11-06; section 6 in task M2-7 and section 7 in task M3-2 and section 8 in tasks M3-3, M3-4, M3-5 and M3-6 on 2026-11-18. Sources: [features.md](features.md), [domain-model.md](domain-model.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [decisions.md](decisions.md).
+Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules and engine search) on 2026-11-06; section 6 in task M2-7 (AC-193 in task M4-1) and section 7 in task M3-2 and section 8 in tasks M3-3, M3-4, M3-5 and M3-6 on 2026-11-18. Sources: [features.md](features.md), [domain-model.md](domain-model.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [decisions.md](decisions.md).
 
 ## 1. How to read this
 
@@ -257,7 +257,7 @@ Applies to `Validate`, `ComputeEnd` and `FindConflicts` in the engine (task M3-1
 
 ### EarliestSlot
 
-Covers F-SCH-11 and the search in the [engine README](../backend/src/TireScheduler.Engine/README.md).
+Covers F-SCH-11 and the search in the [engine README](../backend/src/TireScheduler.Engine/README.md). Assumption: A45.
 
 | ID | Given | When | Then | Level |
 |---|---|---|---|---|
@@ -308,6 +308,7 @@ Covers task M2-7 (no feature). The generator core turns parameters, a seed and a
 | AC-158 | A plant that has any resource type, product or order | The loader runs | It stops before writing anything, with an error naming what exists, and exits with a non-zero code | API |
 | AC-159 | The loader running | The API rejects one of its requests (for example a value the API does not accept, or a user who may not write master data) | The loader stops at once, with an error giving the request, the status, the problem `code` and the `detail`, and exits with a non-zero code. Rows written before the rejection stay | API |
 | AC-160 | The loader's command line | A preset is unknown, the seed or start date cannot be read, an option is unknown, or the sign-in settings are missing | It stops before calling the API, with an error naming the option or setting, and exits with a non-zero code | Generator |
+| AC-193 | A generated plant and a plant time zone | It is turned into a `ScheduleSnapshot` (`PlantSnapshot.From`) | One calendar with the generated shifts, the holidays and the zone; one active resource per machine, named as the machine, of its machine type, on that calendar; one lot per stage of every order, not started and not cancelled, lasting the `LotDuration` of the stage and the order quantity, on the stage's machine type; the product's dependencies with their lags between the lots of the same order; every unavailability on its machine with its start and end in UTC, converted by the engine (A33); nothing placed | Generator |
 
 ## 7. M3 Maintenance
 

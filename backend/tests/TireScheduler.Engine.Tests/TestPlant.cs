@@ -20,9 +20,9 @@ internal static class TestPlant
         [new SnapshotCalendar(PlantCalendarId, ThreeShifts(DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday))],
         new HashSet<DateOnly>(),
         [
-            new SnapshotResource(Press1, CuringType, PlantCalendarId, IsActive: true),
-            new SnapshotResource(Press2, CuringType, PlantCalendarId, IsActive: true),
-            new SnapshotResource(Builder1, BuildingType, PlantCalendarId, IsActive: true),
+            new SnapshotResource(Press1, "Press 1", CuringType, PlantCalendarId, IsActive: true),
+            new SnapshotResource(Press2, "Press 2", CuringType, PlantCalendarId, IsActive: true),
+            new SnapshotResource(Builder1, "Builder 1", BuildingType, PlantCalendarId, IsActive: true),
         ],
         [],
         [],
