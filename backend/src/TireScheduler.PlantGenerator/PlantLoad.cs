@@ -7,7 +7,7 @@ public sealed record MachineTypeLoad(string MachineTypeName, long DemandMinutes,
 // How much of each machine type's working time the orders need (A34).
 public static class PlantLoad
 {
-    public static IReadOnlyList<MachineTypeLoad> Measure(GeneratedPlant plant)
+    public static IReadOnlyList<MachineTypeLoad> Measure(GeneratedPlant plant, string timeZoneId)
     {
         ArgumentNullException.ThrowIfNull(plant);
         Dictionary<string, GeneratedProduct> productByCode = plant.Products.ToDictionary(product => product.Code);
@@ -20,7 +20,7 @@ public static class PlantLoad
             }
         }
 
-        long workingMinutesPerMachine = WorkingMinutesPerMachine(plant);
+        long workingMinutesPerMachine = WorkingMinutesPerMachine(plant, timeZoneId);
         return plant.MachineTypes
             .Select(type => new MachineTypeLoad(
                 type.Name,
@@ -29,18 +29,17 @@ public static class PlantLoad
             .ToArray();
     }
 
-    private static long WorkingMinutesPerMachine(GeneratedPlant plant)
+    // The working periods the engine places lots in (R6), so a DST day counts its elapsed minutes
+    // and the load follows any change to the working-time rule.
+    private static long WorkingMinutesPerMachine(GeneratedPlant plant, string timeZoneId)
     {
-        HashSet<DateOnly> holidays = plant.Holidays.Select(holiday => holiday.Date).ToHashSet();
-        long minutes = 0;
-        for (DateOnly day = plant.StartDate; day < plant.EndDate; day = day.AddDays(1))
-        {
-            if (!holidays.Contains(day))
-            {
-                minutes += plant.Shifts.Where(shift => shift.Weekday == day.DayOfWeek).Sum(shift => shift.EndMinute - shift.StartMinute);
-            }
-        }
-
-        return minutes;
+        ScheduleSnapshot snapshot = PlantSnapshot.From(plant, timeZoneId);
+        IReadOnlyList<WorkingPeriod> periods = WorkingPeriods.Between(
+            snapshot.Calendars.Single(),
+            snapshot.Holidays,
+            timeZoneId,
+            PlantTime.StartOfDay(plant.StartDate, timeZoneId),
+            PlantTime.StartOfDay(plant.EndDate, timeZoneId));
+        return periods.Sum(period => (long)(period.End - period.Start).TotalMinutes);
     }
 }

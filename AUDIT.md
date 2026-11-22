@@ -28,6 +28,7 @@ Each completed finding was fixed by a task; the decision it names gives the reas
 | 18 | Test plant figures were implicit and test times were written in several ways | Task M3-13, DEC-53 |
 | 19 | The engine had no mapping from a generated plant to a `ScheduleSnapshot` for the property tests | Task M4-1, DEC-56 |
 | 20 | Each rule violation named its rule twice, as a bare string and inside its code | Task M3-14, DEC-54 |
+| 21 | The generator's load figure added shift minutes itself instead of using the engine's working periods, so it ignored daylight saving time | Task M4-5 |
 | 22 | The progress fakes and failing stubs were spread over the test classes | Task M3-13, DEC-53 |
 | 23 | The lot title, the day length and the date locale were each written in several frontend files | Task M3-15 |
 | 24 | Frontend tests found table rows and sent bodies through casts | Task M3-15 |
@@ -39,14 +40,6 @@ Each completed finding was fixed by a task; the decision it names gives the reas
 The code was reviewed in four parts: the API project, the engine with the plant generator and loader, the backend tests, and the frontend. Every location below was checked by hand.
 
 The M3 code follows the rules the first audit set up. Records use named required properties, transactions and locks go through `RequestTransaction` and the lock ports, modules talk only through ports, no code reads the system clock, every frontend read uses `queryKeys` and the generated endpoints, the frontend decides no rule, and there are no unexplained escape hatches. The open findings are about what M4 and M5 will build on: the engine's entry points, how engine inputs and lot context are loaded, the schedule page, and the test setup that every new test class copies.
-
-### Minor
-
-Small findings, worth fixing when the file is next touched.
-
-| Item | Finding | Where | Task |
-|---|---|---|---|
-| 21 | The generator's load figure adds shift minutes itself instead of using `WorkingPeriods`, so it ignores daylight saving time and would not follow a change to the working-time rule | `backend/src/TireScheduler.PlantGenerator/PlantLoad.cs` lines 32 to 45 | M4-5, as its first step |
 
 ### Looked at and left out
 

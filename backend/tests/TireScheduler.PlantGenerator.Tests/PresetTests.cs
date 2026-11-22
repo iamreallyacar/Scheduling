@@ -2,6 +2,8 @@ namespace TireScheduler.PlantGenerator.Tests;
 
 public sealed class PresetTests
 {
+    private const string Berlin = "Europe/Berlin";
+
     [Fact]
     public void AC_155_the_small_preset_has_4_machines_of_3_types_and_3_products()
     {
@@ -32,7 +34,7 @@ public sealed class PresetTests
         GeneratedPlant plant = SyntheticPlant.Generate(PlantPresets.Stress, seed, GeneratorCases.StartMonday);
 
         Assert.Equal((25, 2), (plant.Machines.Count, plant.HorizonWeeks));
-        Assert.All(PlantLoad.Measure(plant), load =>
+        Assert.All(PlantLoad.Measure(plant, Berlin), load =>
             Assert.True(load.DemandMinutes >= load.CapacityMinutes, $"{load.MachineTypeName}: {load.DemandMinutes} of {load.CapacityMinutes} minutes."));
     }
 
@@ -51,7 +53,28 @@ public sealed class PresetTests
             Orders: [new("SO-1", "Customer", "TR-1", 101, GeneratorCases.StartMonday, GeneratorCases.StartMonday.AddDays(7), GeneratedPriority.Normal, IsRush: false)],
             Unavailabilities: []);
 
-        Assert.Equal([new MachineTypeLoad("Curing press", DemandMinutes: 642, CapacityMinutes: 2 * 480)], PlantLoad.Measure(plant));
+        Assert.Equal([new MachineTypeLoad("Curing press", DemandMinutes: 642, CapacityMinutes: 2 * 480)], PlantLoad.Measure(plant, Berlin));
+    }
+
+    // A34: the working time is the engine's, so the spring-forward Sunday of 2027-03-28 has 7 hours
+    // from 00:00 to 08:00.
+    [Fact]
+    public void The_load_counts_the_elapsed_working_minutes_of_a_DST_day()
+    {
+        DateOnly springForwardWeek = new(2027, 3, 22);
+        GeneratedPlant plant = new(
+            Seed: 1,
+            StartDate: springForwardWeek,
+            HorizonWeeks: 1,
+            MachineTypes: [new("Curing press")],
+            Machines: [new("Press 1", "Curing press")],
+            Shifts: [new(DayOfWeek.Saturday, 0, 480), new(DayOfWeek.Sunday, 0, 480)],
+            Holidays: [],
+            Products: [new("TR-1", "Tire", "Spec", [new(1, "Curing press", 30, 12, 2)], [])],
+            Orders: [],
+            Unavailabilities: []);
+
+        Assert.Equal([new MachineTypeLoad("Curing press", DemandMinutes: 0, CapacityMinutes: 480 + 420)], PlantLoad.Measure(plant, Berlin));
     }
 
     public static TheoryData<int> Seeds() => [.. Enumerable.Range(1, 20)];
