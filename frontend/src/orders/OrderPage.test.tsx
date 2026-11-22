@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import type { CurrentUserResponse, OrderResponse } from '../api/generated';
 import { type FakeApiAnswer, type FakeApiRequest, plannerUser, problem, sentBody, stubApi, viewerUser } from '../testing/fakeApi';
 import { renderApp } from '../testing/renderApp';
-import { order, passengerTire, plantCalendar, summaryOf, truckTire } from './orderSamples';
+import { order, passengerTire, summaryOf, truckTire } from './orderSamples';
 import { rowOf } from '../testing/rowOf';
 
 const ORDER_PATH = '/api/v1/orders/5';
@@ -17,7 +17,6 @@ function stubOrderApi(
   return stubApi({
     'GET /api/v1/me': () => ({ status: 200, body: currentUser }),
     [`GET ${ORDER_PATH}`]: () => ({ status: 200, body: shownOrder() }),
-    'GET /api/v1/calendars': () => ({ status: 200, body: [plantCalendar] }),
     'GET /api/v1/products': () => ({ status: 200, body: [passengerTire, truckTire] }),
     'GET /api/v1/orders': () => ({ status: 200, body: { items: [summaryOf(shownOrder())], page: 1, pageSize: 50, totalCount: 1 } }),
     ...routes,
@@ -225,7 +224,6 @@ describe('order page', () => {
   it('AC_23 an unknown order shows the problem', async () => {
     stubApi({
       'GET /api/v1/me': () => ({ status: 200, body: plannerUser }),
-      'GET /api/v1/calendars': () => ({ status: 200, body: [plantCalendar] }),
       'GET /api/v1/orders/9': () => problem(404, 'not_found', 'This order does not exist.'),
     });
     renderApp('/orders/9');

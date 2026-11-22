@@ -12,7 +12,6 @@ const press: ResourceViewResponse = {
   isActive: true,
   status: 'Down',
 };
-const calendar = { id: 1, name: 'Plant default', isPlantDefault: true, timeZone: 'Europe/Berlin', shifts: [] };
 const openBreakdown: UnavailabilityResponse = { id: 7, resourceId: 20, kind: 'Breakdown', start: '2026-11-18T08:00:00Z', end: null, reason: 'Hydraulic leak' };
 const maintenance: UnavailabilityResponse = { id: 6, resourceId: 20, kind: 'Planned', start: '2026-11-17T05:00:00Z', end: '2026-11-17T09:00:00Z', reason: null };
 
@@ -22,7 +21,6 @@ function stubMachinePageApi(currentUser: CurrentUserResponse, writes: Record<str
   return stubApi({
     'GET /api/v1/me': () => ({ status: 200, body: currentUser }),
     'GET /api/v1/resources/20': () => ({ status: 200, body: press }),
-    'GET /api/v1/calendars': () => ({ status: 200, body: [calendar] }),
     [`GET ${UNAVAILABILITIES}`]: () => ({ status: 200, body: [openBreakdown, maintenance] }),
     ...writes,
   });

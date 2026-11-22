@@ -14,7 +14,6 @@ const NO_VIOLATIONS: readonly RuleViolation[] = [];
 
 interface ScheduleTimelineProps {
   view: TimelineView;
-  timeZone: string;
   nowMs: number;
   /** Opens the placement form; null when the user cannot plan. */
   onMove: ((target: PlacementTarget) => void) | null;
@@ -25,7 +24,7 @@ interface ScheduleTimelineProps {
 }
 
 /** The timeline with its toolbar, the conflict marker notice and the popover of the selected bar (F-SCH-2). */
-export function ScheduleTimeline({ view, timeZone, nowMs, onMove, ...rangeActions }: ScheduleTimelineProps) {
+export function ScheduleTimeline({ view, nowMs, onMove, ...rangeActions }: ScheduleTimelineProps) {
   const { firstDay, lastDay, zoom, timeline, conflictedPlacements, selectedPlacementId, resourceTypeId, onlyConflicted, renderConflictLink } = view;
   // Null until the conflict list has loaded: a list that is loading or failed is unknown, not empty (DEC-52).
   const conflictsByPlacement: ReadonlyMap<number, readonly RuleViolation[]> | null =
@@ -40,7 +39,6 @@ export function ScheduleTimeline({ view, timeZone, nowMs, onMove, ...rangeAction
         firstDay={firstDay}
         lastDay={lastDay}
         zoom={zoom}
-        timeZone={timeZone}
         resourceTypes={timeline.data?.resourceTypes ?? []}
         resourceTypeId={resourceTypeId}
         conflictCount={conflictedPlacements.data?.length ?? null}
@@ -70,7 +68,6 @@ export function ScheduleTimeline({ view, timeZone, nowMs, onMove, ...rangeAction
                 <LotPopover
                   bar={selectedBar}
                   violations={conflictsByPlacement === null ? null : (conflictsByPlacement.get(selectedBar.placement.placementId) ?? NO_VIOLATIONS)}
-                  timeZone={timeZone}
                   renderConflictLink={renderConflictLink}
                   onMove={
                     onMove === null
@@ -88,7 +85,6 @@ export function ScheduleTimeline({ view, timeZone, nowMs, onMove, ...rangeAction
                 timeline={shownTimeline}
                 firstDay={firstDay}
                 zoom={zoom}
-                timeZone={timeZone}
                 nowMs={nowMs}
                 conflictedPlacementIds={conflictedPlacementIds}
                 selectedPlacementId={selectedPlacementId}

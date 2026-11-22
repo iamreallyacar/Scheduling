@@ -1,10 +1,8 @@
-import type { CalendarResponse, OrderResponse, OrderSummaryResponse, ProductResponse } from '../api/generated';
+import type { OrderResponse, OrderSummaryResponse, ProductResponse } from '../api/generated';
 
 // Sample answers shared by the order page tests.
 export const passengerTire: ProductResponse = { id: 3, code: 'PS-205', name: 'Passenger 205/55 R16', spec: null };
 export const truckTire: ProductResponse = { id: 4, code: 'TR-315', name: 'Truck 315/80 R22.5', spec: null };
-
-export const plantCalendar: CalendarResponse = { id: 1, name: 'Plant default', isPlantDefault: true, timeZone: 'Europe/Berlin', shifts: [] };
 
 export const order: OrderResponse = {
   id: 5,

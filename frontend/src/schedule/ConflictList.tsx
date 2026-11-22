@@ -1,7 +1,7 @@
 import { Link } from 'react-router';
 import type { ConflictedPlacementResponse } from '../api/generated';
 import { formatPlantTime } from '../calendar/plantClock';
-import { WithPlantTimeZone } from '../calendar/WithPlantTimeZone';
+import { usePlantTimeZone } from '../calendar/plantTimeZone';
 import { QueryResult } from '../forms/QueryResult';
 import { placementTargetOf, type PlacementTarget } from './placementTarget';
 import { useConflictedPlacements } from './scheduleQueries';
@@ -24,9 +24,7 @@ export function ConflictList({ onMove, renderConflictLink }: ConflictListProps) 
           {placements.length === 0 ? (
             <p className="page-message">No placement breaks a rule.</p>
           ) : (
-            <WithPlantTimeZone>
-              {(timeZone) => <ConflictTable placements={placements} timeZone={timeZone} onMove={onMove} renderConflictLink={renderConflictLink} />}
-            </WithPlantTimeZone>
+            <ConflictTable placements={placements} onMove={onMove} renderConflictLink={renderConflictLink} />
           )}
         </>
       )}
@@ -34,7 +32,8 @@ export function ConflictList({ onMove, renderConflictLink }: ConflictListProps) 
   );
 }
 
-function ConflictTable({ placements, timeZone, onMove, renderConflictLink }: ConflictListProps & { placements: ConflictedPlacementResponse[]; timeZone: string }) {
+function ConflictTable({ placements, onMove, renderConflictLink }: ConflictListProps & { placements: ConflictedPlacementResponse[] }) {
+  const timeZone = usePlantTimeZone();
   return (
     <>
       <p>Times in {timeZone}.</p>
@@ -63,7 +62,7 @@ function ConflictTable({ placements, timeZone, onMove, renderConflictLink }: Con
               <td>{formatPlantTime(placement.plannedStart, timeZone)}</td>
               <td>{formatPlantTime(placement.plannedEnd, timeZone)}</td>
               <td>
-                <ViolationList violations={placement.violations} timeZone={timeZone} renderConflictLink={renderConflictLink} />
+                <ViolationList violations={placement.violations} renderConflictLink={renderConflictLink} />
               </td>
               {onMove !== null && (
                 <td>

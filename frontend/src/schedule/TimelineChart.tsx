@@ -1,5 +1,6 @@
 import type { TimelineResourceResponse, TimelineResponse } from '../api/generated';
 import { DISPLAY_LOCALE, formatPlantTime, plantLocalToUtc } from '../calendar/plantClock';
+import { usePlantTimeZone } from '../calendar/plantTimeZone';
 import { RESOURCE_STATUS_LABELS, UNAVAILABILITY_KIND_LABELS } from '../machines/machineValues';
 import { addDays, DAYS_SHOWN, type TimelineZoom } from './timelineRange';
 
@@ -7,7 +8,6 @@ interface TimelineChartProps {
   timeline: TimelineResponse;
   firstDay: string;
   zoom: TimelineZoom;
-  timeZone: string;
   nowMs: number;
   /** The placements drawn as conflicted (DEC-46). */
   conflictedPlacementIds: ReadonlySet<number>;
@@ -25,7 +25,8 @@ const HOURS_BETWEEN_DAY_TICKS = 6;
 // F-SCH-2, read-only (wireframes.md section 2): what the API returns, drawn on the shown range. The
 // chart decides no rule and filters nothing; it draws every machine and bar it is given (AC-189), so
 // the caller decides what is shown.
-export function TimelineChart({ timeline, firstDay, zoom, timeZone, nowMs, conflictedPlacementIds, selectedPlacementId, onSelect }: TimelineChartProps) {
+export function TimelineChart({ timeline, firstDay, zoom, nowMs, conflictedPlacementIds, selectedPlacementId, onSelect }: TimelineChartProps) {
+  const timeZone = usePlantTimeZone();
   const range: ShownRange = { startMs: Date.parse(timeline.start), endMs: Date.parse(timeline.end) };
   const nowIsShown = range.startMs <= nowMs && nowMs < range.endMs;
 
@@ -60,7 +61,6 @@ export function TimelineChart({ timeline, firstDay, zoom, timeZone, nowMs, confl
               resource={resource}
               range={range}
               nowLineMs={nowIsShown ? nowMs : null}
-              timeZone={timeZone}
               conflictedPlacementIds={conflictedPlacementIds}
               selectedPlacementId={selectedPlacementId}
               onSelect={onSelect}
@@ -76,13 +76,13 @@ interface MachineRowProps {
   resource: TimelineResourceResponse;
   range: ShownRange;
   nowLineMs: number | null;
-  timeZone: string;
   conflictedPlacementIds: ReadonlySet<number>;
   selectedPlacementId: number | null;
   onSelect: (placementId: number) => void;
 }
 
-function MachineRow({ resource, range, nowLineMs, timeZone, conflictedPlacementIds, selectedPlacementId, onSelect }: MachineRowProps) {
+function MachineRow({ resource, range, nowLineMs, conflictedPlacementIds, selectedPlacementId, onSelect }: MachineRowProps) {
+  const timeZone = usePlantTimeZone();
   return (
     <tr>
       <th scope="row">{resource.isActive ? resource.name : `${resource.name} (inactive)`}</th>

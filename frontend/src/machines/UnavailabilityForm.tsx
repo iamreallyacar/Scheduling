@@ -4,6 +4,7 @@ import { createUnavailability, updateUnavailability } from '../api/generated/end
 import type { UnavailabilityRequest, UnavailabilityResponse } from '../api/generated';
 import { problemOf } from '../api/problem';
 import { plantLocalToUtc, utcToPlantLocal } from '../calendar/plantClock';
+import { usePlantTimeZone } from '../calendar/plantTimeZone';
 import { SelectField, TextField } from '../forms/Fields';
 import { NOTHING_CHOSEN } from '../forms/fieldValues';
 import { FormPanel } from '../forms/FormPanel';
@@ -13,12 +14,12 @@ interface UnavailabilityFormProps {
   resourceId: number;
   /** The unavailability to change, or null to record one. */
   unavailability: UnavailabilityResponse | null;
-  timeZone: string;
   onClose: () => void;
 }
 
 // F-MNT-1. Times are typed on the plant's wall clock and sent in UTC (A38); the server checks them.
-export function UnavailabilityForm({ resourceId, unavailability, timeZone, onClose }: UnavailabilityFormProps) {
+export function UnavailabilityForm({ resourceId, unavailability, onClose }: UnavailabilityFormProps) {
+  const timeZone = usePlantTimeZone();
   const [kind, setKind] = useState<string>(unavailability?.kind ?? NOTHING_CHOSEN);
   const [start, setStart] = useState(unavailability === null ? '' : utcToPlantLocal(unavailability.start, timeZone));
   const [end, setEnd] = useState(unavailability?.end == null ? '' : utcToPlantLocal(unavailability.end, timeZone));

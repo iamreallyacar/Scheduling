@@ -21,6 +21,7 @@ Each completed finding was fixed by a task; the decision it names gives the reas
 | 11 | The timeline chart took the page's filter state and repeated its filter rule | Task M3-11, DEC-51 |
 | 12 | The schedule page component held every piece of page state | Task M4-2, DEC-57 |
 | 13 | Backend test classes copied the readers of answers and their factory setup | Task M3-13, DEC-53 |
+| 14 | The plant time zone was read in two ways with different failure behaviour, and passed down as a prop | Task M4-4 |
 | 15 | Every frontend form repeated the same save frame | Task M4-2, DEC-57 |
 | 16 | The schedule page treated a conflict list that had not loaded as an empty one, and two selects fell back to "no choice" for a value they never offer | Task M3-12, DEC-52 |
 | 17 | The whole-minute check of request times was written twice | Task M3-14, DEC-54 |
@@ -38,16 +39,6 @@ Each completed finding was fixed by a task; the decision it names gives the reas
 The code was reviewed in four parts: the API project, the engine with the plant generator and loader, the backend tests, and the frontend. Every location below was checked by hand.
 
 The M3 code follows the rules the first audit set up. Records use named required properties, transactions and locks go through `RequestTransaction` and the lock ports, modules talk only through ports, no code reads the system clock, every frontend read uses `queryKeys` and the generated endpoints, the frontend decides no rule, and there are no unexplained escape hatches. The open findings are about what M4 and M5 will build on: the engine's entry points, how engine inputs and lot context are loaded, the schedule page, and the test setup that every new test class copies.
-
-### Open
-
-#### 14. The plant time zone is read in two ways with different failure behaviour
-
-- Where: `frontend/src/calendar/calendarQueries.ts` lines 15 to 17 (`usePlantTimeZone`, undefined while loading), `frontend/src/calendar/PlantTime.tsx` lines 6 to 9 (renders nothing without it), `frontend/src/calendar/WithPlantTimeZone.tsx` lines 6 to 18 (throws when there is no calendar); `WithPlantTimeZone` again inside `PlacementForm.tsx` and `ConflictList.tsx`, both below the one in `SchedulePage.tsx`.
-- Problem: the same fact, "the first calendar's zone", has two readers. One silently shows nothing, which breaks the rule against silent defaults, and the other throws. On the schedule page the zone is passed down as a prop and also fetched again through nested wrappers.
-- Why it matters: the M4 proposal screen and the M5 dashboard need the zone too and would add a third way.
-- What to do: read the zone once, near the app shell, into a small context with a `usePlantTimeZone()` that throws when it is missing. Remove the render-prop wrapper and the prop chain.
-- Task: M4-4, as its first step.
 
 ### Minor
 

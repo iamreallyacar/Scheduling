@@ -1,7 +1,6 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ConflictedPlacementResponse, ResourceViewResponse, UnscheduledLotResponse } from '../api/generated';
-import { plantCalendar } from '../orders/orderSamples';
 import { type FakeApiAnswer, type FakeApiRequest, plannerUser, problem, sentBody, stubApi, viewerUser } from '../testing/fakeApi';
 import { renderApp } from '../testing/renderApp';
 
@@ -72,7 +71,6 @@ function stubScheduleApi(unscheduledLots: UnscheduledLotResponse[], conflictedPl
     'GET /api/v1/me': () => ({ status: 200, body: viewerUser }),
     [`GET ${UNSCHEDULED_LOTS_PATH}`]: () => ({ status: 200, body: unscheduledLots }),
     [`GET ${CONFLICTS_PATH}`]: () => ({ status: 200, body: conflictedPlacements }),
-    'GET /api/v1/calendars': () => ({ status: 200, body: [plantCalendar] }),
   });
 }
 
@@ -135,7 +133,6 @@ describe('schedule page', () => {
       'GET /api/v1/me': () => ({ status: 200, body: plannerUser }),
       [`GET ${UNSCHEDULED_LOTS_PATH}`]: () => ({ status: 200, body: [] }),
       [`GET ${CONFLICTS_PATH}`]: () => ({ status: 200, body: [brokenDownPlacement] }),
-      'GET /api/v1/calendars': () => ({ status: 200, body: [plantCalendar] }),
       'GET /api/v1/resources': () => ({ status: 200, body: [press1, press2] }),
     });
     const user = userEvent.setup();
@@ -326,7 +323,6 @@ function stubPlannerApi(
     'GET /api/v1/me': () => ({ status: 200, body: plannerUser }),
     [`GET ${UNSCHEDULED_LOTS_PATH}`]: () => ({ status: 200, body: unscheduledLots() }),
     [`GET ${CONFLICTS_PATH}`]: () => ({ status: 200, body: [] }),
-    'GET /api/v1/calendars': () => ({ status: 200, body: [plantCalendar] }),
     'GET /api/v1/resources': () => ({ status: 200, body: [press2] }),
     [`PUT /api/v1/versions/live/lots/${String(curingLot.id)}/placement`]: placeLot,
   });

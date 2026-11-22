@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import type { ResourceViewResponse, UnavailabilityResponse } from '../api/generated';
 import { useSignedInUser } from '../auth/signedInUser';
-import { useCalendars } from '../calendar/calendarQueries';
+import { usePlantTimeZone } from '../calendar/plantTimeZone';
 import { QueryResult } from '../forms/QueryResult';
 import { NotFoundPage } from '../shell/NotFoundPage';
 import { useMachine, useUnavailabilities } from './machineQueries';
@@ -19,30 +19,21 @@ export function MachinePage() {
 
 function MachineView({ resourceId }: { resourceId: number }) {
   const machine = useMachine(resourceId);
-  const calendars = useCalendars();
   return (
     <section aria-labelledby="machine-heading">
       <p>
         <Link to="/machines">Back to machines</Link>
       </p>
-      <QueryResult query={calendars}>
-        {(loadedCalendars) => (
-          <QueryResult query={machine}>
-            {(loadedMachine) => <LoadedMachine machine={loadedMachine} timeZone={loadedCalendars[0]?.timeZone} />}
-          </QueryResult>
-        )}
-      </QueryResult>
+      <QueryResult query={machine}>{(loadedMachine) => <LoadedMachine machine={loadedMachine} />}</QueryResult>
     </section>
   );
 }
 
-function LoadedMachine({ machine, timeZone }: { machine: ResourceViewResponse; timeZone: string | undefined }) {
+function LoadedMachine({ machine }: { machine: ResourceViewResponse }) {
+  const timeZone = usePlantTimeZone();
   const { canPlan } = useSignedInUser();
   const unavailabilities = useUnavailabilities(machine.id);
   const [unavailabilityInForm, setUnavailabilityInForm] = useState<UnavailabilityResponse | 'new' | null>(null);
-  if (timeZone === undefined) {
-    throw new Error('The API returned no calendar, so the plant time zone is unknown.');
-  }
 
   return (
     <>
@@ -64,7 +55,6 @@ function LoadedMachine({ machine, timeZone }: { machine: ResourceViewResponse; t
           <UnavailabilityTable
             resourceId={machine.id}
             unavailabilities={loadedUnavailabilities}
-            timeZone={timeZone}
             canEdit={canPlan}
             onEdit={setUnavailabilityInForm}
           />
@@ -86,7 +76,6 @@ function LoadedMachine({ machine, timeZone }: { machine: ResourceViewResponse; t
           key={unavailabilityInForm === 'new' ? 'new' : unavailabilityInForm.id}
           resourceId={machine.id}
           unavailability={unavailabilityInForm === 'new' ? null : unavailabilityInForm}
-          timeZone={timeZone}
           onClose={() => {
             setUnavailabilityInForm(null);
           }}

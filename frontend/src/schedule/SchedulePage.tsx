@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useSignedInUser } from '../auth/signedInUser';
-import { WithPlantTimeZone } from '../calendar/WithPlantTimeZone';
+import { usePlantTimeZone } from '../calendar/plantTimeZone';
 import { ConflictList } from './ConflictList';
 import { PlacementForm } from './PlacementForm';
 import type { PlacementTarget } from './placementTarget';
@@ -22,12 +22,13 @@ export function SchedulePage() {
     <section aria-labelledby="schedule-heading">
       <h1 id="schedule-heading">Schedule</h1>
       <p>Version: Live</p>
-      <WithPlantTimeZone>{(timeZone) => <ScheduleOfRange timeZone={timeZone} />}</WithPlantTimeZone>
+      <ScheduleOfRange />
     </section>
   );
 }
 
-function ScheduleOfRange({ timeZone }: { timeZone: string }) {
+function ScheduleOfRange() {
+  const timeZone = usePlantTimeZone();
   const [searchParams, setSearchParams] = useSearchParams();
   const nowMs = useNow();
   const firstDayParameter = searchParams.get(FIRST_DAY_PARAMETER);
@@ -49,7 +50,6 @@ function ScheduleOfRange({ timeZone }: { timeZone: string }) {
 
   return (
     <ScheduleContent
-      timeZone={timeZone}
       nowMs={nowMs}
       firstDay={firstDay}
       zoom={zoom}
@@ -70,7 +70,6 @@ function ScheduleOfRange({ timeZone }: { timeZone: string }) {
 }
 
 interface ScheduleContentProps {
-  timeZone: string;
   nowMs: number;
   firstDay: string;
   zoom: TimelineZoom;
@@ -80,7 +79,7 @@ interface ScheduleContentProps {
   onZoom: (zoom: TimelineZoom) => void;
 }
 
-function ScheduleContent({ timeZone, nowMs, firstDay, zoom, ...rangeActions }: ScheduleContentProps) {
+function ScheduleContent({ nowMs, firstDay, zoom, ...rangeActions }: ScheduleContentProps) {
   const { canPlan } = useSignedInUser();
   const timelineView = useTimelineView(firstDay, zoom);
   const [lotInForm, setLotInForm] = useState<PlacementTarget | null>(null);
@@ -100,7 +99,7 @@ function ScheduleContent({ timeZone, nowMs, firstDay, zoom, ...rangeActions }: S
           }}
         />
       )}
-      <ScheduleTimeline view={timelineView} timeZone={timeZone} nowMs={nowMs} onMove={openForm} {...rangeActions} />
+      <ScheduleTimeline view={timelineView} nowMs={nowMs} onMove={openForm} {...rangeActions} />
       <ConflictList onMove={openForm} renderConflictLink={timelineView.renderConflictLink} />
       <button
         type="button"

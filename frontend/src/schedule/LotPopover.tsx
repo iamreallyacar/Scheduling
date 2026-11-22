@@ -2,6 +2,7 @@ import { Link } from 'react-router';
 import type { RuleViolation } from '../api/problem';
 import { LOT_STATUS_LABELS } from '../orders/orderValues';
 import { formatPlantTime } from '../calendar/plantClock';
+import { usePlantTimeZone } from '../calendar/plantTimeZone';
 import { lotTitle } from './lotTitle';
 import type { TimelineBar } from './timelineBars';
 import { ViolationList, type ConflictLinkRenderer } from './ViolationList';
@@ -10,7 +11,6 @@ interface LotPopoverProps {
   bar: TimelineBar;
   /** The violations the conflict list holds for the placement, empty when it holds none (DEC-46); null until the list has loaded (DEC-52). */
   violations: readonly RuleViolation[] | null;
-  timeZone: string;
   renderConflictLink: ConflictLinkRenderer;
   /** Opens the placement form; null when the user cannot plan. */
   onMove: (() => void) | null;
@@ -18,7 +18,8 @@ interface LotPopoverProps {
 }
 
 /** A bar's lot as the API returns it (AC-190). Removal goes through the placement form (DEC-46). */
-export function LotPopover({ bar, violations, timeZone, renderConflictLink, onMove, onClose }: LotPopoverProps) {
+export function LotPopover({ bar, violations, renderConflictLink, onMove, onClose }: LotPopoverProps) {
+  const timeZone = usePlantTimeZone();
   const { placement, resource } = bar;
   const title = lotTitle(placement);
   return (
@@ -44,7 +45,7 @@ export function LotPopover({ bar, violations, timeZone, renderConflictLink, onMo
       {violations === null ? (
         <p className="page-message">The broken rules are not known until the conflict list has loaded.</p>
       ) : (
-        <ViolationList violations={violations} timeZone={timeZone} renderConflictLink={renderConflictLink} />
+        <ViolationList violations={violations} renderConflictLink={renderConflictLink} />
       )}
       <div className="form-actions">
         {onMove !== null && (

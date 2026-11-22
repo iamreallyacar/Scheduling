@@ -5,6 +5,7 @@ import { problemOf } from '../api/problem';
 import { isCurrentUserQuery, queryKeys } from '../api/queryKeys';
 import { forgetAntiforgeryToken } from '../api/request';
 import { useSignedInUser } from '../auth/signedInUser';
+import { PlantTimeZoneProvider } from '../calendar/PlantTimeZoneProvider';
 import { ProblemSummary } from '../forms/ProblemSummary';
 
 // The frame around every signed-in page: navigation per module area, the user and sign-out.
@@ -48,7 +49,9 @@ export function AppShell() {
       </header>
       <main>
         <ProblemSummary problem={problemOf(signOutMutation.error)} />
-        <Outlet />
+        <PlantTimeZoneProvider>
+          <Outlet />
+        </PlantTimeZoneProvider>
       </main>
     </>
   );

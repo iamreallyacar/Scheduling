@@ -3,19 +3,20 @@ import { deleteUnavailability } from '../api/generated/endpoints.gen';
 import type { UnavailabilityResponse } from '../api/generated';
 import { problemOf } from '../api/problem';
 import { formatPlantTime } from '../calendar/plantClock';
+import { usePlantTimeZone } from '../calendar/plantTimeZone';
 import { ProblemSummary } from '../forms/ProblemSummary';
 import { UNAVAILABILITY_KIND_LABELS } from './machineValues';
 
 interface UnavailabilityTableProps {
   resourceId: number;
   unavailabilities: readonly UnavailabilityResponse[];
-  timeZone: string;
   canEdit: boolean;
   onEdit: (unavailability: UnavailabilityResponse) => void;
 }
 
 /** The unavailabilities in the order the server returns them (latest start first). */
-export function UnavailabilityTable({ resourceId, unavailabilities, timeZone, canEdit, onEdit }: UnavailabilityTableProps) {
+export function UnavailabilityTable({ resourceId, unavailabilities, canEdit, onEdit }: UnavailabilityTableProps) {
+  const timeZone = usePlantTimeZone();
   const deleteMutation = useMutation({
     mutationFn: (unavailabilityId: number) => deleteUnavailability(resourceId, unavailabilityId),
   });

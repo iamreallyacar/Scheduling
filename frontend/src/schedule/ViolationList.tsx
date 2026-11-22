@@ -1,19 +1,20 @@
 import type { ReactNode } from 'react';
 import type { RuleViolation } from '../api/problem';
 import { formatPlantTime } from '../calendar/plantClock';
+import { usePlantTimeZone } from '../calendar/plantTimeZone';
 
 /** Renders the link to a violation's conflicting item, or null when there is none to show (AC-191). */
 export type ConflictLinkRenderer = (conflict: RuleViolation['conflict']) => ReactNode;
 
 interface ViolationListProps {
   violations: readonly RuleViolation[];
-  timeZone: string;
   /** Absent where no view can show the conflicting items. */
   renderConflictLink?: ConflictLinkRenderer | undefined;
 }
 
 /** Every broken rule with its text and code, as the server returns them (R7, DEC-42). */
-export function ViolationList({ violations, timeZone, renderConflictLink }: ViolationListProps) {
+export function ViolationList({ violations, renderConflictLink }: ViolationListProps) {
+  const timeZone = usePlantTimeZone();
   if (violations.length === 0) {
     return null;
   }

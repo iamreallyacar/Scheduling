@@ -9,9 +9,3 @@ export function useCalendars() {
 export function useHolidays() {
   return useQuery({ queryKey: queryKeys.holidays, queryFn: listHolidays });
 }
-
-// Every calendar is in the plant time zone (AC-41), so any calendar names it. Undefined until
-// the calendars are loaded.
-export function usePlantTimeZone(): string | undefined {
-  return useCalendars().data?.[0]?.timeZone;
-}

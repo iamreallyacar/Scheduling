@@ -1,12 +1,12 @@
 import { useId } from 'react';
 import type { NamedReference } from '../api/generated';
+import { usePlantTimeZone } from '../calendar/plantTimeZone';
 import { formatPlantDate, type TimelineZoom } from './timelineRange';
 
 interface TimelineToolbarProps {
   firstDay: string;
   lastDay: string;
   zoom: TimelineZoom;
-  timeZone: string;
   resourceTypes: readonly NamedReference[];
   resourceTypeId: number | null;
   /** How many placements the conflict list holds; null until it is loaded. */
@@ -26,7 +26,8 @@ const ZOOM_LABELS: Readonly<Record<TimelineZoom, string>> = { day: 'Day', 'two-w
 
 /** The range, zoom and filters of the timeline (AC-188, AC-189, wireframes.md section 2). */
 export function TimelineToolbar(props: TimelineToolbarProps) {
-  const { firstDay, lastDay, zoom, timeZone, resourceTypes, resourceTypeId, conflictCount, onlyConflicted } = props;
+  const { firstDay, lastDay, zoom, resourceTypes, resourceTypeId, conflictCount, onlyConflicted } = props;
+  const timeZone = usePlantTimeZone();
   const resourceTypeFieldId = useId();
   return (
     <div className="timeline-toolbar">

@@ -1,7 +1,6 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ConflictedPlacementResponse, ResourceViewResponse, TimelinePlacementResponse, TimelineResponse } from '../api/generated';
-import { plantCalendar } from '../orders/orderSamples';
 import { plannerUser, problem, stubApi, viewerUser, type FakeApiAnswer, type FakeApiRequest } from '../testing/fakeApi';
 import { renderApp } from '../testing/renderApp';
 
@@ -125,7 +124,6 @@ function stubScheduleApi({ user = viewerUser, timeline = () => twoWeeks, placeLo
     [`GET ${TIMELINE_PATH}`]: (request) => ({ status: 200, body: timeline(request) }),
     'GET /api/v1/versions/live/conflicts': conflicts,
     'GET /api/v1/versions/live/unscheduled-lots': () => ({ status: 200, body: [] }),
-    'GET /api/v1/calendars': () => ({ status: 200, body: [plantCalendar] }),
     'GET /api/v1/resources': () => ({ status: 200, body: [press1] }),
     ...(placeLot === undefined ? {} : { [`PUT /api/v1/versions/live/lots/${String(curingBar.lotId)}/placement`]: placeLot }),
   });

@@ -41,7 +41,7 @@ Backend, in `backend/tests/TireScheduler.Engine.Tests`:
 Frontend, in `frontend/src/testing`:
 
 - `renderApp`: renders the whole app at a path, with a fresh query cache and no anti-forgery token.
-- `stubApi`: replaces `fetch` with a table of routes keyed by "METHOD /path" and returns the requests made. A request with no route fails the test. The anti-forgery route is stubbed by default. A route may answer with a promise, so a test can look at the page while a read is still loading and then resolve it.
+- `stubApi`: replaces `fetch` with a table of routes keyed by "METHOD /path" and returns the requests made. A request with no route fails the test. The anti-forgery route and the calendars route (one plant calendar, `testing/plantCalendar.ts`) are stubbed by default, because every signed-in page waits for the plant time zone; a route a test passes overrides them. A route may answer with a promise, so a test can look at the page while a read is still loading and then resolve it.
 - `sentBody` (in `fakeApi.ts`): the body of the one request sent as "METHOD /path", failing when none or several were sent, so a test compares it without a cast.
 - `fakeApi.ts` also holds sample users for each role and builders for problem answers.
 - `rowOf`: the table row holding a cell, failing when there is none, so a test can look inside one row.

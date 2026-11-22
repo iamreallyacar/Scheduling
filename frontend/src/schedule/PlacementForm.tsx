@@ -4,7 +4,7 @@ import { placeLot, removeLotPlacement } from '../api/generated/endpoints.gen';
 import { problemOf } from '../api/problem';
 import { SCHEDULE_VERSION } from '../api/scheduleVersion';
 import { plantLocalToUtc, utcToPlantLocal } from '../calendar/plantClock';
-import { WithPlantTimeZone } from '../calendar/WithPlantTimeZone';
+import { usePlantTimeZone } from '../calendar/plantTimeZone';
 import { SelectField, TextField } from '../forms/Fields';
 import { NOTHING_CHOSEN, numberOrNullIfEmpty } from '../forms/fieldValues';
 import { FormPanel } from '../forms/FormPanel';
@@ -25,11 +25,8 @@ interface PlacementFormProps {
 // F-SCH-1 and F-SCH-11 (wireframes.md section 3). The server checks every rule and computes the
 // planned end, so the form shows "Calculated when saved" (WQ1) and lists the rules a rejected save
 // broke (R7). A suggested slot only fills the Placement part; the planner still saves it.
-export function PlacementForm(props: PlacementFormProps) {
-  return <WithPlantTimeZone>{(timeZone) => <LoadedPlacementForm {...props} timeZone={timeZone} />}</WithPlantTimeZone>;
-}
-
-function LoadedPlacementForm({ target, timeZone, onClose, renderConflictLink }: PlacementFormProps & { timeZone: string }) {
+export function PlacementForm({ target, onClose, renderConflictLink }: PlacementFormProps) {
+  const timeZone = usePlantTimeZone();
   // The server filters the machines (AC-30); R1 is still checked when saving.
   const machines = useMachines({ resourceTypeId: target.resourceType.id, isActive: true });
   const [resourceId, setResourceId] = useState(target.placement === null ? NOTHING_CHOSEN : String(target.placement.resourceId));
@@ -80,13 +77,12 @@ function LoadedPlacementForm({ target, timeZone, onClose, renderConflictLink }: 
       }
       onCancel={onClose}
     >
-      {problem !== null && <ViolationList violations={problem.violations} timeZone={timeZone} renderConflictLink={renderConflictLink} />}
+      {problem !== null && <ViolationList violations={problem.violations} renderConflictLink={renderConflictLink} />}
       <QueryResult query={machines}>
         {(loadedMachines) => (
           <EarliestSlotFinder
             target={target}
             machines={loadedMachines}
-            timeZone={timeZone}
             onUse={(slot) => {
               setResourceId(String(slot.resource.id));
               setStart(utcToPlantLocal(slot.plannedStart, timeZone));

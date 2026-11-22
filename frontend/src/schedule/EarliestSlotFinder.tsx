@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { EarliestSlotResponse, ResourceViewResponse } from '../api/generated';
 import { problemOf } from '../api/problem';
 import { formatPlantTime, plantLocalToUtc } from '../calendar/plantClock';
+import { usePlantTimeZone } from '../calendar/plantTimeZone';
 import { SelectField, TextField } from '../forms/Fields';
 import { ProblemSummary } from '../forms/ProblemSummary';
 import type { PlacementTarget } from './placementTarget';
@@ -15,12 +16,12 @@ interface EarliestSlotFinderProps {
   target: PlacementTarget;
   /** The machines the Placement part offers: the active ones of the lot's type. */
   machines: readonly ResourceViewResponse[];
-  timeZone: string;
   onUse: (slot: EarliestSlotResponse) => void;
 }
 
 /** F-SCH-11 (wireframes.md section 3): the server searches and checks every rule; the part shows its answer and saves nothing (AC-196). */
-export function EarliestSlotFinder({ target, machines, timeZone, onUse }: EarliestSlotFinderProps) {
+export function EarliestSlotFinder({ target, machines, onUse }: EarliestSlotFinderProps) {
+  const timeZone = usePlantTimeZone();
   const [searchResourceId, setSearchResourceId] = useState(ANY_MACHINE);
   const [notBefore, setNotBefore] = useState('');
   const search: EarliestSlotSearch = {};
@@ -70,7 +71,7 @@ export function EarliestSlotFinder({ target, machines, timeZone, onUse }: Earlie
         </button>
       </div>
       <ProblemSummary problem={problem} />
-      {problem !== null && <ViolationList violations={problem.violations} timeZone={timeZone} />}
+      {problem !== null && <ViolationList violations={problem.violations} />}
       {earliestSlot.isSuccess && (
         <p>
           {`Suggested: ${earliestSlot.data.resource.name}, ${formatPlantTime(earliestSlot.data.plannedStart, timeZone)} - ${formatPlantTime(earliestSlot.data.plannedEnd, timeZone)}`}{' '}

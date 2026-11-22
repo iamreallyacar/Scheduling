@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import type { CurrentUserResponse, OrderPageResponse } from '../api/generated';
 import { adminUser, type FakeApiAnswer, type FakeApiRequest, plannerUser, problem, sentBody, stubApi, viewerUser } from '../testing/fakeApi';
 import { renderApp } from '../testing/renderApp';
-import { order, passengerTire, plantCalendar, summaryOf, truckTire } from './orderSamples';
+import { order, passengerTire, summaryOf, truckTire } from './orderSamples';
 import { rowOf } from '../testing/rowOf';
 
 type OrderPageAnswer = OrderPageResponse | ((request: FakeApiRequest) => OrderPageResponse);
@@ -14,7 +14,6 @@ function stubOrderListApi(currentUser: CurrentUserResponse, page: OrderPageAnswe
     'GET /api/v1/orders': (request) => ({ status: 200, body: typeof page === 'function' ? page(request) : page }),
     'GET /api/v1/products': () => ({ status: 200, body: [passengerTire, truckTire] }),
     'GET /api/v1/orders/5': () => ({ status: 200, body: order }),
-    'GET /api/v1/calendars': () => ({ status: 200, body: [plantCalendar] }),
     ...(createOrder === undefined ? {} : { 'POST /api/v1/orders': createOrder }),
   });
 }

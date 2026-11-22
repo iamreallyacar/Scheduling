@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 import type { CurrentUserResponse } from '../api/generated';
+import { plantCalendar } from './plantCalendar';
 
 export interface FakeApiRequest {
   method: string;
@@ -38,6 +39,7 @@ export function stubApi(routes: Record<string, FakeApiRoute>): FakeApiRequest[] 
   const requests: FakeApiRequest[] = [];
   const allRoutes: Record<string, FakeApiRoute> = {
     'GET /api/v1/auth/antiforgery-token': () => ({ status: 200, body: { headerName: ANTIFORGERY_HEADER, token: ANTIFORGERY_TOKEN } }),
+    'GET /api/v1/calendars': () => ({ status: 200, body: [plantCalendar] }),
     ...routes,
   };
 
