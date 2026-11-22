@@ -389,6 +389,11 @@ button:disabled {
   font-weight: 600;
 }
 
+.timeline-bar.timeline-proposed {
+  border-style: dashed;
+  background: repeating-linear-gradient(135deg, #dce8f6 0 4px, #f4f8fc 4px 8px);
+}
+
 .timeline-bar[aria-pressed='true'] {
   outline: 2px solid var(--text);
 }

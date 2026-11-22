@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import type { GetEarliestSlotData } from '../api/generated';
-import { getEarliestSlot, getTimeline, listConflictedPlacements, listUnscheduledLots } from '../api/generated/endpoints.gen';
+import type { GetEarliestSlotData, ProposeOrderAsapData } from '../api/generated';
+import { getEarliestSlot, getTimeline, listConflictedPlacements, listUnscheduledLots, proposeOrderAsap } from '../api/generated/endpoints.gen';
 import { queryKeys } from '../api/queryKeys';
 import { SCHEDULE_VERSION } from '../api/scheduleVersion';
 
@@ -22,6 +22,21 @@ export function useEarliestSlot(lotId: number, search: EarliestSlotSearch) {
     queryKey: queryKeys.earliestSlot(SCHEDULE_VERSION, lotId, search),
     queryFn: () => getEarliestSlot(SCHEDULE_VERSION, lotId, search),
     enabled: false,
+    gcTime: 0,
+  });
+}
+
+export type AsapProposalSearch = NonNullable<ProposeOrderAsapData['query']>;
+
+// A read, though it is a POST (DEC-60), so it is a query (DEC-58). It is asked when the review opens
+// and on [Recalculate], never on its own: the planner reviews this answer, and one from now would
+// change as time passes. It is dropped as soon as no review shows it.
+export function useAsapProposal(orderId: number, search: AsapProposalSearch) {
+  return useQuery({
+    queryKey: queryKeys.asapProposal(SCHEDULE_VERSION, orderId, search),
+    queryFn: () => proposeOrderAsap(SCHEDULE_VERSION, orderId, search),
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
     gcTime: 0,
   });
 }

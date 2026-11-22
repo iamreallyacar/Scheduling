@@ -4,6 +4,15 @@ import { usePlantTimeZone } from '../calendar/plantTimeZone';
 import { RESOURCE_STATUS_LABELS, UNAVAILABILITY_KIND_LABELS } from '../machines/machineValues';
 import { addDays, DAYS_SHOWN, type TimelineZoom } from './timelineRange';
 
+/** A placement that is not stored yet, drawn apart from the stored ones (wireframes.md section 4). */
+export interface ProposedTimelineBar {
+  lotId: number;
+  resourceId: number;
+  label: string;
+  plannedStart: string;
+  plannedEnd: string;
+}
+
 interface TimelineChartProps {
   timeline: TimelineResponse;
   firstDay: string;
@@ -12,7 +21,10 @@ interface TimelineChartProps {
   /** The placements drawn as conflicted (DEC-46). */
   conflictedPlacementIds: ReadonlySet<number>;
   selectedPlacementId: number | null;
-  onSelect: (placementId: number) => void;
+  /** Null draws the bars without a way to select them, as in a preview. */
+  onSelect: ((placementId: number) => void) | null;
+  /** Drawn on the machine rows they name; the schedule page has none. */
+  proposedBars?: readonly ProposedTimelineBar[];
 }
 
 interface ShownRange {
@@ -25,7 +37,7 @@ const HOURS_BETWEEN_DAY_TICKS = 6;
 // F-SCH-2, read-only (wireframes.md section 2): what the API returns, drawn on the shown range. The
 // chart decides no rule and filters nothing; it draws every machine and bar it is given (AC-189), so
 // the caller decides what is shown.
-export function TimelineChart({ timeline, firstDay, zoom, nowMs, conflictedPlacementIds, selectedPlacementId, onSelect }: TimelineChartProps) {
+export function TimelineChart({ timeline, firstDay, zoom, nowMs, conflictedPlacementIds, selectedPlacementId, onSelect, proposedBars = [] }: TimelineChartProps) {
   const timeZone = usePlantTimeZone();
   const range: ShownRange = { startMs: Date.parse(timeline.start), endMs: Date.parse(timeline.end) };
   const nowIsShown = range.startMs <= nowMs && nowMs < range.endMs;
@@ -64,6 +76,7 @@ export function TimelineChart({ timeline, firstDay, zoom, nowMs, conflictedPlace
               conflictedPlacementIds={conflictedPlacementIds}
               selectedPlacementId={selectedPlacementId}
               onSelect={onSelect}
+              proposedBars={proposedBars.filter((bar) => bar.resourceId === resource.id)}
             />
           ))}
         </tbody>
@@ -78,10 +91,11 @@ interface MachineRowProps {
   nowLineMs: number | null;
   conflictedPlacementIds: ReadonlySet<number>;
   selectedPlacementId: number | null;
-  onSelect: (placementId: number) => void;
+  onSelect: ((placementId: number) => void) | null;
+  proposedBars: readonly ProposedTimelineBar[];
 }
 
-function MachineRow({ resource, range, nowLineMs, conflictedPlacementIds, selectedPlacementId, onSelect }: MachineRowProps) {
+function MachineRow({ resource, range, nowLineMs, conflictedPlacementIds, selectedPlacementId, onSelect, proposedBars }: MachineRowProps) {
   const timeZone = usePlantTimeZone();
   return (
     <tr>
@@ -106,22 +120,40 @@ function MachineRow({ resource, range, nowLineMs, conflictedPlacementIds, select
           {nowLineMs !== null && <div aria-hidden="true" className="timeline-now" style={{ left: spanStyle(range, nowLineMs, range.endMs).left }} />}
           {resource.placements.map((placement) => {
             const isConflicted = conflictedPlacementIds.has(placement.placementId);
-            return (
+            const barProps = {
+              className: isConflicted ? 'timeline-bar timeline-conflicted' : 'timeline-bar',
+              style: spanStyle(range, Date.parse(placement.plannedStart), Date.parse(placement.plannedEnd)),
+              title: `${formatPlantTime(placement.plannedStart, timeZone)} - ${formatPlantTime(placement.plannedEnd, timeZone)}`,
+            };
+            const label = `${isConflicted ? '! ' : ''}${placement.orderNo}/L${String(placement.lotNo)}`;
+            return onSelect === null ? (
+              <span key={placement.placementId} {...barProps}>
+                {label}
+              </span>
+            ) : (
               <button
                 key={placement.placementId}
                 type="button"
-                className={isConflicted ? 'timeline-bar timeline-conflicted' : 'timeline-bar'}
-                style={spanStyle(range, Date.parse(placement.plannedStart), Date.parse(placement.plannedEnd))}
-                title={`${formatPlantTime(placement.plannedStart, timeZone)} - ${formatPlantTime(placement.plannedEnd, timeZone)}`}
+                {...barProps}
                 aria-pressed={placement.placementId === selectedPlacementId}
                 onClick={() => {
                   onSelect(placement.placementId);
                 }}
               >
-                {`${isConflicted ? '! ' : ''}${placement.orderNo}/L${String(placement.lotNo)}`}
+                {label}
               </button>
             );
           })}
+          {proposedBars.map((bar) => (
+            <span
+              key={bar.lotId}
+              className="timeline-bar timeline-proposed"
+              style={spanStyle(range, Date.parse(bar.plannedStart), Date.parse(bar.plannedEnd))}
+              title={`${formatPlantTime(bar.plannedStart, timeZone)} - ${formatPlantTime(bar.plannedEnd, timeZone)}`}
+            >
+              {`${bar.label} (proposed)`}
+            </span>
+          ))}
         </div>
       </td>
     </tr>

@@ -28,6 +28,23 @@ internal sealed class ScheduleSnapshotLoader(
         return await LoadAsync(versionId, new OrdersOnResources { ResourceIds = [.. resourcesOfType.Select(resource => resource.Id)], Orders = [order] }, cancellationToken);
     }
 
+    // Enough to propose every lot of the order (ScheduleOrderAsap): every resource of each of its
+    // lots' types, for the same reason as ForOrderOnResourceTypeAsync.
+    public async Task<ScheduleSnapshot> ForOrderAsync(int versionId, OrderSchedulingFacts order, CancellationToken cancellationToken) =>
+        await LoadAsync(versionId, new OrdersOnResources { ResourceIds = await ResourceIdsOfLotTypesAsync(order, cancellationToken), Orders = [order] }, cancellationToken);
+
+    // The resources a proposal of the order may use, active or not, in ascending id order.
+    public async Task<IReadOnlyList<int>> ResourceIdsOfLotTypesAsync(OrderSchedulingFacts order, CancellationToken cancellationToken)
+    {
+        List<int> resourceIds = [];
+        foreach (int resourceTypeId in order.Lots.Select(lot => lot.ResourceTypeId).Distinct())
+        {
+            resourceIds.AddRange((await masterData.ListResourcesAsync(resourceTypeId, isActive: null, cancellationToken)).Select(resource => resource.Id));
+        }
+
+        return [.. resourceIds.Order()];
+    }
+
     // Every placement of the version with the orders of their lots, for the rules that look at the
     // whole version (FindConflicts, RecomputeEnds).
     public Task<ScheduleSnapshot> ForVersionAsync(int versionId, CancellationToken cancellationToken) =>

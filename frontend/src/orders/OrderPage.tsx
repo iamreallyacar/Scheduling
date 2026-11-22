@@ -12,6 +12,7 @@ import { QueryResult } from '../forms/QueryResult';
 import { PlacementForm } from '../schedule/PlacementForm';
 import type { PlacementTarget } from '../schedule/placementTarget';
 import { NotFoundPage } from '../shell/NotFoundPage';
+import { AsapProposalReview } from './AsapProposalReview';
 import { OrderForm } from './OrderForm';
 import { useOrder } from './orderQueries';
 import { OrderStatusText } from './OrderStatusText';
@@ -40,6 +41,7 @@ function LoadedOrder({ order }: { order: OrderResponse }) {
   const { canPlan } = useSignedInUser();
   const [isEditing, setIsEditing] = useState(false);
   const [lotInForm, setLotInForm] = useState<PlacementTarget | null>(null);
+  const [isReviewingProposal, setIsReviewingProposal] = useState(false);
   const navigate = useNavigate();
 
   // A write answers without the order; the query client reads it again (DEC-29, DEC-36).
@@ -118,7 +120,25 @@ function LoadedOrder({ order }: { order: OrderResponse }) {
           >
             Delete order
           </button>
+          {order.status !== 'Cancelled' && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsReviewingProposal(true);
+              }}
+            >
+              Schedule as soon as possible
+            </button>
+          )}
         </div>
+      )}
+      {isReviewingProposal && (
+        <AsapProposalReview
+          order={order}
+          onClose={() => {
+            setIsReviewingProposal(false);
+          }}
+        />
       )}
       {isEditing && (
         <OrderForm

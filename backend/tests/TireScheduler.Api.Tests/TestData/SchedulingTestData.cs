@@ -39,6 +39,31 @@ internal static class SchedulingTestData
         return query.Count == 0 ? path : $"{path}?{string.Join('&', query)}";
     }
 
+    public static string AsapProposalPath(string versionId, int orderId, DateTimeOffset? notBefore)
+    {
+        string path = $"/api/v1/versions/{versionId}/orders/{orderId}/asap-proposal";
+        return notBefore is { } instant
+            ? $"{path}?notBefore={Uri.EscapeDataString(instant.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture))}"
+            : path;
+    }
+
+    public static string AsapCommitPath(string versionId, int orderId) => $"/api/v1/versions/{versionId}/orders/{orderId}/asap-proposal/commit";
+
+    // The commit body of a proposal, sent unchanged: its start and its proposed lots (AC-200).
+    public static object CommitBodyOf(JsonElement proposal) => new
+    {
+        notBefore = proposal.GetProperty("notBefore").GetDateTimeOffset(),
+        placements = proposal.GetProperty("lots").EnumerateArray()
+            .Where(lot => lot.GetProperty("isProposed").GetBoolean())
+            .Select(lot => new
+            {
+                lotId = lot.GetProperty("lotId").GetInt32(),
+                resourceId = lot.GetProperty("resource").GetProperty("id").GetInt32(),
+                plannedStart = lot.GetProperty("plannedStart").GetDateTimeOffset(),
+            })
+            .ToArray(),
+    };
+
     public static string UnavailabilitiesPath(int resourceId) => $"{MasterDataTestData.ResourcesPath}/{resourceId}/unavailabilities";
 
     public static string UnavailabilityPath(int resourceId, int unavailabilityId) => $"{UnavailabilitiesPath(resourceId)}/{unavailabilityId}";

@@ -162,6 +162,19 @@ export type OrderProgressResponse = {
     totalQuantity: number;
 };
 
+export type OrderProposalCommitRequest = {
+    notBefore: null | string;
+    placements: null | Array<ProposedPlacementRequest>;
+};
+
+export type OrderProposalResponse = {
+    orderId: number;
+    notBefore: string;
+    lots: Array<ProposalLotResponse>;
+    finishesAt: string;
+    wouldBeLate: boolean;
+};
+
 export type OrderRequest = {
     orderNo: string;
     customerName: string;
@@ -221,6 +234,23 @@ export type ProductResponse = {
     code: string;
     name: string;
     spec: null | string;
+};
+
+export type ProposalLotResponse = {
+    lotId: number;
+    lotNo: number;
+    sequenceNo: number;
+    resourceType: NamedReference;
+    resource: NamedReference;
+    plannedStart: string;
+    plannedEnd: string;
+    isProposed: boolean;
+};
+
+export type ProposedPlacementRequest = {
+    lotId: null | number;
+    resourceId: null | number;
+    plannedStart: null | string;
 };
 
 export type ResourceKind = 'Machine';
@@ -1064,6 +1094,46 @@ export type GetEarliestSlotResponses = {
 };
 
 export type GetEarliestSlotResponse = GetEarliestSlotResponses[keyof GetEarliestSlotResponses];
+
+export type ProposeOrderAsapData = {
+    body?: never;
+    path: {
+        versionId: string;
+        orderId: number;
+    };
+    query?: {
+        notBefore?: string;
+    };
+    url: '/api/v1/versions/{versionId}/orders/{orderId}/asap-proposal';
+};
+
+export type ProposeOrderAsapResponses = {
+    /**
+     * OK
+     */
+    200: OrderProposalResponse;
+};
+
+export type ProposeOrderAsapResponse = ProposeOrderAsapResponses[keyof ProposeOrderAsapResponses];
+
+export type CommitOrderAsapProposalData = {
+    body: OrderProposalCommitRequest;
+    path: {
+        versionId: string;
+        orderId: number;
+    };
+    query?: never;
+    url: '/api/v1/versions/{versionId}/orders/{orderId}/asap-proposal/commit';
+};
+
+export type CommitOrderAsapProposalResponses = {
+    /**
+     * OK
+     */
+    200: Array<LotPlacementResponse>;
+};
+
+export type CommitOrderAsapProposalResponse = CommitOrderAsapProposalResponses[keyof CommitOrderAsapProposalResponses];
 
 export type ListUnscheduledLotsData = {
     body?: never;

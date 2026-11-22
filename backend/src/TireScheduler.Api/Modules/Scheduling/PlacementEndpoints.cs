@@ -2,8 +2,8 @@ using TireScheduler.Api.Security;
 
 namespace TireScheduler.Api.Modules.Scheduling;
 
-// The placement writes of a version (DEC-17) and the earliest-slot search that suggests one; the
-// schedule reads are served by Queries.
+// The placement writes of a version (DEC-17), the earliest-slot search that suggests one, and the
+// whole-order proposal with its commit (DEC-60); the schedule reads are served by Queries.
 internal static class PlacementEndpoints
 {
     public static void Map(RouteGroupBuilder api)
@@ -25,5 +25,14 @@ internal static class PlacementEndpoints
             .WithTags("Schedule")
             .WithName("GetEarliestSlot")
             .RequireAuthorization(AccessPolicies.Read);
+        RouteGroupBuilder proposal = api.MapGroup("/versions/{versionId}/orders/{orderId:int}/asap-proposal").WithTags("Schedule");
+        proposal.MapPost("/", async (string versionId, int orderId, DateTimeOffset? notBefore, OrderProposalSearch search, CancellationToken cancellationToken) =>
+                TypedResults.Ok(await search.ProposeAsync(versionId, orderId, notBefore, cancellationToken)))
+            .WithName("ProposeOrderAsap")
+            .RequireAuthorization(AccessPolicies.Plan);
+        proposal.MapPost("/commit", async (string versionId, int orderId, OrderProposalCommitRequest request, PlacementRegister register, CancellationToken cancellationToken) =>
+                TypedResults.Ok(await register.CommitProposalAsync(versionId, orderId, request, cancellationToken)))
+            .WithName("CommitOrderAsapProposal")
+            .RequireAuthorization(AccessPolicies.Plan);
     }
 }

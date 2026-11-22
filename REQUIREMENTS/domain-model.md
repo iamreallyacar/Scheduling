@@ -227,6 +227,7 @@ Order progress (F-PRG-2) = completed quantity / total quantity over the lots of 
 | A43 | An inactive machine appears on the timeline only when it holds a placement in the shown range, which is then an R1 conflict (A15); one with nothing in the range has nothing to show. Its unavailabilities are shown with it |
 | A44 | The timeline shows one day or two weeks, and two weeks start on the Monday of the current plant week by default. The API takes up to 31 days, which covers the F-NFR-5 size (about 25 machines over 2 weeks) and a month, and keeps the answer small, and only days in the years 2000 to 2999, which a plant schedule never leaves, so the day arithmetic never reaches the ends of the calendar |
 | A45 | The earliest-slot search tries whole minutes only, because a placement start is one (A40): a `notBefore` with seconds counts from the next whole minute. The horizon counts from there, and a slot must start before the horizon ends; it may end after it |
+| A46 | The proposal review previews the two weeks from the plant day of the first lot's start, which holds an order of a few lots; a bar after them is not drawn, and the table still lists it. It marks no conflicts, which the schedule page shows. The "lag 2h" notes and the [Open lot] link of `wireframes.md` section 4 are left out, because no read gives the lag a lot waited for and there is no lot page |
 
 ## 8. Out of the model for v1
 

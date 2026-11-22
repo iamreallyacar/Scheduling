@@ -30,7 +30,9 @@ public sealed class ApiProblemException : Exception
     // scheduling rule violation (API.md section "Error format").
     public IReadOnlyDictionary<string, object>? Extensions { get; }
 
-    public static ApiProblemException Rejected(int status, string code, string detail) => new(status, code, detail);
+    // Extensions carry the item a rejection names, for example the `lotId` of a lot without a slot.
+    public static ApiProblemException Rejected(int status, string code, string detail, IReadOnlyDictionary<string, object>? extensions = null) =>
+        new(status, code, detail, extensions: extensions);
 
     public static ApiProblemException NotFound(string itemName) =>
         new(StatusCodes.Status404NotFound, ProblemCodes.NotFound, $"{itemName} does not exist.");

@@ -116,6 +116,12 @@ export const removeLotPlacement = (versionId: Api.RemoveLotPlacementData['path']
 export const getEarliestSlot = (versionId: Api.GetEarliestSlotData['path']['versionId'], lotId: Api.GetEarliestSlotData['path']['lotId'], query: NonNullable<Api.GetEarliestSlotData['query']>) =>
   requestApi<Api.GetEarliestSlotResponse>('GET', { url: '/api/v1/versions/{versionId}/lots/{lotId}/earliest-slot', path: { versionId, lotId }, query } satisfies Api.GetEarliestSlotData);
 
+export const proposeOrderAsap = (versionId: Api.ProposeOrderAsapData['path']['versionId'], orderId: Api.ProposeOrderAsapData['path']['orderId'], query: NonNullable<Api.ProposeOrderAsapData['query']>) =>
+  requestApi<Api.ProposeOrderAsapResponse>('POST', { url: '/api/v1/versions/{versionId}/orders/{orderId}/asap-proposal', path: { versionId, orderId }, query } satisfies Api.ProposeOrderAsapData);
+
+export const commitOrderAsapProposal = (versionId: Api.CommitOrderAsapProposalData['path']['versionId'], orderId: Api.CommitOrderAsapProposalData['path']['orderId'], body: Api.CommitOrderAsapProposalData['body']) =>
+  requestApi<Api.CommitOrderAsapProposalResponse>('POST', { url: '/api/v1/versions/{versionId}/orders/{orderId}/asap-proposal/commit', path: { versionId, orderId }, body } satisfies Api.CommitOrderAsapProposalData);
+
 export const listUnscheduledLots = (versionId: Api.ListUnscheduledLotsData['path']['versionId']) =>
   requestApi<Api.ListUnscheduledLotsResponse>('GET', { url: '/api/v1/versions/{versionId}/unscheduled-lots', path: { versionId } } satisfies Api.ListUnscheduledLotsData);
 

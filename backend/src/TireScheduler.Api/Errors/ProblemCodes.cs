@@ -20,5 +20,6 @@ public static class ProblemCodes
     public const string OrderLotInProgress = "order.lot_in_progress";
     public const string OrderNotDeletable = "order.not_deletable";
     public const string SlotNone = "slot.none";
+    public const string ProposalStale = "proposal.stale";
     public const string ServerError = "server.error";
 }

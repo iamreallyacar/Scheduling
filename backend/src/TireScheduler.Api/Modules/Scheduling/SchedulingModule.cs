@@ -22,6 +22,7 @@ public static class SchedulingModule
         services.AddScoped<ScheduleSnapshotLoader>();
         services.AddScoped<PlacementRegister>();
         services.AddScoped<EarliestSlotSearch>();
+        services.AddScoped<OrderProposalSearch>();
         services.AddScoped<IPlacementReader, PlacementReader>();
         services.AddScoped<IResourceReferences, UnavailabilityReferences>();
         services.AddScoped<PlacementReferences>();

@@ -50,7 +50,7 @@ flowchart LR
 | Orders | Order, Operation, OperationDependency, Lot | MasterData (routing at order creation), Engine (lot duration, DEC-28) |
 | Scheduling | ScheduleVersion, Placement, Unavailability; calls the engine | MasterData (resources, calendars), Orders (lots, dependencies), Engine |
 | Progress | LotProgress | Orders, Scheduling (a lot must be placed in the live version before it starts) |
-| Queries | Read models only, including all derived statuses and `isLate`; serves the order reads (DEC-29), the machine reads (DEC-39), the unscheduled-lots queue, the conflicted placements and the timeline | All modules, read-only; Engine (late flag, DEC-30); the working periods come from Scheduling (DEC-49) |
+| Queries | Read models only, including all derived statuses and `isLate` (the proposal's `wouldBeLate`, of placements not yet stored, comes from Scheduling, DEC-60); serves the order reads (DEC-29), the machine reads (DEC-39), the unscheduled-lots queue, the conflicted placements and the timeline | All modules, read-only; Engine (late flag, DEC-30); the working periods come from Scheduling (DEC-49) |
 | Engine | Scheduling rules and search over plain values | Nothing |
 | Plant generator (`TireScheduler.PlantGenerator`) | Parameters, presets and a seeded synthetic plant as plain values | Engine (lot duration) |
 | Plant loader (`TireScheduler.PlantLoader`) | Writing a generated plant into a running API as an Admin | Plant generator; the API over HTTP only |
@@ -107,7 +107,7 @@ Implements A2.
 - Constraints back the domain rules where possible: unique `Product.code`, unique `(product, sequenceNo)`, routing duration values and lags within their ranges, unique `(version, lot)` on placements, positive quantities (A7).
 - R2 across requests is kept by the resource row lock below: every command that writes a placement locks the resource before it checks the rules, so a second placement on the machine waits and then sees the first. Reason: an exclusion constraint on the planned ranges, which guarded R2 until task M3-5, would refuse the recomputed ends of later facts that `FindConflicts` must list instead (DEC-43).
 - A routing is replaced as a whole in one transaction that locks the product row. Reason: two saves of the same routing run one after the other. Its stages get new ids on every save; nothing outside the routing refers to them (A1, A24).
-- R3 and R4 span tables, so no single constraint covers them. A placement command locks the resource row and then the order row, builds the engine snapshot, validates and writes in one transaction; MasterData and Orders lock their own row when Scheduling calls them (`IMasterDataLocks`, `IOrderLocks`, DEC-33). Every command that takes both locks takes them in that order, so two commands never wait on each other; removing a placement and cancelling an order lock only the order, and changing a resource's type or deleting it only the resource. A shift or holiday change locks every resource in ascending id order before it saves, and recomputes the planned ends in the same transaction (DEC-44). An open-ended unavailability is stored without an end, which every overlap check reads as infinite (DEC-41).
+- R3 and R4 span tables, so no single constraint covers them. A placement command locks the resource row and then the order row, builds the engine snapshot, validates and writes in one transaction; MasterData and Orders lock their own row when Scheduling calls them (`IMasterDataLocks`, `IOrderLocks`, DEC-33). Every command that takes both locks takes them in that order, so two commands never wait on each other; removing a placement and cancelling an order lock only the order, and changing a resource's type or deleting it only the resource. A shift or holiday change locks every resource in ascending id order before it saves, and recomputes the planned ends in the same transaction (DEC-44). The commit of a whole-order proposal locks every resource of the order's lot types in ascending id order and then the order (DEC-60). An open-ended unavailability is stored without an end, which every overlap check reads as infinite (DEC-41).
 - Later facts never delete placements (domain-model.md section 5, DEC-18). The fact is saved anyway (it is true), affected `plannedEnd` values are recomputed, and `FindConflicts` lists the placements that now break a rule.
 - Soft-deleted orders are excluded by a global query filter (F-NFR-1), and the unique index on the order number leaves them out, so a deleted order frees its number (A25). Cancel is a state change, not a delete.
 - An order is changed, cancelled or deleted in one transaction that locks its row first, like a placement command, so the checks on its lots and the change cannot interleave with a placement of those lots.
@@ -177,8 +177,9 @@ sequenceDiagram
     Eng-->>Api: proposed placements
     Api-->>UI: proposal, nothing saved
     UI->>Api: POST asap-proposal/commit with the proposal
-    Api->>Eng: Validate again
-    alt anything changed meanwhile
+    Api->>Db: begin, lock every resource of the order's lot types, then the order row
+    Api->>Eng: ScheduleOrderAsap again from the same notBefore
+    alt the proposal differs from the body
         Api-->>UI: 409 proposal.stale
     else unchanged
         Api->>Db: write all placements in one transaction
@@ -188,7 +189,7 @@ sequenceDiagram
 
 - The planner asks for a proposal and the API returns it without saving.
 - The UI shows the proposal on a timeline preview.
-- On confirmation the UI sends the same proposal to the commit endpoint, which saves all of it or nothing.
+- On confirmation the UI sends the same proposal to the commit endpoint, which makes it again under the locks and saves all of it when it is the same, or nothing (DEC-60).
 
 Later facts. A breakdown or calendar change keeps the placements and flags them.
 

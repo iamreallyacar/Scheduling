@@ -1241,6 +1241,105 @@
         }
       }
     },
+    "/api/v1/versions/{versionId}/orders/{orderId}/asap-proposal": {
+      "post": {
+        "tags": [
+          "Schedule"
+        ],
+        "operationId": "ProposeOrderAsap",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "notBefore",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderProposalResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/versions/{versionId}/orders/{orderId}/asap-proposal/commit": {
+      "post": {
+        "tags": [
+          "Schedule"
+        ],
+        "operationId": "CommitOrderAsapProposal",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderProposalCommitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LotPlacementResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/versions/{versionId}/unscheduled-lots": {
       "get": {
         "tags": [
@@ -1981,6 +2080,64 @@
           }
         }
       },
+      "OrderProposalCommitRequest": {
+        "required": [
+          "notBefore",
+          "placements"
+        ],
+        "type": "object",
+        "properties": {
+          "notBefore": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "placements": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ProposedPlacementRequest"
+            }
+          }
+        }
+      },
+      "OrderProposalResponse": {
+        "required": [
+          "orderId",
+          "notBefore",
+          "lots",
+          "finishesAt",
+          "wouldBeLate"
+        ],
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "notBefore": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProposalLotResponse"
+            }
+          },
+          "finishesAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "wouldBeLate": {
+            "type": "boolean"
+          }
+        }
+      },
       "OrderRequest": {
         "required": [
           "orderNo",
@@ -2252,6 +2409,81 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "ProposalLotResponse": {
+        "required": [
+          "lotId",
+          "lotNo",
+          "sequenceNo",
+          "resourceType",
+          "resource",
+          "plannedStart",
+          "plannedEnd",
+          "isProposed"
+        ],
+        "type": "object",
+        "properties": {
+          "lotId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "lotNo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "sequenceNo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "resourceType": {
+            "$ref": "#/components/schemas/NamedReference"
+          },
+          "resource": {
+            "$ref": "#/components/schemas/NamedReference"
+          },
+          "plannedStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "plannedEnd": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "isProposed": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ProposedPlacementRequest": {
+        "required": [
+          "lotId",
+          "resourceId",
+          "plannedStart"
+        ],
+        "type": "object",
+        "properties": {
+          "lotId": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "resourceId": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "plannedStart": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },
