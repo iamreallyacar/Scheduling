@@ -5,11 +5,14 @@ namespace TireScheduler.PlantLoader;
 
 public sealed record LoadSummary(int MachineTypes, int Machines, int Shifts, int Holidays, int Products, int Orders, int Unavailabilities);
 
+// The counts, and what placing a schedule needs from the rows the API wrote.
+internal sealed record WrittenPlant(LoadSummary Summary, string PlantTimeZone, IReadOnlyDictionary<string, int> OrderIdsByNo);
+
 // Writes a generated plant through the API, master data first and orders last, so every row
 // passes the validation of user input (DEC-32). Ids of written rows are looked up by name.
 internal sealed class PlantWriter(SchedulerApiClient api)
 {
-    public async Task<LoadSummary> WriteAsync(GeneratedPlant plant, CancellationToken cancellationToken)
+    public async Task<WrittenPlant> WriteAsync(GeneratedPlant plant, CancellationToken cancellationToken)
     {
         await EnsureEmptyAsync(cancellationToken);
         Dictionary<string, int> machineTypeIds = await WriteMachineTypesAsync(plant, cancellationToken);
@@ -17,8 +20,8 @@ internal sealed class PlantWriter(SchedulerApiClient api)
         string plantTimeZone = await WriteCalendarAsync(plant, cancellationToken);
         await WriteUnavailabilitiesAsync(plant, machineIds, plantTimeZone, cancellationToken);
         Dictionary<string, int> productIds = await WriteProductsAsync(plant, machineTypeIds, cancellationToken);
-        await WriteOrdersAsync(plant, productIds, cancellationToken);
-        return new LoadSummary(
+        Dictionary<string, int> orderIds = await WriteOrdersAsync(plant, productIds, cancellationToken);
+        LoadSummary summary = new(
             plant.MachineTypes.Count,
             plant.Machines.Count,
             plant.Shifts.Count,
@@ -26,6 +29,7 @@ internal sealed class PlantWriter(SchedulerApiClient api)
             plant.Products.Count,
             plant.Orders.Count,
             plant.Unavailabilities.Count);
+        return new WrittenPlant(summary, plantTimeZone, orderIds);
     }
 
     // A31: generated rows never mix with entered ones.
@@ -124,13 +128,17 @@ internal sealed class PlantWriter(SchedulerApiClient api)
         return idByCode;
     }
 
-    private async Task WriteOrdersAsync(GeneratedPlant plant, Dictionary<string, int> productIds, CancellationToken cancellationToken)
+    private async Task<Dictionary<string, int>> WriteOrdersAsync(GeneratedPlant plant, Dictionary<string, int> productIds, CancellationToken cancellationToken)
     {
+        Dictionary<string, int> idByOrderNo = new(StringComparer.Ordinal);
         foreach (GeneratedOrder order in plant.Orders)
         {
             OrderRequest request = new(order.OrderNo, order.CustomerName, productIds[order.ProductCode], order.Quantity, order.DueDate, order.Priority.ToString());
-            await api.SendAsync(HttpMethod.Post, "/orders", request, cancellationToken);
+            OrderCreatedResponse created = await api.SendAsync<OrderCreatedResponse>(HttpMethod.Post, "/orders", request, cancellationToken);
+            idByOrderNo[order.OrderNo] = created.Id;
         }
+
+        return idByOrderNo;
     }
 
     // Shift times are plant-local "HH:mm", with "24:00" for the midnight that ends the day (API.md section "Conventions").

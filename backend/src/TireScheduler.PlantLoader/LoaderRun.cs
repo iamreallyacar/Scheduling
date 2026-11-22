@@ -18,10 +18,22 @@ public static class LoaderRun
         {
             SchedulerApiClient api = new(client);
             await api.SignInAsync(settings.Email, settings.Password, cancellationToken);
-            LoadSummary summary = await new PlantWriter(api).WriteAsync(plant, cancellationToken);
+            WrittenPlant written = await new PlantWriter(api).WriteAsync(plant, cancellationToken);
+            LoadSummary summary = written.Summary;
             await output.WriteLineAsync(
                 $"Loaded {summary.MachineTypes} machine types, {summary.Machines} machines, {summary.Shifts} shifts, {summary.Holidays} holidays, " +
                 $"{summary.Products} products with routings, {summary.Orders} orders and {summary.Unavailabilities} unavailabilities.");
+            if (settings.PlaceSchedule)
+            {
+                ScheduleSummary schedule = await new ScheduleWriter(api).PlaceAsync(plant, written, cancellationToken);
+                await output.WriteLineAsync($"Placed {schedule.PlacedLots} lots of {schedule.PlacedOrders} orders in the live schedule.");
+                if (schedule.OrderNosWithoutSlot.Count > 0)
+                {
+                    await output.WriteLineAsync(
+                        $"{schedule.OrderNosWithoutSlot.Count} orders have no free slot within the search horizon: {string.Join(", ", schedule.OrderNosWithoutSlot.Order(StringComparer.Ordinal))}.");
+                }
+            }
+
             return 0;
         }
         catch (LoaderException failure)

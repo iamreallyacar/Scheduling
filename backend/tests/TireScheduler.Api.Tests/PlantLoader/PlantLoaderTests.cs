@@ -1,10 +1,12 @@
 using System.Globalization;
 using System.Text.Json;
 using TireScheduler.Api.Security;
+using TireScheduler.Engine;
 using TireScheduler.PlantGenerator;
 using TireScheduler.PlantLoader;
 using static TireScheduler.Api.Tests.TestData.MasterDataTestData;
 using static TireScheduler.Api.Tests.TestData.OrderTestData;
+using static TireScheduler.Api.Tests.TestData.SchedulingTestData;
 
 namespace TireScheduler.Api.Tests.PlantLoader;
 
@@ -12,6 +14,8 @@ namespace TireScheduler.Api.Tests.PlantLoader;
 public sealed class PlantLoaderTests(PostgresFixture postgres)
 {
     private static readonly DateOnly StartMonday = new(2026, 11, 16);
+
+    private static readonly DateTimeOffset HorizonStart = PlantTime.StartOfDay(StartMonday, SchedulerApiFactory.DefaultPlantTimeZone);
 
     [Theory]
     [InlineData("small")]
@@ -111,8 +115,102 @@ public sealed class PlantLoaderTests(PostgresFixture postgres)
         Assert.Contains("auth.forbidden", errors, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("small")]
+    [InlineData("stress")]
+    [InlineData("plant")]
+    public async Task AC_203_with_the_schedule_option_every_order_is_placed_from_the_start_of_the_horizon_without_conflicts(string presetName)
+    {
+        await using SchedulerApiFactory factory = new(postgres.NewDatabaseConnectionString());
+        LoaderSettings settings = AdminSettings(presetName, PlantPresets.ByName[presetName], seed: 3) with { PlaceSchedule = true };
+        GeneratedPlant plant = SyntheticPlant.Generate(settings.Parameters, settings.Seed, settings.StartDate);
+
+        (int exitCode, string output, string errors) = await RunAsync(factory, settings);
+
+        Assert.True(exitCode == 0, errors);
+        using ApiSession viewer = await factory.SignInAsRoleAsync(UserRole.Viewer);
+        JsonElement[] lots = [.. (await ReadOrderDetailsAsync(viewer, plant.Orders.Count)).SelectMany(LotsOf)];
+        Assert.All(lots, lot =>
+        {
+            JsonElement placement = lot.GetProperty("placement");
+            Assert.Equal(JsonValueKind.Object, placement.ValueKind);
+            Assert.True(placement.GetProperty("plannedStart").GetDateTimeOffset() >= HorizonStart);
+        });
+        Assert.Contains($"Placed {lots.Length} lots of {plant.Orders.Count} orders", output, StringComparison.Ordinal);
+        Assert.Equal(0, (await viewer.GetJsonAsync(ConflictsPath(LiveVersion))).GetArrayLength());
+    }
+
+    [Fact]
+    public async Task AC_203_without_the_schedule_option_nothing_is_placed()
+    {
+        await using SchedulerApiFactory factory = new(postgres.NewDatabaseConnectionString());
+        LoaderSettings settings = AdminSettings("small", PlantPresets.Small, seed: 3);
+        GeneratedPlant plant = SyntheticPlant.Generate(settings.Parameters, settings.Seed, settings.StartDate);
+
+        (int exitCode, string output, string errors) = await RunAsync(factory, settings);
+
+        Assert.True(exitCode == 0, errors);
+        using ApiSession viewer = await factory.SignInAsRoleAsync(UserRole.Viewer);
+        Assert.All((await ReadOrderDetailsAsync(viewer, plant.Orders.Count)).SelectMany(LotsOf), lot =>
+            Assert.Equal(JsonValueKind.Null, lot.GetProperty("placement").ValueKind));
+        Assert.DoesNotContain("Placed", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AC_204_an_order_without_a_free_slot_stays_unplaced_and_is_named_while_the_others_are_placed()
+    {
+        await using SchedulerApiFactory factory = new(postgres.NewDatabaseConnectionString());
+        // Long lots and a breakdown with no known end on every machine, so the orders that come
+        // last no longer fit before the breakdowns (DEC-61).
+        PlantParameters blockedByBreakdowns = PlantPresets.Small with
+        {
+            Quantity = new(400, 500),
+            Breakdowns = PlantPresets.Small.Breakdowns with { ChancePerMachineWeek = 1 },
+            OpenEndedBreakdownShare = 1,
+        };
+        LoaderSettings settings = AdminSettings("small", blockedByBreakdowns, seed: 3) with { PlaceSchedule = true };
+        GeneratedPlant plant = SyntheticPlant.Generate(settings.Parameters, settings.Seed, settings.StartDate);
+
+        (int exitCode, string output, string errors) = await RunAsync(factory, settings);
+
+        Assert.True(exitCode == 0, errors);
+        using ApiSession viewer = await factory.SignInAsRoleAsync(UserRole.Viewer);
+        JsonElement[] orders = await ReadOrderDetailsAsync(viewer, plant.Orders.Count);
+        string[] unplacedOrderNos = [.. orders
+            .Where(order => LotsOf(order).All(lot => lot.GetProperty("placement").ValueKind == JsonValueKind.Null))
+            .Select(order => order.GetProperty("orderNo").GetString()!)];
+        Assert.NotEmpty(unplacedOrderNos);
+        Assert.True(unplacedOrderNos.Length < orders.Length, "No order was placed, so the loader's going on was not checked.");
+        Assert.All(orders.Where(order => !unplacedOrderNos.Contains(order.GetProperty("orderNo").GetString())), order =>
+            Assert.All(LotsOf(order), lot => Assert.Equal(JsonValueKind.Object, lot.GetProperty("placement").ValueKind)));
+        Assert.Contains($"{unplacedOrderNos.Length} orders have no free slot within the search horizon: {string.Join(", ", unplacedOrderNos.Order(StringComparer.Ordinal))}", output, StringComparison.Ordinal);
+    }
+
     private static LoaderSettings AdminSettings(string presetName, PlantParameters parameters, int seed) =>
-        new(presetName, parameters, seed, StartMonday, new Uri("https://localhost"), SchedulerApiFactory.AdminEmail, SchedulerApiFactory.AdminPassword);
+        new(presetName, parameters, seed, StartMonday, new Uri("https://localhost"), SchedulerApiFactory.AdminEmail, SchedulerApiFactory.AdminPassword, PlaceSchedule: false);
+
+    // The details of every order, which list the operations and lots with their placements.
+    private static async Task<JsonElement[]> ReadOrderDetailsAsync(ApiSession viewer, int orderCount)
+    {
+        List<JsonElement> listed = [];
+        for (int page = 1; listed.Count < orderCount; page++)
+        {
+            JsonElement orderPage = await viewer.GetJsonAsync($"{OrdersPath}?pageSize=200&page={page}");
+            Assert.Equal(orderCount, orderPage.GetProperty("totalCount").GetInt32());
+            listed.AddRange(orderPage.GetProperty("items").EnumerateArray());
+        }
+
+        List<JsonElement> details = [];
+        foreach (JsonElement order in listed)
+        {
+            details.Add(await viewer.GetJsonAsync(OrderPath(order.GetProperty("id").GetInt32())));
+        }
+
+        return [.. details];
+    }
+
+    private static IEnumerable<JsonElement> LotsOf(JsonElement orderDetail) =>
+        orderDetail.GetProperty("operations").EnumerateArray().SelectMany(operation => operation.GetProperty("lots").EnumerateArray());
 
     private static async Task<(int ExitCode, string Output, string Errors)> RunAsync(SchedulerApiFactory factory, LoaderSettings settings)
     {

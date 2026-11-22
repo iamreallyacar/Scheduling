@@ -10,8 +10,11 @@ public static class LoaderCommandLine
     public const string PasswordVariable = "PlantLoader__Password";
 
     public const string Usage =
-        "Usage: TireScheduler.PlantLoader --preset <small|plant|stress> [--seed <number>] [--start <yyyy-MM-dd>] [--api <url>]\n" +
+        "Usage: TireScheduler.PlantLoader --preset <small|plant|stress> [--seed <number>] [--start <yyyy-MM-dd>] [--api <url>] [--schedule]\n" +
         $"Signs in with the environment variables {EmailVariable} and {PasswordVariable}.";
+
+    // The one option that takes no value.
+    private const string ScheduleFlag = "--schedule";
 
     private static readonly Uri DefaultApiUrl = new("http://localhost:5080");
 
@@ -19,7 +22,7 @@ public static class LoaderCommandLine
     {
         ArgumentNullException.ThrowIfNull(arguments);
         ArgumentNullException.ThrowIfNull(readEnvironmentVariable);
-        Dictionary<string, string> values = ReadOptionValues(arguments);
+        (Dictionary<string, string> values, bool placeSchedule) = ReadOptions(arguments);
 
         string presetName = values.GetValueOrDefault("--preset")
             ?? throw new LoaderUsageException($"--preset is required.\n{Usage}");
@@ -35,16 +38,26 @@ public static class LoaderCommandLine
             values.TryGetValue("--start", out string? startText) ? ParseStartDate(startText) : MondayOfWeek(todayUtc),
             values.TryGetValue("--api", out string? apiText) ? ParseApiUrl(apiText) : DefaultApiUrl,
             RequiredVariable(readEnvironmentVariable, EmailVariable),
-            RequiredVariable(readEnvironmentVariable, PasswordVariable));
+            RequiredVariable(readEnvironmentVariable, PasswordVariable),
+            placeSchedule);
     }
 
-    private static Dictionary<string, string> ReadOptionValues(IReadOnlyList<string> arguments)
+    private static (Dictionary<string, string> Values, bool PlaceSchedule) ReadOptions(IReadOnlyList<string> arguments)
     {
         string[] knownOptions = ["--preset", "--seed", "--start", "--api"];
         Dictionary<string, string> values = new(StringComparer.Ordinal);
-        for (int position = 0; position < arguments.Count; position += 2)
+        bool placeSchedule = false;
+        int position = 0;
+        while (position < arguments.Count)
         {
             string option = arguments[position];
+            if (option == ScheduleFlag)
+            {
+                placeSchedule = true;
+                position++;
+                continue;
+            }
+
             if (!knownOptions.Contains(option, StringComparer.Ordinal))
             {
                 throw new LoaderUsageException($"{option} is not an option.\n{Usage}");
@@ -56,9 +69,10 @@ public static class LoaderCommandLine
             }
 
             values[option] = arguments[position + 1];
+            position += 2;
         }
 
-        return values;
+        return (values, placeSchedule);
     }
 
     private static int ParseSeed(string text) =>

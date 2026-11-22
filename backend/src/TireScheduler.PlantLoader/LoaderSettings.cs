@@ -9,4 +9,6 @@ public sealed record LoaderSettings(
     DateOnly StartDate,
     Uri ApiUrl,
     string Email,
-    string Password);
+    string Password,
+    // --schedule: place every generated order in the live schedule after loading (DEC-61).
+    bool PlaceSchedule);

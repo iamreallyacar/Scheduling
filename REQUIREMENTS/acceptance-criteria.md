@@ -1,6 +1,6 @@
 # Acceptance Criteria
 
-Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules and engine search) on 2026-11-06 (AC-194 to AC-198 of section 5 in task M4-2, AC-199 to AC-202 in task M4-4); section 6 in task M2-7 (AC-193 in task M4-1) and section 7 in task M3-2 and section 8 in tasks M3-3, M3-4, M3-5 and M3-6 on 2026-11-18. Sources: [features.md](features.md), [domain-model.md](domain-model.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [decisions.md](decisions.md).
+Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules and engine search) on 2026-11-06 (AC-194 to AC-198 of section 5 in task M4-2, AC-199 to AC-202 in task M4-4); section 6 in task M2-7 (AC-193 in task M4-1, AC-203 to AC-205 in task M4-5) and section 7 in task M3-2 and section 8 in tasks M3-3, M3-4, M3-5 and M3-6 on 2026-11-18. Sources: [features.md](features.md), [domain-model.md](domain-model.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [decisions.md](decisions.md).
 
 ## 1. How to read this
 
@@ -303,7 +303,7 @@ Covers F-SCH-16, DEC-19 and `API.md` section "Scheduling calls".
 
 ## 6. Synthetic plant generator
 
-Covers task M2-7 (no feature). The generator core turns parameters, a seed and a start date into a plant; the loader writes that plant through the API (DEC-32). The horizon is the start date plus the given number of whole weeks. Assumptions are A30 to A34 in `domain-model.md` section 7.
+Covers tasks M2-7 and M4-5 (no feature). The generator core turns parameters, a seed and a start date into a plant; the loader writes that plant through the API (DEC-32) and, when asked, places a schedule for it (DEC-61). The horizon is the start date plus the given number of whole weeks. Assumptions are A30 to A34 in `domain-model.md` section 7.
 
 | ID | Given | When | Then | Level |
 |---|---|---|---|---|
@@ -318,6 +318,9 @@ Covers task M2-7 (no feature). The generator core turns parameters, a seed and a
 | AC-159 | The loader running | The API rejects one of its requests (for example a value the API does not accept, or a user who may not write master data) | The loader stops at once, with an error giving the request, the status, the problem `code` and the `detail`, and exits with a non-zero code. Rows written before the rejection stay | API |
 | AC-160 | The loader's command line | A preset is unknown, the seed or start date cannot be read, an option is unknown, or the sign-in settings are missing | It stops before calling the API, with an error naming the option or setting, and exits with a non-zero code | Generator |
 | AC-193 | A generated plant and a plant time zone | It is turned into a `ScheduleSnapshot` (`PlantSnapshot.From`) | One calendar with the generated shifts, the holidays and the zone; one active resource per machine, named as the machine, of its machine type, on that calendar; one lot per stage of every order, with the stage's sequence number, not started and not cancelled, lasting the `LotDuration` of the stage and the order quantity, on the stage's machine type; the product's dependencies with their lags between the lots of the same order; every unavailability on its machine with its start and end in UTC, converted by the engine (A33); nothing placed | Generator |
+| AC-203 | An empty plant and an Admin's sign-in | The loader runs with the option `--schedule` | After the rows of AC-157, it asks for the as-soon-as-possible proposal of each order from the plant-local start of the horizon and commits it unchanged, one order at a time (DEC-61). Every lot of each such order is then placed in the live schedule, starting no earlier than the start of the horizon, and the conflict list is empty. The loader prints how many lots of how many orders it placed. Without the option nothing is placed | API |
+| AC-204 | The loader running with `--schedule` | The proposal of an order is rejected 422 `slot.none`, for example behind a breakdown with no known end on the only machine of a type | That order stays unplaced and the loader goes on with the next one. Its summary names every such order, and it exits with 0. Any other rejection stops it as in AC-159 | API |
+| AC-205 | A generated plant with nothing placed | Each order in turn gets its as-soon-as-possible proposal from the start of the horizon, which is added to the schedule before the next order is proposed | Every placement passes `Validate` against the whole schedule, `FindConflicts` finds nothing, and an order either gets every unplaced lot proposed or names a lot without a slot | Engine |
 
 ## 7. M3 Maintenance
 

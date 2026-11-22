@@ -53,7 +53,7 @@ flowchart LR
 | Queries | Read models only, including all derived statuses and `isLate` (the proposal's `wouldBeLate`, of placements not yet stored, comes from Scheduling, DEC-60); serves the order reads (DEC-29), the machine reads (DEC-39), the unscheduled-lots queue, the conflicted placements and the timeline | All modules, read-only; Engine (late flag, DEC-30); the working periods come from Scheduling (DEC-49) |
 | Engine | Scheduling rules and search over plain values | Nothing |
 | Plant generator (`TireScheduler.PlantGenerator`) | Parameters, presets and a seeded synthetic plant as plain values | Engine (lot duration) |
-| Plant loader (`TireScheduler.PlantLoader`) | Writing a generated plant into a running API as an Admin | Plant generator; the API over HTTP only |
+| Plant loader (`TireScheduler.PlantLoader`) | Writing a generated plant into a running API as an Admin, and on request placing its orders in the live schedule | Plant generator; the API over HTTP only |
 | Errors, Security, Database | What every module uses: problem details and request validation, roles and access policies and the anti-forgery check, the request's connection and transaction, module contexts, row locks and startup steps | Nothing |
 
 ## Design
@@ -237,7 +237,7 @@ flowchart LR
 ### Synthetic plant generator
 
 - Owner: `backend/src/TireScheduler.PlantGenerator` (core) and `backend/src/TireScheduler.PlantLoader` (loader).
-- Rules: the core is pure like the engine and draws every value from one seeded random sequence, so a seed names a plant; the loader writes only through `/api/v1`, only into an empty plant (A31), and stops at the first rejection.
+- Rules: the core is pure like the engine and draws every value from one seeded random sequence, so a seed names a plant; the loader writes only through `/api/v1`, only into an empty plant (A31), and stops at the first rejection, except that an order without a free slot stays unplaced when it places a schedule (DEC-61).
 - Detail: the specification in [TASKS.md](TASKS.md) section "M2-7 synthetic plant generator", behavior in `acceptance-criteria.md` section 6, running it in [GUIDE.md](GUIDE.md) section "Load a generated plant".
 
 ### Frontend

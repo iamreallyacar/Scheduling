@@ -32,7 +32,8 @@ internal sealed class SchedulerApiClient(HttpClient client)
         return await ReadAsync<T>(response, request, cancellationToken);
     }
 
-    public async Task<T> SendAsync<T>(HttpMethod method, string path, object body, CancellationToken cancellationToken)
+    // A write with no body, such as a proposal, sends none.
+    public async Task<T> SendAsync<T>(HttpMethod method, string path, object? body, CancellationToken cancellationToken)
     {
         using HttpRequestMessage request = await NewWriteAsync(method, path, body, cancellationToken);
         using HttpResponseMessage response = await SendCheckedAsync(request, cancellationToken);
@@ -45,10 +46,10 @@ internal sealed class SchedulerApiClient(HttpClient client)
         using HttpResponseMessage response = await SendCheckedAsync(request, cancellationToken);
     }
 
-    private async Task<HttpRequestMessage> NewWriteAsync(HttpMethod method, string path, object body, CancellationToken cancellationToken)
+    private async Task<HttpRequestMessage> NewWriteAsync(HttpMethod method, string path, object? body, CancellationToken cancellationToken)
     {
         antiforgery ??= await FetchAntiforgeryTokenAsync(cancellationToken);
-        HttpRequestMessage request = new(method, ApiUri(path)) { Content = JsonContent.Create(body, body.GetType(), options: Json) };
+        HttpRequestMessage request = new(method, ApiUri(path)) { Content = body is null ? null : JsonContent.Create(body, body.GetType(), options: Json) };
         request.Headers.Add(antiforgery.Value.HeaderName, antiforgery.Value.Token);
         return request;
     }

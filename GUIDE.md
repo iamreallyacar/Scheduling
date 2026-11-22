@@ -50,7 +50,8 @@ dotnet run --project backend/src/TireScheduler.PlantLoader -- --preset plant --s
 - `--seed` (default 1): the same seed, preset and start date always give the same plant, so a bug report can name them.
 - `--start` (default the Monday of the current week, A32): first day of the horizon, `yyyy-MM-dd`.
 - `--api` (default `http://localhost:5080`): address of the API.
-- The loader prints the seed, start date and counts. Exit code 0 means loaded; 1 means the API rejected a request or the plant was not empty, with the reason printed; 2 means the command line or settings were wrong. A run that stopped halfway leaves the rows written so far, so start again on a new database.
+- `--schedule` (no value): after loading, place every order in the live schedule with the as-soon-as-possible proposal, earliest due date first, from the start of the horizon (DEC-61). An order with no free slot stays unplaced and is named. With the default start, lots on days before today are planned too; give a later `--start` for a schedule that lies ahead.
+- The loader prints the seed, start date and counts, and with `--schedule` the placed lots and orders. Exit code 0 means loaded; 1 means the API rejected a request or the plant was not empty, with the reason printed; 2 means the command line or settings were wrong. A run that stopped halfway leaves the rows written so far, so start again on a new database.
 
 ## Developer setup
 

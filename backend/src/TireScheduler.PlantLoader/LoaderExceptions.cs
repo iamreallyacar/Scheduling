@@ -11,4 +11,9 @@ public sealed class PlantNotEmptyException(string message) : LoaderException(mes
 // AC-159: the API answered a request with an error.
 // The request is its method and path, for example "POST /api/v1/products".
 public sealed class ApiRejectedException(string request, int status, string? code, string? detail)
-    : LoaderException($"{request} was rejected with {status} {code ?? "(no code)"}: {detail ?? "(no detail)"}");
+    : LoaderException($"{request} was rejected with {status} {code ?? "(no code)"}: {detail ?? "(no detail)"}")
+{
+    public int Status { get; } = status;
+
+    public string? Code { get; } = code;
+}

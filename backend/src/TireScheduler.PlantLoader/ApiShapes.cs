@@ -32,7 +32,18 @@ internal sealed record RoutingDependencyRequest(int PredecessorSequenceNo, int S
 
 internal sealed record OrderRequest(string OrderNo, string CustomerName, int ProductId, int Quantity, DateOnly DueDate, string Priority);
 
+internal sealed record OrderCreatedResponse(int Id);
+
 internal sealed record OrderPageResponse(int TotalCount);
+
+// A whole-order proposal (DEC-60); the commit sends back its start and its proposed lots.
+internal sealed record OrderProposalResponse(DateTimeOffset NotBefore, IReadOnlyList<ProposalLotResponse> Lots);
+
+internal sealed record ProposalLotResponse(int LotId, NamedItem Resource, DateTimeOffset PlannedStart, bool IsProposed);
+
+internal sealed record ProposalCommitRequest(DateTimeOffset NotBefore, IReadOnlyList<ProposedPlacementRequest> Placements);
+
+internal sealed record ProposedPlacementRequest(int LotId, int ResourceId, DateTimeOffset PlannedStart);
 
 // Times in UTC; no end for a breakdown with no known end.
 internal sealed record UnavailabilityRequest(string Kind, DateTimeOffset Start, DateTimeOffset? End, string Reason);

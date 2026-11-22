@@ -58,4 +58,45 @@ public sealed class ScheduleOrderAsapPropertyTests
 
         Assert.True(proposedLots > 0, "No order got a proposal, so the property was not checked.");
     }
+
+    // What the plant loader does with --schedule (DEC-61), without the API.
+    [Theory]
+    [MemberData(nameof(GeneratedPlants.Cases), MemberType = typeof(GeneratedPlants))]
+    public void AC_205_orders_proposed_in_turn_from_the_start_of_the_horizon_make_a_schedule_without_conflicts(int seed, DateOnly startDate)
+    {
+        GeneratedPlant plant = SyntheticPlant.Generate(PlantPresets.Small, seed, startDate);
+        ScheduleSnapshot schedule = PlantSnapshot.From(plant, Berlin);
+        DateTimeOffset horizonStart = PlantTime.StartOfDay(plant.StartDate, Berlin);
+
+        int placementId = 1;
+        foreach (int[] orderLotIds in GeneratedPlants.LotIdsByOrder(plant, schedule))
+        {
+            OrderProposal proposal = ScheduleOrderAsap.Propose(schedule, new OrderProposalRequest(orderLotIds, horizonStart, Horizon));
+
+            Assert.Empty(proposal.Violations);
+            if (proposal.LotWithoutSlot is not null)
+            {
+                Assert.Empty(proposal.Placements);
+                continue;
+            }
+
+            Assert.Equal(orderLotIds.Order(), proposal.Placements.Select(placement => placement.LotId).Order());
+            foreach (ProposedPlacement placement in proposal.Placements)
+            {
+                schedule = schedule.WithPlacement(placementId++, placement.LotId, placement.ResourceId, placement.PlannedStart, placement.PlannedEnd);
+            }
+        }
+
+        Assert.NotEmpty(schedule.Placements);
+        PlacementContext context = new(schedule);
+        foreach (SnapshotPlacement placement in schedule.Placements)
+        {
+            PlacementCheck check = context.Validate(new PlacementRequest(placement.LotId, placement.ResourceId, placement.PlannedStart));
+            Assert.True(check.IsAccepted, $"Seed {seed}: the placement of lot {placement.LotId} on resource {placement.ResourceId} at {placement.PlannedStart:O} breaks {string.Join(", ", check.Violations.Select(violation => violation.Code))}.");
+            Assert.Equal(placement.PlannedEnd, check.PlannedEnd);
+            Assert.True(placement.PlannedStart >= horizonStart);
+        }
+
+        Assert.Empty(PlacementRules.FindConflicts(schedule));
+    }
 }

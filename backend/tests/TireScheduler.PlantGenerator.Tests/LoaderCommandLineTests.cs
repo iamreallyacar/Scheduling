@@ -65,5 +65,30 @@ public sealed class LoaderCommandLineTests
         Assert.Contains(missingVariable, failure.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(1, new[] { "--preset", "small", "--schedule" })]
+    [InlineData(4, new[] { "--schedule", "--preset", "small", "--seed", "4" })]
+    public void AC_203_the_schedule_option_takes_no_value_and_asks_for_a_placed_schedule(int expectedSeed, string[] arguments)
+    {
+        LoaderSettings settings = Parse(arguments);
+
+        Assert.True(settings.PlaceSchedule);
+        Assert.Equal(expectedSeed, settings.Seed);
+    }
+
+    [Fact]
+    public void AC_203_without_the_schedule_option_no_schedule_is_placed()
+    {
+        Assert.False(Parse(["--preset", "small"]).PlaceSchedule);
+    }
+
+    [Fact]
+    public void AC_160_a_value_after_the_schedule_option_fails_naming_it()
+    {
+        LoaderUsageException failure = Assert.Throws<LoaderUsageException>(() => Parse(["--preset", "small", "--schedule", "yes"]));
+
+        Assert.Contains("yes", failure.Message, StringComparison.Ordinal);
+    }
+
     private static LoaderSettings Parse(string[] arguments) => LoaderCommandLine.Parse(arguments, SignInSettings.GetValueOrDefault, Wednesday);
 }
