@@ -11,7 +11,9 @@ namespace TireScheduler.Api.Tests;
 // while the row is held (whileHeld) and expects the write to see it.
 internal sealed class HeldRowLock : IAsyncDisposable
 {
-    // Long enough that a write which takes no lock has answered by then.
+    // Long enough that a write which takes no lock has answered by then, and that one which only
+    // waits at its update has run its checks. On a much slower machine a missing lock could go
+    // unnoticed, but a present one never fails the test.
     private static readonly TimeSpan WaitTime = TimeSpan.FromMilliseconds(500);
 
     private readonly AsyncServiceScope scope;
@@ -29,15 +31,28 @@ internal sealed class HeldRowLock : IAsyncDisposable
     {
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         AsyncServiceScope scope = factory.Services.CreateAsyncScope();
-        TContext context = scope.ServiceProvider.GetRequiredService<TContext>();
-        HeldRowLock held = new(scope, await scope.ServiceProvider.GetRequiredService<RequestTransaction>().BeginAsync(context, cancellationToken));
-        if (!await context.LockRowAsync<TEntity>(id, cancellationToken))
+        HeldRowLock? held = null;
+        try
         {
-            await held.DisposeAsync();
-            Assert.Fail($"No {typeof(TEntity).Name} row has id {id}, so none is held.");
+            TContext context = scope.ServiceProvider.GetRequiredService<TContext>();
+            held = new(scope, await scope.ServiceProvider.GetRequiredService<RequestTransaction>().BeginAsync(context, cancellationToken));
+            Assert.True(await context.LockRowAsync<TEntity>(id, cancellationToken), $"No {typeof(TEntity).Name} row has id {id}, so none is held.");
+            return held;
         }
+        catch
+        {
+            // An open transaction left behind would hold its connection, and maybe the row, for the rest of the run.
+            if (held is null)
+            {
+                await scope.DisposeAsync();
+            }
+            else
+            {
+                await held.DisposeAsync();
+            }
 
-        return held;
+            throw;
+        }
     }
 
     // Fails when the write answers while the row is held; otherwise does whileHeld, as the holding
