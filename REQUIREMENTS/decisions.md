@@ -69,6 +69,8 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 | DEC-59 | The whole-order proposal orders lots by their dependencies and stage numbers, rejects a cancelled order as a whole and searches each lot on the proposals so far | Proposed | 2026-11-19 (M4-3) | engine README, AC-127 to AC-131 |
 | DEC-60 | The whole-order proposal is a Planner's read in Scheduling with its own late flag; the commit makes it again under the locks and is stale when it differs | Proposed | 2026-11-22 (M4-4) | API.md section "Scheduling calls", AC-131 to AC-137, AC-199 to AC-202, WQ2 |
 | DEC-61 | The plant loader places a generated schedule through the proposal and commit endpoints, earliest due order first, from the start of the horizon | Proposed | 2026-11-22 (M4-5) | GUIDE.md section "Load a generated plant", AC-203 to AC-205 |
+| DEC-62 | Lot progress is saved whole and removed on `/lots/{id}/progress` under the order's row lock; Queries reads it through a Progress reader, and the engine gives the completion time | Proposed | 2026-11-24 (M5-1) | API.md section "Routes", ARCHITECTURE.md section "Persistence rules", AC-206 to AC-211, A47 |
+| DEC-63 | A started lot offers no place or move action and says why, instead of a read-only placement form | Proposed | 2026-11-24 (M5-1) | wireframes.md section 3, AC-213 |
 
 ## Accepted
 
@@ -491,6 +493,19 @@ Made while building M1 (2026-11-10) and M2 (2026-11-18) and already followed by 
 - Alternatives: placing the schedule in the generator core with `PlantSnapshot` and `ScheduleOrderAsap` and writing each lot through the placement endpoint, which DEC-56 expected, rejected because the loader would map ids and the server would check every placement again anyway; proposing from the current time, rejected because the schedule would then change with the day; the order in which the orders were generated, simpler, rejected because a rush order generated late in a week would wait for orders due after it.
 - Concern: with the default start (A32), the Monday of the current week, lots are planned on days before today; a later `--start` gives a schedule that lies ahead.
 - Consequences: `PlantSnapshot` stays in the core for the property tests and the load figure (`PlantLoad`), not for the loader. Each order costs two searches on the server, the proposal and the commit; a whole `plant` schedule takes under 20 seconds through the API in the tests.
+
+### DEC-62 Lot progress writes and reads
+
+- Decision: `PUT /lots/{id}/progress` with `{ actualStart, actualEnd }` records or corrects the progress of a lot as a whole and answers it; `DELETE` on the same URL removes it (A47). Both are a Planner's and lock the order's row before they check the live placement (Scheduling's `IPlacementReader`) and the cancellation, and before they write. Progress answers the ports of Orders and Scheduling from its own table, and Queries reads the actual times through `ILotProgressReader`, the public reader of Progress. Scheduling also learns the actual ends of completed lots through its port, and the engine turns the actual ends of an order's lots into its completion time (`OrderLateness.CompletionTime`), so Queries and the proposal's `wouldBeLate` use one rule.
+- Reason: one route, as `API.md` planned it, and a whole save, like the placement, also covers corrections without more commands. Cancelling, changing and deleting an order and every placement write lock the order row and read progress under it, so a start taken under the same lock cannot interleave with them (AC-211); a start writes nothing that the resource lock guards, so it takes only the order lock and cannot deadlock with a placement. The completion time was the one part of the late flag rule that both readers would otherwise compute.
+- Alternatives: separate start and complete commands (`POST .../start`, `POST .../complete`), rejected because a correction would need a third one; progress stored with the placement in Scheduling, rejected because progress belongs to no version (`domain-model.md` section 2).
+- Consequences: Progress gets its own schema with one table keyed by lot id, without a foreign key to Orders (`ARCHITECTURE.md` section "Persistence rules"). The API tests keep `FakeLotActivity` for the rule tests whose states the API cannot reach, such as a completed lot without a live placement; the tests of progress itself use the real module.
+
+### DEC-63 No action for a started lot
+
+- Decision: on the order page, in the timeline popover and in the conflict list, an In Progress or Completed lot offers no [Place...] or [Move...] and says that it has started and stays on its machine (R8). The conflicted placements answer carries the lot's derived `status` so the list can tell.
+- Reason: `wireframes.md` section 3 planned a read-only placement form with the reason, which would show only what the row already shows (machine and planned times) and a sentence. The sentence alone gives the planner the same answer with less code, and the page shows the status the API returns, as it already does to hide the buttons for a cancelled order.
+- Alternatives: the read-only form, rejected for the reason above; keeping [Move...] and letting the server answer 422 `rule.R8.started`, rejected because it offers an action that always fails.
 
 ## Open
 

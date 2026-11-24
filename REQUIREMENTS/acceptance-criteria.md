@@ -1,6 +1,6 @@
 # Acceptance Criteria
 
-Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules and engine search) on 2026-11-06 (AC-194 to AC-198 of section 5 in task M4-2, AC-199 to AC-202 in task M4-4); section 6 in task M2-7 (AC-193 in task M4-1, AC-203 to AC-205 in task M4-5) and section 7 in task M3-2 and section 8 in tasks M3-3, M3-4, M3-5 and M3-6 on 2026-11-18. Sources: [features.md](features.md), [domain-model.md](domain-model.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [decisions.md](decisions.md).
+Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules and engine search) on 2026-11-06 (AC-194 to AC-198 of section 5 in task M4-2, AC-199 to AC-202 in task M4-4); section 6 in task M2-7 (AC-193 in task M4-1, AC-203 to AC-205 in task M4-5) and section 7 in task M3-2 and section 8 in tasks M3-3, M3-4, M3-5 and M3-6 on 2026-11-18 (AC-214 of section 7 in task M5-1); section 9 in task M5-1 on 2026-11-24. Sources: [features.md](features.md), [domain-model.md](domain-model.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [decisions.md](decisions.md).
 
 ## 1. How to read this
 
@@ -343,8 +343,9 @@ AC-20 covers a resource that has an unavailability: deleting it is rejected, nam
 
 | ID | Given | When | Then | Level |
 |---|---|---|---|---|
-| AC-172 | Resources with unavailabilities | A signed-in user of any role reads the machine list or one machine | Each machine has a `status`: `Down` when a breakdown covers now, otherwise `Maintenance` when planned maintenance covers now, otherwise `Idle` (`domain-model.md` section 6). An unavailability covers the time from its start up to, not including, its end; one without an end covers everything from its start on. `Running` follows with lot progress (task M5-1). The reads come from Queries (DEC-39); the machine writes answer without a status (AC-28) | API |
+| AC-172 | Resources with unavailabilities | A signed-in user of any role reads the machine list or one machine | Each machine has a `status`: `Down` when a breakdown covers now, otherwise `Maintenance` when planned maintenance covers now, otherwise `Idle` (`domain-model.md` section 6). An unavailability covers the time from its start up to, not including, its end; one without an end covers everything from its start on. A machine with a lot In Progress reads `Running` instead of `Idle` (AC-214). The reads come from Queries (DEC-39); the machine writes answer without a status (AC-28) | API |
 | AC-173 | The machine register and the machine page | They are shown | Each machine shows the `status` the API returns; neither page derives it. Each machine name in the register opens its machine page | UI |
+| AC-214 | A lot In Progress whose live placement is on a machine, with the current time outside that placement's planned times | The machine list, one machine or the timeline is read | The machine's `status` is `Running`, because the lot runs on its live placement's machine (`domain-model.md` section 2), unless a breakdown or planned maintenance covers now, which come first (`domain-model.md` section 6). Once the lot is completed or its progress is removed, the machine reads `Idle` again | API |
 
 ## 8. M3 Scheduling
 
@@ -394,3 +395,28 @@ The timeline is read-only (DEC-45, DEC-46). Assumptions are A43 and A44 in `doma
 | AC-190 | The timeline and a Planner, then a Viewer | The user opens a bar | A popover shows the order number, stage with its resource type, lot number, product, quantity, machine, planned start and end on the plant's wall clock, the lot status and whether the order is late, as the API returns them, and every violation the API lists for the placement with its text and code. [Open order] opens the order page. A Planner's [Move...] opens the placement form filled in with the placement (AC-180), which also offers [Remove placement]; a Viewer sees no [Move...]. [x] closes the popover, and so does a range or filter that no longer draws its bar | UI |
 | AC-191 | A violation in the popover, the conflict list or a rejected save of the placement form on the schedule page | It is shown | It has a link to its conflicting item (DEC-42, DEC-46): a machine opens its machine page; an unavailability opens the page of the machine it belongs to; a placement, and a lot, clear the resource type and conflicted-placements filters, select that placement's bar and open its popover. The link is shown only when the shown timeline holds the item | UI |
 | AC-192 | The schedule page, with the conflict list (AC-183) still loading, then with its read failed | The timeline is shown | No bar has a `!` marker and the conflicted-placements button is not shown, and above the timeline the page says that the conflict markers are loading, or that they could not be loaded and no bar is marked. A popover says that its broken rules are not known yet instead of listing none. Once the list has loaded, the markers, the button and the popover's violations are shown as in AC-189 and AC-190 (DEC-52) | UI |
+
+## 9. M5 Execution
+
+Progress belongs to no schedule version (`domain-model.md` section 2). Times are sent and answered in UTC. Assumptions are A47 and A48 in `domain-model.md` section 7.
+
+### F-PRG-1 Record lot progress
+
+| ID | Given | When | Then | Level |
+|---|---|---|---|---|
+| AC-206 | A lot placed in the live version, of an order that is not cancelled, and a Planner | The Planner sends `PUT /api/v1/lots/{id}/progress` with `actualStart` and no `actualEnd` | 200 with the lot id, `actualStart` and `actualEnd` null. The lot reads In Progress and its order In Progress (AC-59), and the order detail shows the lot's `actualStart` (AC-72). A Viewer is rejected as in AC-10 | API |
+| AC-207 | A started lot | The Planner sends its progress again with an `actualEnd` | 200; the lot reads Completed. Once every lot of the order is completed, the order reads Completed and its late flag compares the last `actualEnd` with the end of the due day (AC-60). Sent again with other times, the progress takes them; sent without `actualEnd`, a completed lot is In Progress again (A47) | API |
+| AC-208 | A lot with progress | The Planner sends `DELETE` on its progress | 204; the lot reads Scheduled again, so its placement can be moved and removed again (R8), and an order with no other started lot can be cancelled as before (A47). A lot without progress answers as in AC-23 | API |
+| AC-209 | A Planner and a lot | Progress is sent without `actualStart`, with a time that is not a whole minute, with an `actualEnd` that is not after `actualStart`, or with a time after now on the injected clock | Rejected, 400 `validation.failed`, naming each field. A lot that does not exist or belongs to a deleted order answers as in AC-23 | API |
+| AC-210 | A lot without a placement in the live version, then a lot of a cancelled order | A Planner records its progress, or removes it | Rejected, 409 `progress.not_placed`, because a start needs a live placement (`domain-model.md` section 6), then 409 `order.cancelled`, because a cancelled order no longer changes (A47). Nothing is saved | API |
+| AC-211 | A placed lot that has not started | A Planner records its start while a second request removes its placement or cancels its order at the same moment | Both lock the order's row (DEC-62), so they run one after the other: either the start is saved and the other is rejected (422 `rule.R8.started` or 409 `order.lot_in_progress`), or the other is saved and the start is rejected as in AC-210. A started lot never loses its live placement, and a cancelled order never has a lot In Progress | API |
+| AC-212 | The order page (`/orders/{id}`) | Anyone opens it | Each lot shows its actual start and end on the plant's wall clock as the API returns them, or nothing without them. For a Planner, a lot that is Scheduled, In Progress or Completed offers [Progress...], which opens a form with the actual start and an optional actual end, typed on the plant's wall clock and sent in UTC (A38). For a lot with progress the form opens filled in and also offers [Clear progress]. After a save or a clear the form closes and the page shows what the API then returns; a rejected one shows the problem as in AC-26 and keeps the entered values. A Viewer sees no button | UI |
+| AC-213 | An In Progress or Completed lot on the order page, in the timeline popover and in the conflict list of the schedule page | It is shown to a Planner | It offers no [Place...] or [Move...] and says that the lot has started and stays on its machine (R8, DEC-63). The conflicted placements answer carries each lot's derived `status` in the version for this, as the timeline does (AC-185) | API, UI |
+
+### F-PRG-2 Order progress
+
+Written in task M5-2, before it is built. The order detail already answers `progress` from the lot statuses (AC-72).
+
+### F-RPT-1 Planner dashboard
+
+Written in task M5-3, before it is built.
