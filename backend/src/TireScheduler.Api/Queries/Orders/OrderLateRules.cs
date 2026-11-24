@@ -22,5 +22,4 @@ internal static class OrderLateRules
             IsCancelled: order.CancelledAt is not null,
             PlannedEnds: [.. order.LotIds.Where(placementsByLot.ContainsKey).Select(lotId => placementsByLot[lotId].PlannedEnd)],
             CompletedAt: OrderLateness.CompletionTime([.. order.LotIds.Select(lotId => actualsByLot.GetValueOrDefault(lotId)?.ActualEnd)])));
-
 }
