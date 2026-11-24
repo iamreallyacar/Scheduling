@@ -18,15 +18,14 @@ Version 1 is the P0 features of [features.md](REQUIREMENTS/features.md), deliver
 
 ## Handover
 
-Handover for a new session. Updated at the end of every session; last updated 2026-11-24, after task M5-1. It holds only what the task rows, criteria and decisions do not say.
+Handover for a new session. Updated at the end of every session; last updated 2026-11-24, after task M5-2. It holds only what the task rows, criteria and decisions do not say.
 
-- State: M1 to M4 and task M5-1 are built; every check passes. What is built is the task rows below with the criteria and decisions they name.
-- Next task: M5-2. AUDIT.md has no open finding.
+- State: M1 to M4 and tasks M5-1 and M5-2 are built; every check passes. What is built is the task rows below with the criteria and decisions they name.
+- Next task: M5-3. AUDIT.md has no open finding.
 - Demo data: `--schedule` on the plant loader gives a placed live schedule (GUIDE.md section "Load a generated plant"); the loader records no progress, so progress is tried by hand on the order page. No test checks that the loader places the orders earliest due date first (DEC-61); only the whole schedule is checked.
-- For M5-2: the order detail already answers `progress` (completed over total quantity, `OrderProgressRules` in Queries) and the order page shows it, so F-PRG-2 may need little beyond its criteria, which go into the placeholder section in `acceptance-criteria.md` section 9 first. Decide there whether the order list shows progress too.
-- For M5-3: a read that describes a few placed lots takes their order, stage and lot from `IOrderReader.FindLotContextsAsync` and the machine names from `IMasterDataReader.GetResourceNamesAsync` (DEC-50). Its criteria go into the F-RPT-1 placeholder section. Lot actuals come from `ILotProgressReader` (DEC-62); machine status, including Running, from `MachineViewReader`, which reads every In Progress lot on each machine read, cheap at plant size.
+- For M5-3: a read that describes a few placed lots takes their order, stage and lot from `IOrderReader.FindLotContextsAsync` and the machine names from `IMasterDataReader.GetResourceNamesAsync` (DEC-50). Its criteria go into the F-RPT-1 placeholder section. Order progress is answered only by the order detail (DEC-64); a dashboard that shows it needs the lot quantities that the order summary does not carry. Lot actuals come from `ILotProgressReader` (DEC-62); machine status, including Running, from `MachineViewReader`, which reads every In Progress lot on each machine read, cheap at plant size.
 - Progress notes from M5-1: a progress write checks its fields before it looks the lot up, as a placement does, so an unknown lot with bad times answers 400, not 404. `FakeLotActivity` stays for the rule tests of Orders and Scheduling (DEC-62); Queries in those tests reads the real Progress.
-- To review first: DEC-24 to DEC-63 are Proposed (the table at the top of `decisions.md`), together with A30 to A48 in `domain-model.md` and AC-151 to AC-214. DEC-63 replaced the read-only placement form for a started lot that `wireframes.md` section 3 planned.
+- To review first: DEC-24 to DEC-64 are Proposed (the table at the top of `decisions.md`), together with A30 to A48 in `domain-model.md` and AC-151 to AC-217. DEC-63 replaced the read-only placement form for a started lot that `wireframes.md` section 3 planned.
 - Open questions: the Open table of `decisions.md`. BQ1 to BQ5 wait for the business; the docs follow the stated assumptions until it replies.
 - Patterns to copy: `Modules/Orders` for a new module (context, register for writes, reader for answers, endpoints, ports) with its tests in `TireScheduler.Api.Tests/Orders` and builders in `TestData` (DEC-38, DEC-53); `Modules/Progress` for a small module that locks another module's row through its port; `frontend/src/orders` for a paged list with its filters in the address and a detail page; `frontend/src/calendar` and `frontend/src/routing` for rows saved as a whole.
 - Frontend habits: a new read or write gets its key in `queryKeys.ts` and its function from `npm run generate:api` (DEC-36, DEC-37); a read on a button press is a query, never a mutation (DEC-58); forms use `FormPanel` (DEC-57); the plant time zone comes from `usePlantTimeZone` and typed times go through `plantClock.ts` (DEC-40); lots are named with `lotTitle`; a started lot is told apart with `hasStarted` (DEC-63); tests use `stubApi`, `rowOf` and `sentBody` (TESTING.md section "Fixtures and helpers").
@@ -151,5 +150,5 @@ M3-3 tested AC-174 with the placed lots given through a stand-in; M3-4 tests it 
 | ID | Task | Features | Criteria | Depends on | Status |
 |---|---|---|---|---|---|
 | M5-1 | Record lot actual start and end; adds In Progress, Completed and Running statuses | F-PRG-1, F-MNT-2 | AC-11, AC-19, AC-49, AC-50, AC-51, AC-59, AC-60, AC-72 (actuals), AC-112, AC-113, AC-182, AC-183, AC-206 to AC-214 | M3-4 | Done |
-| M5-2 | Order progress from lot completion | F-PRG-2 | AC-72 (progress), AC-215 to AC-217 | M5-1 | Doing |
+| M5-2 | Order progress from lot completion | F-PRG-2 | AC-72 (progress), AC-215 to AC-217 | M5-1 | Done |
 | M5-3 | Planner dashboard: due soon, overdue, unscheduled lots, conflicted placements, machines down | F-RPT-1 | Write first | M5-2, M3-5, M3-3, M3-10 | Todo |

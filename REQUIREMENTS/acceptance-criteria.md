@@ -170,7 +170,7 @@ Statuses Pending and Cancelled arrive in M2; Scheduled with M3; In Progress and 
 |---|---|---|---|---|
 | AC-70 | An order | Its detail is opened | Shows order fields, status, late flag, progress, creation time and cancellation time (A19), and its operations in sequence with resource type, quantity, duration values, dependencies with lag, and lots with duration and status | API, UI |
 | AC-71 | An order with placed lots (M3) | Its detail is opened | Each lot shows its live resource, planned start and planned end | API, UI |
-| AC-72 | An order with progress (M5) | Its detail is opened | Each lot shows actual start and end; the order shows progress as completed quantity over total quantity | API, UI |
+| AC-72 | An order with progress (M5) | Its detail is opened | Each lot shows actual start and end; the order shows its progress (AC-215 to AC-217) | API, UI |
 
 ## 4. Scheduling rules
 
