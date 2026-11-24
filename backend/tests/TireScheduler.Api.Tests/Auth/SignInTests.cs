@@ -1,7 +1,10 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using TireScheduler.Api.Errors;
+using TireScheduler.Api.Modules.Auth;
 using TireScheduler.Api.Security;
 
 namespace TireScheduler.Api.Tests.Auth;
@@ -84,6 +87,35 @@ public sealed class SignInTests(SchedulerApiFixture api, PostgresFixture postgre
         clock.Advance(TimeSpan.FromMinutes(1));
         HttpResponseMessage afterLockout = await session.SignInAsync(SchedulerApiFactory.AdminEmail, SchedulerApiFactory.AdminPassword);
         Assert.Equal(HttpStatusCode.OK, afterLockout.StatusCode);
+    }
+
+    [Fact]
+    public async Task AC_224_wrong_passwords_sent_at_the_same_moment_each_count_toward_the_lockout()
+    {
+        const string email = "guessed-at-once@plant.test";
+        int lockoutThreshold = api.Factory.Services.GetRequiredService<IOptions<AuthOptions>>().Value.Lockout.MaxFailedAttempts;
+        await api.Factory.EnsureUserAsync(email, UserRole.Planner);
+        // One session per guess, as separate clients would send them.
+        ApiSession[] guessers = Enumerable.Range(0, lockoutThreshold).Select(_ => api.Factory.NewSession()).ToArray();
+        try
+        {
+            HttpResponseMessage[] guesses = await Task.WhenAll(guessers.Select(guesser => guesser.SignInAsync(email, WrongPassword)));
+
+            foreach (HttpResponseMessage guess in guesses)
+            {
+                await ProblemAssert.HasProblemAsync(guess, HttpStatusCode.Unauthorized, ProblemCodes.AuthInvalidCredentials);
+            }
+
+            await ProblemAssert.HasProblemAsync(
+                await guessers[0].SignInAsync(email, SchedulerApiFactory.UserPassword), HttpStatusCode.Unauthorized, ProblemCodes.AuthLockedOut);
+        }
+        finally
+        {
+            foreach (ApiSession guesser in guessers)
+            {
+                guesser.Dispose();
+            }
+        }
     }
 
     [Fact]

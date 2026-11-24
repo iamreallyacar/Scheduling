@@ -1,6 +1,6 @@
 # Acceptance Criteria
 
-Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules and engine search) on 2026-11-06 (AC-194 to AC-198 of section 5 in task M4-2, AC-199 to AC-202 in task M4-4); section 6 in task M2-7 (AC-193 in task M4-1, AC-203 to AC-205 in task M4-5) and section 7 in task M3-2 and section 8 in tasks M3-3, M3-4, M3-5 and M3-6 on 2026-11-18 (AC-214 of section 7 in task M5-1); section 9 in task M5-1 on 2026-11-24 (AC-215 to AC-217 in task M5-2, AC-218 to AC-221 in task M5-3); AC-222 of section 2 in task M5-7 on 2026-11-24. Sources: [features.md](features.md), [domain-model.md](domain-model.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [decisions.md](decisions.md).
+Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules and engine search) on 2026-11-06 (AC-194 to AC-198 of section 5 in task M4-2, AC-199 to AC-202 in task M4-4); section 6 in task M2-7 (AC-193 in task M4-1, AC-203 to AC-205 in task M4-5) and section 7 in task M3-2 and section 8 in tasks M3-3, M3-4, M3-5 and M3-6 on 2026-11-18 (AC-214 of section 7 in task M5-1); section 9 in task M5-1 on 2026-11-24 (AC-215 to AC-217 in task M5-2, AC-218 to AC-221 in task M5-3); AC-222, AC-223 and AC-224 of section 2 in tasks M5-7, M5-21 and M5-9 on 2026-11-24. Sources: [features.md](features.md), [domain-model.md](domain-model.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [decisions.md](decisions.md).
 
 ## 1. How to read this
 
@@ -25,6 +25,7 @@ Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules
 | AC-6 | No session | Any API endpoint except sign-in is called | Rejected, 401 `auth.required`. The UI shows the sign-in page and returns to the requested page after sign-in | API, UI |
 | AC-7 | A signed-in user | A state-changing request is sent without a valid anti-forgery token | Rejected, 400 `auth.antiforgery` | API |
 | AC-8 | An empty user table and admin bootstrap settings (email, password) in configuration | The application starts | One Admin user is created. If the settings are missing while the user table is empty, startup fails with an error naming the missing settings. If users exist, the settings are ignored | Integration |
+| AC-224 | An active user without failed sign-ins | As many wrong passwords for the user as the lockout threshold (AC-3) arrive at the same moment | Sign-ins of one user lock the user's row (DEC-68), so they run one after the other: each is rejected as in AC-2 and each counts, so the correct password sent next is rejected, 401 `auth.locked_out`. None answers 500 | API |
 | AC-138 | The setting `Security:CookiesRequireHttps` (default true) | A state-changing request arrives over plain HTTP | With the default it fails as an unexpected error (AC-25) and nothing is saved; reads such as the health checks still answer. With the setting false, which is for local development only, sign-in works over plain HTTP and the cookies are not marked `Secure` | API |
 
 ### F-AUTH-2 Roles

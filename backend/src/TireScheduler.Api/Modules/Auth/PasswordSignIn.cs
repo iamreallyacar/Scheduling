@@ -1,19 +1,39 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
+using TireScheduler.Api.Database;
 using TireScheduler.Api.Errors;
 
 namespace TireScheduler.Api.Modules.Auth;
 
 // Checks an email and password (AC-1 to AC-4). The lockout is counted here, not by Identity's
 // own lockout, because that reads the system clock instead of the injected TimeProvider.
-internal sealed class PasswordSignIn(UserManager<User> userManager, TimeProvider timeProvider, IOptions<AuthOptions> authOptions)
+internal sealed class PasswordSignIn(
+    UserManager<User> userManager,
+    AuthDbContext context,
+    RequestTransaction requestTransaction,
+    TimeProvider timeProvider,
+    IOptions<AuthOptions> authOptions)
 {
-    public async Task<User> VerifyAsync(string email, string password)
+    public async Task<User> VerifyAsync(string email, string password, CancellationToken cancellationToken)
     {
         User? user = await userManager.FindByEmailAsync(email);
         // Unknown email, inactive user and wrong password all get the same answer, so the
         // answer does not reveal which emails exist.
-        if (user is null || !user.IsActive)
+        if (user is null)
+        {
+            throw InvalidCredentials();
+        }
+
+        // Sign-ins of one user run one after the other, so a failure is counted on the count the
+        // attempt before it saved, and an attempt that waited sees the lockout that one set (AC-224, DEC-68).
+        await using OpenTransaction transaction = await requestTransaction.BeginAsync(context, cancellationToken);
+        if (!await context.LockRowAsync<User>(user.Id, cancellationToken))
+        {
+            throw InvalidCredentials();
+        }
+
+        await context.Entry(user).ReloadAsync(cancellationToken);
+        if (!user.IsActive)
         {
             throw InvalidCredentials();
         }
@@ -30,6 +50,7 @@ internal sealed class PasswordSignIn(UserManager<User> userManager, TimeProvider
         if (!await userManager.CheckPasswordAsync(user, password))
         {
             await CountFailedAttemptAsync(user, now);
+            await transaction.CommitAsync(cancellationToken);
             throw InvalidCredentials();
         }
 
@@ -40,6 +61,7 @@ internal sealed class PasswordSignIn(UserManager<User> userManager, TimeProvider
             await SaveAsync(user);
         }
 
+        await transaction.CommitAsync(cancellationToken);
         return user;
     }
 

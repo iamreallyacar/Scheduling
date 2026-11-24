@@ -33,9 +33,10 @@ internal static class AuthEndpoints
         HttpContext httpContext,
         PasswordSignIn passwordSignIn,
         IUserClaimsPrincipalFactory<User> principalFactory,
-        IAuthorizationService authorization)
+        IAuthorizationService authorization,
+        CancellationToken cancellationToken)
     {
-        User user = await passwordSignIn.VerifyAsync(request.Email, request.Password);
+        User user = await passwordSignIn.VerifyAsync(request.Email, request.Password, cancellationToken);
         ClaimsPrincipal principal = await principalFactory.CreateAsync(user);
         await httpContext.SignInAsync(SessionCookie.Scheme, principal);
         return TypedResults.Ok(await DescribeAsync(user, principal, authorization));

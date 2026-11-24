@@ -75,6 +75,7 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 | DEC-65 | The dashboard is one read from Queries that selects the orders, counts the queue and conflicts and lists the machines down; the page shows no progress | Accepted | 2026-11-24 (M5-3) | API.md section "Routes", wireframes.md section 6, AC-218 to AC-221, A49, A50 |
 | DEC-66 | Writes that refer to a product or machine type lock its row, and its delete locks it before the reference checks | Proposed | 2026-11-24 (M5-7) | ARCHITECTURE.md section "Persistence rules", AC-20, AC-222 |
 | DEC-67 | An order cancel locks every resource in ascending id order before the order, as a working time change does | Proposed | 2026-11-24 (M5-21) | ARCHITECTURE.md section "Persistence rules", AC-50, AC-182, AC-223 |
+| DEC-68 | A sign-in locks the user's row before it checks the lockout and the password | Proposed | 2026-11-24 (M5-9) | ARCHITECTURE.md section "Persistence rules", AC-3, AC-224 |
 
 ## Accepted
 
@@ -538,6 +539,13 @@ An entry made while building and already followed by the code waits here for rev
 - Reason: a cancel deletes all unstarted placements of the order, and a shift or holiday save updates the planned end of each placement one at a time under the resource locks. With only the order locked, the two could take two placement rows of the order in opposite orders, and PostgreSQL then aborts one of them as a deadlock, which answers 500 (AC-25). Holding the same resource locks first makes them run one after the other, and keeps the lock order of every command the same: resources in ascending id order, then the order, then product and machine types (DEC-66). Removing one placement touches one placement row, so it cannot take two rows in opposite orders.
 - Alternatives: lock only the resources of the order's placements, rejected because they must be read before the locks and a placement moved meanwhile would need a check and a retry; take placement rows in ascending id order in both writes, rejected as a second lock order that every later write of several placements must also keep; retry a deadlocked request, rejected because the request's one transaction spans modules (DEC-33) and would have to be run again as a whole.
 - Consequences: a cancel waits while any placement command, proposal commit or working time change holds a machine, and they wait for it. Cancels are rare and short, so the wait is too.
+
+### DEC-68 A sign-in locks the user's row
+
+- Decision: a sign-in finds the user by email, then locks the user's row with `LockRowAsync` in a transaction begun through `RequestTransaction` (DEC-33), reads the user again, and only then checks the lockout and the password and saves the failure count or its reset (AC-224).
+- Reason: the count was read, raised in memory and saved with Identity's concurrency stamp, so of several wrong passwords sent at once only one was saved and the others answered 500 (AC-25), and the lockout of AC-3 let through more guesses than its threshold (AUDIT.md item 37). Under the lock, each attempt raises the count the one before it saved, and an attempt that waited behind the one that set the lockout is answered `auth.locked_out`.
+- Alternatives: raise the count in one atomic update statement, rejected because the lockout check and the reset after a correct password would still race with it and need their own statements; read the user again and retry on a concurrency failure, rejected because it adds a retry loop and still checks the lockout on a stale row.
+- Consequences: attempts for one user, including the password hash check, run one after the other, which also slows parallel guessing; attempts for different users do not wait on each other.
 
 ## Open
 
