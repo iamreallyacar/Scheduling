@@ -35,6 +35,7 @@ Each completed finding was fixed by a task; the decision it names gives the reas
 | 25 | The unchecked cast of `response.json()` in `request.ts` had to say why; the comment was already in place when M3-15 started | Task M3-15 |
 | 26 | `check_docs.py` required a criteria section only for the M1 and M2 features | Task M3-16 |
 | 27 | The architecture test took its module list as typed in, so a new module folder escaped every dependency rule | Task M5-4 |
+| 32 | API tests read the field names of a 400 answer with a copied expression | Task M5-5 |
 
 ## Second audit
 
@@ -87,14 +88,6 @@ The rules of the first two audits still hold: no system clock reads, no hand-wri
 - Why it matters: a priority added to the options but not to `ORDER_PRIORITIES` would be saved as Normal without a message.
 - What to do: throw on an unknown value, as `ShiftEditor` does for weekdays; replace the cast with a typed list of zooms or explain it.
 - Task: M5-14.
-
-#### 32. API tests read the field names of a 400 answer with a copied expression
-
-- Where: about 22 copies of `problem.GetProperty("errors").EnumerateObject().Select(field => field.Name)` in `backend/tests/TireScheduler.Api.Tests`, for example `Scheduling/OrderProposalTests.cs` line 229, `Scheduling/UnavailabilityTests.cs` line 170, `Orders/OrderTests.cs` lines 79 and 81, `Auth/SignInTests.cs` line 166.
-- Problem: the copies sort in two ways (`.Order()` and `.Order(StringComparer.Ordinal)`), and `ProblemAssert` has no method for it.
-- Why it matters: a change to the `errors` shape of problem details means editing every copy.
-- What to do: `ProblemAssert.ErrorFields(problem)`, ordered by `StringComparer.Ordinal`, used by every test.
-- Task: M5-5.
 
 #### 33. The schedule page reads the clock twice
 
