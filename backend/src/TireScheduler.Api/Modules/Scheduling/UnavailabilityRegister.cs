@@ -7,8 +7,8 @@ namespace TireScheduler.Api.Modules.Scheduling;
 
 // F-MNT-1: record, change and delete the unavailabilities of a resource. Recording one locks the
 // resource row, so the resource cannot be deleted at the same moment (DEC-33, AC-20); changing or
-// deleting one locks its own row. A new or
-// changed unavailability is always saved, also over placed lots (DEC-18).
+// deleting one locks its own row. A new or changed unavailability is always saved, also over
+// placed lots (DEC-18).
 internal sealed class UnavailabilityRegister(
     SchedulingDbContext context,
     IMasterDataReader masterData,

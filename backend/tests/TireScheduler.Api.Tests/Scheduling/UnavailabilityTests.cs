@@ -131,9 +131,9 @@ public sealed class UnavailabilityTests(SchedulerApiFixture api) : IClassFixture
             ProblemCodes.NotFound);
     }
 
-    // Changing or deleting an unavailability locks nothing, so a second Planner's delete can remove
-    // the row between this write's read and its own update or delete. The held row stands for that
-    // delete: it is open when this write reads, and commits while this write waits for the row.
+    // Two Planners can change or delete the same unavailability at once; the write that comes second
+    // must answer 404, not fail on a row it read just before the other delete removed it. The held
+    // row stands for that delete: it is open when this write starts, and commits while it waits.
     [Theory]
     [InlineData(UnavailabilityWrite.Update)]
     [InlineData(UnavailabilityWrite.Delete)]
