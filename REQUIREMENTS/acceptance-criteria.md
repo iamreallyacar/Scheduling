@@ -1,6 +1,6 @@
 # Acceptance Criteria
 
-Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules and engine search) on 2026-11-06 (AC-194 to AC-198 of section 5 in task M4-2, AC-199 to AC-202 in task M4-4); section 6 in task M2-7 (AC-193 in task M4-1, AC-203 to AC-205 in task M4-5) and section 7 in task M3-2 and section 8 in tasks M3-3, M3-4, M3-5 and M3-6 on 2026-11-18 (AC-214 of section 7 in task M5-1); section 9 in task M5-1 on 2026-11-24 (AC-215 to AC-217 in task M5-2, AC-218 to AC-221 in task M5-3); AC-222, AC-223 and AC-224 of section 2 in tasks M5-7, M5-21 and M5-9 on 2026-11-24. Sources: [features.md](features.md), [domain-model.md](domain-model.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [decisions.md](decisions.md).
+Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules and engine search) on 2026-11-06 (AC-194 to AC-198 of section 5 in task M4-2, AC-199 to AC-202 in task M4-4); section 6 in task M2-7 (AC-193 in task M4-1, AC-203 to AC-205 in task M4-5) and section 7 in task M3-2 and section 8 in tasks M3-3, M3-4, M3-5 and M3-6 on 2026-11-18 (AC-214 of section 7 in task M5-1); section 9 in task M5-1 on 2026-11-24 (AC-215 to AC-217 in task M5-2, AC-218 to AC-221 in task M5-3); AC-222, AC-223 and AC-224 of section 2 in tasks M5-7, M5-21 and M5-9 on 2026-11-24, and AC-225 in task M5-10. Sources: [features.md](features.md), [domain-model.md](domain-model.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [decisions.md](decisions.md).
 
 ## 1. How to read this
 
@@ -101,6 +101,7 @@ Status: DRAFT, written in tasks P5 (M1 and M2 features) and P6 (scheduling rules
 | AC-38 | The routing editor | The Admin adds stage N | The UI adds a dependency from stage N-1 to stage N with lag 0, which the Admin can edit or remove; parallel branches are allowed | UI |
 | AC-142 | A product | A signed-in user of any role reads its routing | The stages in sequence order, each with its resource type id and name, and the dependencies. A product without a routing answers with no stages and no dependencies; saving a routing with no stages removes the routing (A24) | API |
 | AC-143 | The routing editor | The Admin removes a stage | The stages after it move up so the numbers stay 1, 2, 3 ..., and the dependencies of the removed stage are removed | UI |
+| AC-225 | A product with a routing | The Admin saves a routing of 50 stages, then one of 51 | The first is saved; the second is rejected, 400 `validation.failed` on the `stages` field, and the routing of 50 stages stays (DEC-69) | API |
 | AC-39 | An order created from a routing | The Admin changes the routing | The order's operations, dependencies and lots are unchanged (A1) | API |
 
 ### F-MD-5 Plant calendar and holidays
@@ -152,7 +153,7 @@ Statuses Pending and Cancelled arrive in M2; Scheduled with M3; In Progress and 
 | AC-62 | The same order | Its lots are read | Exactly one lot per operation, lot number 1, quantity 101 (A6) | API |
 | AC-63 | A curing stage with setup 30, cycle 12, 2 units per cycle | A lot of 101 is created | `durationMinutes` is 642 (`domain-model.md` section 4) | Engine |
 | AC-64 | A stage with the defaults (setup 0, 1 unit per cycle) and cycle 5 | A lot of 40 is created | `durationMinutes` is 200 | Engine |
-| AC-145 | A stage whose values would give a lot of the order's quantity more than 2,147,483,647 minutes (the longest duration stored) | An order is created, or its product or quantity is changed | Rejected, 400 `validation.failed` on the quantity field, naming the stage | API |
+| AC-145 | A stage whose values would give a lot of the order's quantity more than 525,600 minutes (one year, the longest lot, DEC-69) | An order is created, or its product or quantity is changed | Rejected, 400 `validation.failed` on the quantity field, naming the stage. A lot of exactly 525,600 minutes is saved | API |
 | AC-146 | An order | A signed-in user of any role reads it by id | The order fields with product code and name, its operations in sequence with resource type id and name, each with its lots, and its dependencies by sequence number with lag, and the order's `status` and `isLate` (F-ORD-2). The answer comes from Queries (DEC-29) | API |
 
 ### F-ORD-4 Order list

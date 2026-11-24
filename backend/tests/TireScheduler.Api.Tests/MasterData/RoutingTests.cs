@@ -109,6 +109,26 @@ public sealed class RoutingTests(SchedulerApiFixture api) : IClassFixture<Schedu
         Assert.Equal(1, (await admin.GetJsonAsync(RoutingPath(productId))).GetProperty("stages").GetArrayLength());
     }
 
+    [Fact]
+    public async Task AC_225_a_routing_of_50_stages_is_saved_and_one_of_51_is_rejected_on_the_stages()
+    {
+        using ApiSession admin = await api.Factory.SignInAsRoleAsync(UserRole.Admin);
+        int typeId = await CreateResourceTypeAsync(admin, "AC-225 type");
+        int productId = await CreateProductAsync(admin, "AC225");
+        object[] ChainOf(int stageCount) => Enumerable.Range(1, stageCount - 1).Select(sequenceNo => Dependency(sequenceNo, sequenceNo + 1)).ToArray();
+        object[] StagesOf(int stageCount) => Enumerable.Range(1, stageCount).Select(sequenceNo => Stage(sequenceNo, typeId)).ToArray();
+
+        HttpResponseMessage atLimit = await admin.PutAsync(RoutingPath(productId), new { stages = StagesOf(50), dependencies = ChainOf(50) });
+        HttpResponseMessage aboveLimit = await admin.PutAsync(RoutingPath(productId), new { stages = StagesOf(51), dependencies = ChainOf(51) });
+
+        Assert.Equal(HttpStatusCode.OK, atLimit.StatusCode);
+        JsonElement problem = await ProblemAssert.HasProblemAsync(aboveLimit, HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
+        Assert.Equal(["stages"], ProblemAssert.ErrorFields(problem));
+        JsonElement saved = await admin.GetJsonAsync(RoutingPath(productId));
+        Assert.Equal(50, saved.GetProperty("stages").GetArrayLength());
+        Assert.Equal(49, saved.GetProperty("dependencies").GetArrayLength());
+    }
+
     [Theory]
     [InlineData("1>2,2>3,3>1", "1, 2, 3")]
     [InlineData("1>2,2>1", "1, 2")]

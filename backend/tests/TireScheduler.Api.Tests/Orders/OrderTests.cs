@@ -147,13 +147,15 @@ public sealed class OrderTests(SchedulerApiFixture api) : IClassFixture<Schedule
     }
 
     [Fact]
-    public async Task AC_145_a_lot_longer_than_the_longest_stored_duration_is_rejected_on_the_quantity_naming_the_stage()
+    public async Task AC_145_a_lot_of_one_year_is_saved_and_a_longer_one_is_rejected_on_the_quantity_naming_the_stage()
     {
         using ApiSession admin = await api.Factory.SignInAsRoleAsync(UserRole.Admin);
         int typeId = await CreateResourceTypeAsync(admin, "AC-145 type");
         int productId = await CreateProductAsync(admin, "AC145");
-        await SaveRoutingAsync(admin, productId, [Stage(1, typeId), Stage(2, typeId, cycleMinutes: int.MaxValue)], [Dependency(1, 2)]);
+        // 525,599 + 1 x quantity: one year (525,600 minutes) for 1 tire, a minute more for 2.
+        await SaveRoutingAsync(admin, productId, [Stage(1, typeId), Stage(2, typeId, cycleMinutes: 1, setupMinutes: 525_599)], [Dependency(1, 2)]);
         JsonElement order = await CreateOrderAsync(admin, NewOrder("SO-145", productId, quantity: 1));
+        Assert.Equal(525_600, order.GetProperty("operations")[1].GetProperty("lots")[0].GetProperty("durationMinutes").GetInt32());
 
         HttpResponseMessage created = await admin.PostAsync(OrdersPath, NewOrder("SO-145-B", productId, quantity: 2));
         HttpResponseMessage changed = await admin.PutAsync(OrderPath(order.GetProperty("id").GetInt32()), NewOrder("SO-145", productId, quantity: 2));

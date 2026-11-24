@@ -7,6 +7,7 @@ namespace TireScheduler.Api.Modules.MasterData.Routings;
 public sealed record RoutingRequest
 {
     [Required]
+    [MaxLength(RoutingRules.MaxStageCount, ErrorMessage = "A routing has at most {1} stages.")]
     public IReadOnlyList<RoutingStageRequest>? Stages { get; init; }
 
     [Required]

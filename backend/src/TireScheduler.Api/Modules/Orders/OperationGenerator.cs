@@ -52,14 +52,14 @@ internal static class OperationGenerator
         return new GeneratedOperations { Operations = operationBySequenceNo.Values.ToArray(), Dependencies = dependencies };
     }
 
-    // AC-145: a duration is stored as a 32-bit number of minutes.
+    // AC-145: a lot lasts at most Lot.MaxDurationMinutes, which also fits the 32-bit column.
     private static int StoredDurationMinutes(RoutingStageValues stage, int quantity)
     {
         long minutes = LotDuration.Minutes(stage.SetupMinutes, stage.CycleMinutes, stage.UnitsPerCycle, quantity);
-        return minutes <= int.MaxValue
+        return minutes <= Lot.MaxDurationMinutes
             ? (int)minutes
             : throw ApiProblemException.ValidationFailed(
                 "quantity",
-                $"With this quantity a lot of stage {stage.SequenceNo} would take {minutes} minutes, more than the longest duration that can be stored ({int.MaxValue} minutes).");
+                $"With this quantity a lot of stage {stage.SequenceNo} would take {minutes} minutes, more than the longest lot allowed ({Lot.MaxDurationMinutes} minutes, one year).");
     }
 }

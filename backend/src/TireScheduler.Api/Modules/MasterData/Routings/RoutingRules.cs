@@ -7,6 +7,9 @@ internal readonly record struct StageLink(int PredecessorSequenceNo, int Success
 // The rules a routing must keep as a whole (AC-35, AC-36). No database: everything is passed in.
 internal static class RoutingRules
 {
+    // DEC-69: keeps the recursive cycle check shallow; a tire routing has a handful of stages.
+    public const int MaxStageCount = 50;
+
     public static bool AreNumberedFromOneWithoutGaps(IEnumerable<int> sequenceNumbers) =>
         sequenceNumbers.Order().Select((sequenceNo, position) => sequenceNo == position + 1).All(isInPlace => isInPlace);
 

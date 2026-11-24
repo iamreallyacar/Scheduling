@@ -11,6 +11,7 @@ The interfaces between the browser and the API: conventions, routes, scheduling 
 - `sort` names one field of the list items, `-` in front sorts it descending (`sort=-dueDate`). A filter that takes several values repeats the parameter (`status=Pending&status=Scheduled`).
 - Concurrent-edit protection (F-NFR-3) is P1. Keep room for it: every mutable entity can later gain a version column and an `ETag`/`If-Match` pair without changing URLs.
 - No bulk endpoints in v1 apart from the order proposal commit. CSV import (P1) adds them.
+- Size limits: a lot lasts at most 525,600 minutes, one year (`Lot.MaxDurationMinutes`, AC-145), and a routing has at most 50 stages (`RoutingRules.MaxStageCount`, AC-225). Larger ones are rejected with 400 `validation.failed` (DEC-69).
 - Order writes answer without the order, because its status and `isLate` come from Queries: create answers 201 with `Location` and `{ id }`, change and cancel answer 204. The client then reads the order again (DEC-29).
 - There is no machine status endpoint; status is derived. The machine reads (`GET /resources`, `GET /resources/{id}`) carry it and come from Queries, while the machine writes answer the machine without it (DEC-39).
 
