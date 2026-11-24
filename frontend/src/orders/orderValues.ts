@@ -20,3 +20,10 @@ export const LOT_STATUS_LABELS: Record<LotStatus, string> = {
 };
 
 export const ORDER_PRIORITIES: readonly OrderPriority[] = ['Low', 'Normal', 'High'];
+
+/** A started lot stays on its machine (R8), so the pages offer no place or move for it and say why (DEC-63). */
+export function hasStarted(status: LotStatus): boolean {
+  return status === 'InProgress' || status === 'Completed';
+}
+
+export const STARTED_LOT_NOTE = 'Started, so it stays on its machine.';

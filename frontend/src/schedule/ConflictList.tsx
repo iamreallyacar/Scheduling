@@ -3,6 +3,7 @@ import type { ConflictedPlacementResponse } from '../api/generated';
 import { formatPlantTime } from '../calendar/plantClock';
 import { usePlantTimeZone } from '../calendar/plantTimeZone';
 import { QueryResult } from '../forms/QueryResult';
+import { hasStarted, STARTED_LOT_NOTE } from '../orders/orderValues';
 import { placementTargetOf, type PlacementTarget } from './placementTarget';
 import { useConflictedPlacements } from './scheduleQueries';
 import { ViolationList, type ConflictLinkRenderer } from './ViolationList';
@@ -66,14 +67,18 @@ function ConflictTable({ placements, onMove, renderConflictLink }: ConflictListP
               </td>
               {onMove !== null && (
                 <td>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onMove(placementTargetOf(placement, placement.resource.id));
-                    }}
-                  >
-                    Move...
-                  </button>
+                  {hasStarted(placement.status) ? (
+                    STARTED_LOT_NOTE
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onMove(placementTargetOf(placement, placement.resource.id));
+                      }}
+                    >
+                      Move...
+                    </button>
+                  )}
                 </td>
               )}
             </tr>

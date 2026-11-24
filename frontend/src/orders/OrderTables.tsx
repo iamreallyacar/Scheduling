@@ -1,19 +1,27 @@
 import type { OrderResponse } from '../api/generated';
 import { PlantTime } from '../calendar/PlantTime';
+import { lotTitle } from '../schedule/lotTitle';
 import type { PlacementTarget } from '../schedule/placementTarget';
-import { LOT_STATUS_LABELS } from './orderValues';
+import type { ProgressTarget } from './LotProgressForm';
+import { hasStarted, LOT_STATUS_LABELS, STARTED_LOT_NOTE } from './orderValues';
+
+/** What a Planner can open for a lot. */
+export interface LotActions {
+  openPlacement: (target: PlacementTarget) => void;
+  openProgress: (target: ProgressTarget) => void;
+}
 
 interface OrderTablesProps {
   order: OrderResponse;
-  /** Opens the placement form for a lot; null when the user may not place lots. */
-  onOpenPlacement: ((target: PlacementTarget) => void) | null;
+  /** Null when the user may not plan. */
+  lotActions: LotActions | null;
 }
 
 /**
- * The generated operations, their lots with the status the server derived and their live
- * placement, and the dependencies between them (F-ORD-3, F-ORD-5, AC-71).
+ * The generated operations, their lots with the status the server derived, their live placement
+ * and their progress, and the dependencies between them (F-ORD-3, F-ORD-5, AC-71, AC-72).
  */
-export function OrderTables({ order, onOpenPlacement }: OrderTablesProps) {
+export function OrderTables({ order, lotActions }: OrderTablesProps) {
   return (
     <>
       <h2 id="operations-heading">Operations</h2>
@@ -54,7 +62,9 @@ export function OrderTables({ order, onOpenPlacement }: OrderTablesProps) {
             <th scope="col">Machine</th>
             <th scope="col">Planned start</th>
             <th scope="col">Planned end</th>
-            {onOpenPlacement !== null && <th scope="col">Actions</th>}
+            <th scope="col">Actual start</th>
+            <th scope="col">Actual end</th>
+            {lotActions !== null && <th scope="col">Actions</th>}
           </tr>
         </thead>
         <tbody>
@@ -69,14 +79,17 @@ export function OrderTables({ order, onOpenPlacement }: OrderTablesProps) {
                 <td>{lot.placement?.resource.name}</td>
                 <td>{lot.placement !== null && <PlantTime value={lot.placement.plannedStart} />}</td>
                 <td>{lot.placement !== null && <PlantTime value={lot.placement.plannedEnd} />}</td>
-                {onOpenPlacement !== null && (
+                <td>{lot.actualStart !== null && <PlantTime value={lot.actualStart} />}</td>
+                <td>{lot.actualEnd !== null && <PlantTime value={lot.actualEnd} />}</td>
+                {lotActions !== null && (
                   <td>
+                    {hasStarted(lot.status) && <span>{STARTED_LOT_NOTE}</span>}
                     {/* Placed and unplaced lots only: a cancelled order's lots cannot be placed and a started lot stays where it is (R8). */}
                     {(lot.status === 'Unscheduled' || lot.status === 'Scheduled') && (
                       <button
                         type="button"
                         onClick={() => {
-                          onOpenPlacement({
+                          lotActions.openPlacement({
                             lotId: lot.id,
                             orderNo: order.orderNo,
                             sequenceNo: operation.sequenceNo,
@@ -89,6 +102,22 @@ export function OrderTables({ order, onOpenPlacement }: OrderTablesProps) {
                         }}
                       >
                         {lot.placement === null ? 'Place...' : 'Move...'}
+                      </button>
+                    )}
+                    {/* A start needs a live placement, and a cancelled order no longer changes (A47). */}
+                    {order.status !== 'Cancelled' && (lot.status === 'Scheduled' || hasStarted(lot.status)) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          lotActions.openProgress({
+                            lotId: lot.id,
+                            title: lotTitle({ orderNo: order.orderNo, sequenceNo: operation.sequenceNo, resourceType: operation.resourceType, lotNo: lot.lotNo }),
+                            actualStart: lot.actualStart,
+                            actualEnd: lot.actualEnd,
+                          });
+                        }}
+                      >
+                        Progress...
                       </button>
                     )}
                   </td>

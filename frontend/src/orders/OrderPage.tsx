@@ -13,13 +13,14 @@ import { PlacementForm } from '../schedule/PlacementForm';
 import type { PlacementTarget } from '../schedule/placementTarget';
 import { NotFoundPage } from '../shell/NotFoundPage';
 import { AsapProposalReview } from './AsapProposalReview';
+import { LotProgressForm, type ProgressTarget } from './LotProgressForm';
 import { OrderForm } from './OrderForm';
 import { useOrder } from './orderQueries';
 import { OrderStatusText } from './OrderStatusText';
 import { OrderTables } from './OrderTables';
 
-// F-ORD-1 to F-ORD-3 and F-ORD-5: one order with its status, progress, operations and lots.
-// Everyone reads; a Planner changes it.
+// F-ORD-1 to F-ORD-3, F-ORD-5 and F-PRG-1: one order with its status, progress, operations and
+// lots. Everyone reads; a Planner changes it and records the progress of its lots.
 export function OrderPage() {
   const orderId = Number(useParams()['orderId']);
   return Number.isInteger(orderId) ? <OrderView orderId={orderId} /> : <NotFoundPage />;
@@ -41,6 +42,7 @@ function LoadedOrder({ order }: { order: OrderResponse }) {
   const { canPlan } = useSignedInUser();
   const [isEditing, setIsEditing] = useState(false);
   const [lotInForm, setLotInForm] = useState<PlacementTarget | null>(null);
+  const [lotInProgressForm, setLotInProgressForm] = useState<ProgressTarget | null>(null);
   const [isReviewingProposal, setIsReviewingProposal] = useState(false);
   const navigate = useNavigate();
 
@@ -151,7 +153,7 @@ function LoadedOrder({ order }: { order: OrderResponse }) {
           }}
         />
       )}
-      <OrderTables order={order} onOpenPlacement={canPlan ? setLotInForm : null} />
+      <OrderTables order={order} lotActions={canPlan ? { openPlacement: setLotInForm, openProgress: setLotInProgressForm } : null} />
       {lotInForm !== null && (
         <PlacementForm
           // A new key gives the form fresh state when another lot is chosen.
@@ -159,6 +161,15 @@ function LoadedOrder({ order }: { order: OrderResponse }) {
           target={lotInForm}
           onClose={() => {
             setLotInForm(null);
+          }}
+        />
+      )}
+      {lotInProgressForm !== null && (
+        <LotProgressForm
+          key={lotInProgressForm.lotId}
+          target={lotInProgressForm}
+          onClose={() => {
+            setLotInProgressForm(null);
           }}
         />
       )}

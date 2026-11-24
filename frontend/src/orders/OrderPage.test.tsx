@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { CurrentUserResponse, OrderResponse } from '../api/generated';
+import type { CurrentUserResponse, LotResponse, OrderResponse } from '../api/generated';
 import { type FakeApiAnswer, type FakeApiRequest, plannerUser, problem, sentBody, stubApi, viewerUser } from '../testing/fakeApi';
 import { renderApp } from '../testing/renderApp';
 import { order, passengerTire, summaryOf, truckTire } from './orderSamples';
@@ -197,7 +197,9 @@ describe('order page', () => {
       'Press 2',
       '16 Nov 2026, 08:00',
       '16 Nov 2026, 18:42',
-      'Move...',
+      '',
+      '',
+      'Move...Progress...',
     ]);
     expect(within(rowOf(within(lots).getByRole('rowheader', { name: '1' }))).getByRole('button', { name: 'Place...' })).toBeInTheDocument();
 
@@ -219,6 +221,92 @@ describe('order page', () => {
 
     expect(await screen.findByText('Press 2')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Place|Move/ })).not.toBeInTheDocument();
+  });
+
+  it('AC_212 AC_72 AC_213 a Planner records the start of a placed lot, typed on the plant clock and sent in UTC, and the started lot offers no move', async () => {
+    let shownOrder = placedOrder;
+    const requests = stubOrderApi(
+      plannerUser,
+      {
+        'PUT /api/v1/lots/22/progress': () => {
+          shownOrder = startedOrder;
+          return { status: 200, body: { lotId: 22, actualStart: '2026-11-16T07:15:00Z', actualEnd: null } };
+        },
+      },
+      () => shownOrder,
+    );
+    const user = userEvent.setup();
+    renderApp('/orders/5');
+
+    const placedRow = rowOf(within(await screen.findByRole('table', { name: 'Lots' })).getByRole('rowheader', { name: '2' }));
+    await user.click(within(placedRow).getByRole('button', { name: 'Progress...' }));
+    const form = await screen.findByRole('form', { name: 'Progress - Order SO-5, stage 2 Curing press, lot 1' });
+    expect(within(form).getByLabelText('Actual start')).toHaveValue('');
+    expect(within(form).queryByRole('button', { name: 'Clear progress' })).not.toBeInTheDocument();
+    await user.type(within(form).getByLabelText('Actual start'), '2026-11-16T08:15');
+    await user.click(within(form).getByRole('button', { name: 'Save progress' }));
+
+    const startedRow = rowOf(within(await screen.findByRole('table', { name: 'Lots' })).getByRole('rowheader', { name: '2' }));
+    await within(startedRow).findByText('16 Nov 2026, 08:15');
+    expect(screen.queryByRole('form', { name: /^Progress/ })).not.toBeInTheDocument();
+    expect(sentBody(requests, 'PUT', '/api/v1/lots/22/progress')).toEqual({ actualStart: '2026-11-16T07:15:00.000Z', actualEnd: null });
+    expect(within(startedRow).getAllByRole('cell').map((cell) => cell.textContent)).toEqual([
+      '1',
+      '101',
+      '642',
+      'In Progress',
+      'Press 2',
+      '16 Nov 2026, 08:00',
+      '16 Nov 2026, 18:42',
+      '16 Nov 2026, 08:15',
+      '',
+      'Started, so it stays on its machine.Progress...',
+    ]);
+  });
+
+  it('AC_212 AC_26 a rejected progress save keeps the entered times, and a Planner clears the progress of a completed lot', async () => {
+    let shownOrder = completedOrder;
+    stubOrderApi(
+      plannerUser,
+      {
+        'PUT /api/v1/lots/22/progress': () => problem(400, 'validation.failed', 'The request has invalid fields.', { actualEnd: ['The actual end cannot be after now; record it once it has happened.'] }),
+        'DELETE /api/v1/lots/22/progress': () => {
+          shownOrder = placedOrder;
+          return { status: 204 };
+        },
+      },
+      () => shownOrder,
+    );
+    const user = userEvent.setup();
+    renderApp('/orders/5');
+
+    const completedRow = rowOf(within(await screen.findByRole('table', { name: 'Lots' })).getByRole('rowheader', { name: '2' }));
+    await user.click(within(completedRow).getByRole('button', { name: 'Progress...' }));
+    const form = await screen.findByRole('form', { name: 'Progress - Order SO-5, stage 2 Curing press, lot 1' });
+    expect(within(form).getByLabelText('Actual start')).toHaveValue('2026-11-16T08:15');
+    expect(within(form).getByLabelText('Actual end')).toHaveValue('2026-11-16T19:00');
+    await user.clear(within(form).getByLabelText('Actual end'));
+    await user.type(within(form).getByLabelText('Actual end'), '2026-12-16T19:00');
+    await user.click(within(form).getByRole('button', { name: 'Save progress' }));
+
+    expect(await within(form).findByText('The actual end cannot be after now; record it once it has happened.')).toBeInTheDocument();
+    expect(within(form).getByLabelText('Actual end')).toHaveValue('2026-12-16T19:00');
+
+    await user.click(within(form).getByRole('button', { name: 'Clear progress' }));
+
+    const clearedRow = rowOf(within(await screen.findByRole('table', { name: 'Lots' })).getByRole('rowheader', { name: '2' }));
+    expect(await within(clearedRow).findByRole('button', { name: 'Move...' })).toBeInTheDocument();
+    expect(screen.queryByRole('form', { name: /^Progress/ })).not.toBeInTheDocument();
+  });
+
+  it('AC_212 AC_72 a Viewer sees the actual times without a progress action', async () => {
+    stubOrderApi(viewerUser, {}, () => completedOrder);
+    renderApp('/orders/5');
+
+    const completedRow = rowOf(within(await screen.findByRole('table', { name: 'Lots' })).getByRole('rowheader', { name: '2' }));
+    expect(await within(completedRow).findByText('16 Nov 2026, 19:00')).toBeInTheDocument();
+    expect(within(completedRow).getByText('16 Nov 2026, 08:15')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Progress/ })).not.toBeInTheDocument();
   });
 
   it('AC_23 an unknown order shows the problem', async () => {
@@ -249,6 +337,20 @@ const placedOrder: OrderResponse = {
       : operation,
   ),
 };
+
+// The placed curing lot started at 08:15, and then completed at 19:00, in Berlin.
+const startedOrder: OrderResponse = withCuringLot(placedOrder, { status: 'InProgress', actualStart: '2026-11-16T07:15:00Z', actualEnd: null });
+const completedOrder: OrderResponse = withCuringLot(placedOrder, { status: 'Completed', actualStart: '2026-11-16T07:15:00Z', actualEnd: '2026-11-16T18:00:00Z' });
+
+function withCuringLot(baseOrder: OrderResponse, changes: Partial<LotResponse>): OrderResponse {
+  return {
+    ...baseOrder,
+    status: 'InProgress',
+    operations: baseOrder.operations.map((operation) =>
+      operation.sequenceNo === 2 ? { ...operation, lots: operation.lots.map((lot) => ({ ...lot, ...changes })) } : operation,
+    ),
+  };
+}
 
 function statusOnPage(): string | null {
   return screen.getByText('Status', { selector: 'dt' }).nextElementSibling?.textContent ?? null;

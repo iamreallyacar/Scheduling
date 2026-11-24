@@ -148,6 +148,21 @@ describe('schedule page', () => {
     expect(within(form).getByRole('button', { name: 'Remove placement' })).toBeInTheDocument();
   });
 
+  it('AC_213 a conflicted placement of a started lot offers a Planner no move and says why', async () => {
+    stubApi({
+      'GET /api/v1/me': () => ({ status: 200, body: plannerUser }),
+      [`GET ${UNSCHEDULED_LOTS_PATH}`]: () => ({ status: 200, body: [] }),
+      [`GET ${CONFLICTS_PATH}`]: () => ({ status: 200, body: [{ ...brokenDownPlacement, status: 'InProgress' }, outsideShiftPlacement] }),
+    });
+    renderApp('/schedule');
+
+    const conflicts = await screen.findByRole('table', { name: 'Conflicted placements (2)' });
+    const startedRow = within(conflicts).getByRole('row', { name: /SO-1042/ });
+    expect(within(startedRow).getByText('Started, so it stays on its machine.')).toBeInTheDocument();
+    expect(within(startedRow).queryByRole('button', { name: 'Move...' })).not.toBeInTheDocument();
+    expect(within(within(conflicts).getByRole('row', { name: /SO-1047/ })).getByRole('button', { name: 'Move...' })).toBeInTheDocument();
+  });
+
   it('AC_180 a Viewer sees no place action', async () => {
     stubScheduleApi([curingLot]);
     renderApp('/schedule');

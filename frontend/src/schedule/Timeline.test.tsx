@@ -283,6 +283,29 @@ describe('timeline', () => {
     expect(within(form).getByRole('button', { name: 'Remove placement' })).toBeInTheDocument();
   });
 
+  it('AC_213 the popover of a started lot offers a Planner no move and says why', async () => {
+    const startedCuring: TimelineResponse = {
+      ...twoWeeks,
+      resourceTypes: twoWeeks.resourceTypes.map((type) => ({
+        ...type,
+        resources: type.resources.map((resource) => ({
+          ...resource,
+          placements: resource.placements.map((placement) => (placement.placementId === curingBar.placementId ? { ...placement, status: 'InProgress' as const } : placement)),
+        })),
+      })),
+    };
+    stubScheduleApi({ user: plannerUser, timeline: () => startedCuring });
+    const user = userEvent.setup();
+    renderApp('/schedule');
+
+    await user.click(await screen.findByRole('button', { name: '! SO-1042/L3' }));
+
+    const popover = screen.getByRole('dialog', { name: 'Order SO-1042, stage 2 Curing press, lot 3' });
+    expect(within(popover).getByText('In Progress, order late')).toBeInTheDocument();
+    expect(within(popover).getByText('Started, so it stays on its machine.')).toBeInTheDocument();
+    expect(within(popover).queryByRole('button', { name: 'Move...' })).not.toBeInTheDocument();
+  });
+
   it('AC_191 a violation links to its item when the timeline holds it, and a lot or placement link opens that bar', async () => {
     stubScheduleApi();
     const user = userEvent.setup();
