@@ -1,6 +1,6 @@
 # Decisions
 
-Status values: Accepted (in force), Proposed (written into the docs, waiting for review), Open (not decided), Superseded (replaced by a later entry). Task P4 in [TASKS.md](../TASKS.md) settled every Proposed and Open entry on 2026-11-06.
+Status values: Accepted (in force), Proposed (written into the docs, waiting for review), Open (not decided), Superseded (replaced by a later entry). Task P4 in [TASKS.md](../TASKS.md) settled every Proposed and Open entry on 2026-11-06; DEC-24 to DEC-65, made while building M1 to M5, were accepted on 2026-11-24.
 
 To change a decision, add a new entry that supersedes the old one and mark the old one Superseded. Do not edit an accepted entry's reasoning after the fact.
 
@@ -31,48 +31,48 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 | DEC-21 | Cookie session instead of JWT | Accepted | 2026-11-06 (P4) | ARCHITECTURE.md section "Access rules" |
 | DEC-22 | Due date ends at the end of its plant-local day | Accepted | 2026-11-06 (P4) | ARCHITECTURE.md section "Time rules" |
 | DEC-23 | Engine as its own project, modules as folders in one API project | Accepted | 2026-11-06 (P4) | ARCHITECTURE.md sections "Structure" and "Module rules" |
-| DEC-24 | Migrations are applied at startup, module by module | Proposed | 2026-11-10 (M1-1) | ARCHITECTURE.md section "Persistence rules" |
-| DEC-25 | Minimal API endpoints; module code rejects a request by throwing a problem exception | Proposed | 2026-11-10 (M1-2) | ARCHITECTURE.md section "Module rules", API.md section "Error format" |
-| DEC-26 | Session ends through the user's security stamp; lockout counted on the injected clock | Proposed | 2026-11-10 (M1-1) | ARCHITECTURE.md section "Access rules", A21 |
-| DEC-27 | OpenAPI document kept in the repository; frontend types generated from it | Proposed | 2026-11-10 (M1-2) | API.md section "Conventions", ARCHITECTURE.md section "Frontend rules" |
-| DEC-28 | Lot duration is computed by the engine, so Orders may use the engine | Proposed | 2026-11-18 (M2-3) | ARCHITECTURE.md section "Structure", domain-model §4 |
-| DEC-29 | Queries serves the order reads; order writes answer without the order | Proposed | 2026-11-18 (M2-4) | API.md section "Conventions", ARCHITECTURE.md section "Structure" |
-| DEC-30 | The late flag is computed by the engine, so Queries may use the engine | Proposed | 2026-11-18 (M2-4) | ARCHITECTURE.md section "Structure", domain-model §6 |
-| DEC-31 | The order list searches, filters and sorts stored fields in the database; status and late filters are applied in Queries | Proposed | 2026-11-18 (M2-5) | API.md section "Conventions", domain-model A28 |
-| DEC-32 | Plant generator as a pure core library and a loader that writes through the HTTP API | Proposed | 2026-11-18 (M2-7) | ARCHITECTURE.md section "Structure", acceptance-criteria §6 |
-| DEC-33 | One transaction per request, shared by every module context; row locks named from the EF model | Proposed | 2026-11-18 (M2-8) | ARCHITECTURE.md sections "Module rules" and "Persistence rules", AC-161, AC-162 |
-| DEC-34 | Order read models stay flat; records in the API use named required properties | Proposed | 2026-11-18 (M2-9) | ARCHITECTURE.md section "Module rules" |
-| DEC-35 | Request bodies are checked once for the whole `/api/v1` group, not per endpoint | Proposed | 2026-11-18 (M2-10) | ARCHITECTURE.md sections "Module rules" and "Error and API rules", AC-163 |
-| DEC-36 | Every successful write refreshes the cached queries in one place; query keys are defined in one file | Proposed | 2026-11-18 (M2-11) | ARCHITECTURE.md section "Frontend rules", AC-164 |
-| DEC-37 | Frontend endpoint functions generated from the OpenAPI document by a project script | Proposed | 2026-11-18 (M2-12) | ARCHITECTURE.md section "Frontend rules", AC-165 |
-| DEC-38 | API test data is built by shared builders in one folder; requests stay anonymous objects | Proposed | 2026-11-18 (M2-13) | TESTING.md section "Fixtures and helpers" |
-| DEC-39 | Queries serves the machine reads with the derived status; the machine writes stay in MasterData | Proposed | 2026-11-18 (M3-2) | ARCHITECTURE.md section "Structure", AC-172 |
-| DEC-40 | The UI converts plant-local input times to UTC and UTC to plant time for display | Proposed | 2026-11-18 (M3-2) | ARCHITECTURE.md section "Time rules", A38 |
-| DEC-41 | An open-ended unavailability is stored without an end | Proposed | 2026-11-18 (M3-2) | ARCHITECTURE.md section "Persistence rules" |
-| DEC-42 | Each rule violation of a rejected placement carries its own text and earliest allowed start | Proposed | 2026-11-18 (M3-4) | API.md section "Error format", AC-179 |
-| DEC-43 | R2 is guarded by the resource row lock, not by an exclusion constraint, once planned ends are recomputed | Proposed | 2026-11-18 (after M3-4) | ARCHITECTURE.md section "Persistence rules", AC-83, AC-107, WQ4 |
-| DEC-44 | A shift or holiday change recomputes the planned ends through a MasterData write port, in its own transaction | Proposed | 2026-11-18 (M3-5) | ARCHITECTURE.md sections "Module rules" and "Persistence rules", AC-182 |
-| DEC-45 | The timeline read takes a required plant-local date range and carries the working periods the engine computes | Proposed | 2026-11-18 (M3-6) | API.md section "Scheduling calls", AC-185 to AC-187, WQ3 |
-| DEC-46 | The timeline marks conflicts from the conflict list, which stays on the schedule page | Proposed | 2026-11-18 (M3-6) | wireframes.md section 2, AC-189 to AC-191 |
-| DEC-47 | One placement context per snapshot checks any number of requests, and the static rule calls build one each | Proposed | 2026-11-18 (M3-7) | [engine README](../backend/src/TireScheduler.Engine/README.md), AUDIT.md item 7 |
-| DEC-48 | The snapshot loader loads a version with a scope of resources and orders, or the whole version, in one method that says which rule reads which rows | Proposed | 2026-11-19 (M3-8) | AUDIT.md item 8 |
-| DEC-49 | Scheduling turns the plant calendars into engine calendars in one place, and the timeline reads its working periods from Scheduling | Proposed | 2026-11-19 (M3-9) | ARCHITECTURE.md section "Structure", AUDIT.md item 10 |
-| DEC-50 | Reads of a few placed lots ask Orders for those lots' context and MasterData for those machines' names, never for every order or machine | Proposed | 2026-11-19 (M3-10) | AUDIT.md item 9 |
-| DEC-51 | The timeline chart draws the timeline it is given; the page that shows it applies its filters once | Proposed | 2026-11-19 (M3-11) | AUDIT.md item 11 |
-| DEC-52 | The schedule page treats a conflict list that has not loaded as unknown, never as empty | Proposed | 2026-11-19 (M3-12) | AUDIT.md item 16, AC-192 |
-| DEC-53 | API test classes share the readers of answers, one API fixture, the test plant figures and the fakes | Proposed | 2026-11-19 (M3-13) | AUDIT.md items 13, 18 and 22, TESTING.md section "Fixtures and helpers" |
-| DEC-54 | Request times are checked for whole minutes by one helper, and a rule violation reads its rule from its code | Proposed | 2026-11-19 (M3-14) | AUDIT.md items 17 and 20 |
-| DEC-55 | The earliest-slot search answers R8 as a rejection, takes the horizon from the caller and breaks ties by the resource names in the snapshot | Proposed | 2026-11-19 (M4-1) | engine README, A45 |
-| DEC-56 | Property tests run the engine on generated plants over fixed seeds, through one mapping in the generator core | Proposed | 2026-11-19 (M4-1) | AUDIT.md item 19, TESTING.md section "Test levels", AC-193 |
-| DEC-57 | Forms share one save frame, and the schedule page keeps its timeline state in a hook of its own | Proposed | 2026-11-19 (M4-2) | AUDIT.md items 12 and 15 |
-| DEC-58 | The earliest-slot read: any role, a snapshot of the lot's type and order, 400 for an unknown machine and `slot.none` for an unfit one, asked on a button press | Proposed | 2026-11-19 (M4-2) | API.md section "Scheduling calls", AC-194 to AC-198 |
-| DEC-59 | The whole-order proposal orders lots by their dependencies and stage numbers, rejects a cancelled order as a whole and searches each lot on the proposals so far | Proposed | 2026-11-19 (M4-3) | engine README, AC-127 to AC-131 |
-| DEC-60 | The whole-order proposal is a Planner's read in Scheduling with its own late flag; the commit makes it again under the locks and is stale when it differs | Proposed | 2026-11-22 (M4-4) | API.md section "Scheduling calls", AC-131 to AC-137, AC-199 to AC-202, WQ2 |
-| DEC-61 | The plant loader places a generated schedule through the proposal and commit endpoints, earliest due order first, from the start of the horizon | Proposed | 2026-11-22 (M4-5) | GUIDE.md section "Load a generated plant", AC-203 to AC-205 |
-| DEC-62 | Lot progress is saved whole and removed on `/lots/{id}/progress` under the order's row lock; Queries reads it through a Progress reader, and the engine gives the completion time | Proposed | 2026-11-24 (M5-1) | API.md section "Routes", ARCHITECTURE.md section "Persistence rules", AC-206 to AC-211, A47 |
-| DEC-63 | A started lot offers no place or move action and says why, instead of a read-only placement form | Proposed | 2026-11-24 (M5-1) | wireframes.md section 3, AC-213 |
-| DEC-64 | Order progress answers a percentage rounded down, shown on the order page only | Proposed | 2026-11-24 (M5-2) | domain-model §6, AC-215 to AC-217 |
-| DEC-65 | The dashboard is one read from Queries that selects the orders, counts the queue and conflicts and lists the machines down; the page shows no progress | Proposed | 2026-11-24 (M5-3) | API.md section "Routes", wireframes.md section 6, AC-218 to AC-221, A49, A50 |
+| DEC-24 | Migrations are applied at startup, module by module | Accepted | 2026-11-10 (M1-1) | ARCHITECTURE.md section "Persistence rules" |
+| DEC-25 | Minimal API endpoints; module code rejects a request by throwing a problem exception | Accepted | 2026-11-10 (M1-2) | ARCHITECTURE.md section "Module rules", API.md section "Error format" |
+| DEC-26 | Session ends through the user's security stamp; lockout counted on the injected clock | Accepted | 2026-11-10 (M1-1) | ARCHITECTURE.md section "Access rules", A21 |
+| DEC-27 | OpenAPI document kept in the repository; frontend types generated from it | Accepted | 2026-11-10 (M1-2) | API.md section "Conventions", ARCHITECTURE.md section "Frontend rules" |
+| DEC-28 | Lot duration is computed by the engine, so Orders may use the engine | Accepted | 2026-11-18 (M2-3) | ARCHITECTURE.md section "Structure", domain-model §4 |
+| DEC-29 | Queries serves the order reads; order writes answer without the order | Accepted | 2026-11-18 (M2-4) | API.md section "Conventions", ARCHITECTURE.md section "Structure" |
+| DEC-30 | The late flag is computed by the engine, so Queries may use the engine | Accepted | 2026-11-18 (M2-4) | ARCHITECTURE.md section "Structure", domain-model §6 |
+| DEC-31 | The order list searches, filters and sorts stored fields in the database; status and late filters are applied in Queries | Accepted | 2026-11-18 (M2-5) | API.md section "Conventions", domain-model A28 |
+| DEC-32 | Plant generator as a pure core library and a loader that writes through the HTTP API | Accepted | 2026-11-18 (M2-7) | ARCHITECTURE.md section "Structure", acceptance-criteria §6 |
+| DEC-33 | One transaction per request, shared by every module context; row locks named from the EF model | Accepted | 2026-11-18 (M2-8) | ARCHITECTURE.md sections "Module rules" and "Persistence rules", AC-161, AC-162 |
+| DEC-34 | Order read models stay flat; records in the API use named required properties | Accepted | 2026-11-18 (M2-9) | ARCHITECTURE.md section "Module rules" |
+| DEC-35 | Request bodies are checked once for the whole `/api/v1` group, not per endpoint | Accepted | 2026-11-18 (M2-10) | ARCHITECTURE.md sections "Module rules" and "Error and API rules", AC-163 |
+| DEC-36 | Every successful write refreshes the cached queries in one place; query keys are defined in one file | Accepted | 2026-11-18 (M2-11) | ARCHITECTURE.md section "Frontend rules", AC-164 |
+| DEC-37 | Frontend endpoint functions generated from the OpenAPI document by a project script | Accepted | 2026-11-18 (M2-12) | ARCHITECTURE.md section "Frontend rules", AC-165 |
+| DEC-38 | API test data is built by shared builders in one folder; requests stay anonymous objects | Accepted | 2026-11-18 (M2-13) | TESTING.md section "Fixtures and helpers" |
+| DEC-39 | Queries serves the machine reads with the derived status; the machine writes stay in MasterData | Accepted | 2026-11-18 (M3-2) | ARCHITECTURE.md section "Structure", AC-172 |
+| DEC-40 | The UI converts plant-local input times to UTC and UTC to plant time for display | Accepted | 2026-11-18 (M3-2) | ARCHITECTURE.md section "Time rules", A38 |
+| DEC-41 | An open-ended unavailability is stored without an end | Accepted | 2026-11-18 (M3-2) | ARCHITECTURE.md section "Persistence rules" |
+| DEC-42 | Each rule violation of a rejected placement carries its own text and earliest allowed start | Accepted | 2026-11-18 (M3-4) | API.md section "Error format", AC-179 |
+| DEC-43 | R2 is guarded by the resource row lock, not by an exclusion constraint, once planned ends are recomputed | Accepted | 2026-11-18 (after M3-4) | ARCHITECTURE.md section "Persistence rules", AC-83, AC-107, WQ4 |
+| DEC-44 | A shift or holiday change recomputes the planned ends through a MasterData write port, in its own transaction | Accepted | 2026-11-18 (M3-5) | ARCHITECTURE.md sections "Module rules" and "Persistence rules", AC-182 |
+| DEC-45 | The timeline read takes a required plant-local date range and carries the working periods the engine computes | Accepted | 2026-11-18 (M3-6) | API.md section "Scheduling calls", AC-185 to AC-187, WQ3 |
+| DEC-46 | The timeline marks conflicts from the conflict list, which stays on the schedule page | Accepted | 2026-11-18 (M3-6) | wireframes.md section 2, AC-189 to AC-191 |
+| DEC-47 | One placement context per snapshot checks any number of requests, and the static rule calls build one each | Accepted | 2026-11-18 (M3-7) | [engine README](../backend/src/TireScheduler.Engine/README.md), AUDIT.md item 7 |
+| DEC-48 | The snapshot loader loads a version with a scope of resources and orders, or the whole version, in one method that says which rule reads which rows | Accepted | 2026-11-19 (M3-8) | AUDIT.md item 8 |
+| DEC-49 | Scheduling turns the plant calendars into engine calendars in one place, and the timeline reads its working periods from Scheduling | Accepted | 2026-11-19 (M3-9) | ARCHITECTURE.md section "Structure", AUDIT.md item 10 |
+| DEC-50 | Reads of a few placed lots ask Orders for those lots' context and MasterData for those machines' names, never for every order or machine | Accepted | 2026-11-19 (M3-10) | AUDIT.md item 9 |
+| DEC-51 | The timeline chart draws the timeline it is given; the page that shows it applies its filters once | Accepted | 2026-11-19 (M3-11) | AUDIT.md item 11 |
+| DEC-52 | The schedule page treats a conflict list that has not loaded as unknown, never as empty | Accepted | 2026-11-19 (M3-12) | AUDIT.md item 16, AC-192 |
+| DEC-53 | API test classes share the readers of answers, one API fixture, the test plant figures and the fakes | Accepted | 2026-11-19 (M3-13) | AUDIT.md items 13, 18 and 22, TESTING.md section "Fixtures and helpers" |
+| DEC-54 | Request times are checked for whole minutes by one helper, and a rule violation reads its rule from its code | Accepted | 2026-11-19 (M3-14) | AUDIT.md items 17 and 20 |
+| DEC-55 | The earliest-slot search answers R8 as a rejection, takes the horizon from the caller and breaks ties by the resource names in the snapshot | Accepted | 2026-11-19 (M4-1) | engine README, A45 |
+| DEC-56 | Property tests run the engine on generated plants over fixed seeds, through one mapping in the generator core | Accepted | 2026-11-19 (M4-1) | AUDIT.md item 19, TESTING.md section "Test levels", AC-193 |
+| DEC-57 | Forms share one save frame, and the schedule page keeps its timeline state in a hook of its own | Accepted | 2026-11-19 (M4-2) | AUDIT.md items 12 and 15 |
+| DEC-58 | The earliest-slot read: any role, a snapshot of the lot's type and order, 400 for an unknown machine and `slot.none` for an unfit one, asked on a button press | Accepted | 2026-11-19 (M4-2) | API.md section "Scheduling calls", AC-194 to AC-198 |
+| DEC-59 | The whole-order proposal orders lots by their dependencies and stage numbers, rejects a cancelled order as a whole and searches each lot on the proposals so far | Accepted | 2026-11-19 (M4-3) | engine README, AC-127 to AC-131 |
+| DEC-60 | The whole-order proposal is a Planner's read in Scheduling with its own late flag; the commit makes it again under the locks and is stale when it differs | Accepted | 2026-11-22 (M4-4) | API.md section "Scheduling calls", AC-131 to AC-137, AC-199 to AC-202, WQ2 |
+| DEC-61 | The plant loader places a generated schedule through the proposal and commit endpoints, earliest due order first, from the start of the horizon | Accepted | 2026-11-22 (M4-5) | GUIDE.md section "Load a generated plant", AC-203 to AC-205 |
+| DEC-62 | Lot progress is saved whole and removed on `/lots/{id}/progress` under the order's row lock; Queries reads it through a Progress reader, and the engine gives the completion time | Accepted | 2026-11-24 (M5-1) | API.md section "Routes", ARCHITECTURE.md section "Persistence rules", AC-206 to AC-211, A47 |
+| DEC-63 | A started lot offers no place or move action and says why, instead of a read-only placement form | Accepted | 2026-11-24 (M5-1) | wireframes.md section 3, AC-213 |
+| DEC-64 | Order progress answers a percentage rounded down, shown on the order page only | Accepted | 2026-11-24 (M5-2) | domain-model §6, AC-215 to AC-217 |
+| DEC-65 | The dashboard is one read from Queries that selects the orders, counts the queue and conflicts and lists the machines down; the page shows no progress | Accepted | 2026-11-24 (M5-3) | API.md section "Routes", wireframes.md section 6, AC-218 to AC-221, A49, A50 |
 
 ## Accepted
 
@@ -218,10 +218,6 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 - Reason: one project per module adds build and wiring cost for a small team. Boundaries are kept by an architecture test on namespaces instead of by project references.
 - Alternatives: one project per module, rejected for the overhead; a module can still be moved into its own project later because the folder boundaries are already enforced.
 - Consequences: module boundaries are a convention checked by tests, not by the compiler, so the architecture test (`TESTING.md` section "Test levels") must run on every commit.
-
-## Proposed
-
-Made while building M1 (2026-11-10) and M2 (2026-11-18) and already followed by the code. Waiting for review; on approval the status becomes Accepted and the entry moves up.
 
 ### DEC-24 Migrations at startup
 
@@ -522,6 +518,10 @@ Made while building M1 (2026-11-10) and M2 (2026-11-18) and already followed by 
 - Reason: which order is overdue or due soon and which machine is down are rules, so the server decides them and the page repeats none. "Overdue" needs the plant-local today, which only the engine computes on the server (`ARCHITECTURE.md` section "Time rules"). Counts instead of the lists for the lots and conflicts, because the schedule page lists them with their actions, and two copies of those lists would drift. Progress needs the lot quantities, which the order summaries do not read (DEC-64), and the status already says whether an order has started.
 - Alternatives: the page putting together the order list with a due date and status filter, the queue, the conflicts and the machine list, rejected because the page would pick the dates and the statuses that make an order overdue; "overdue" as every late order, rejected because the late flag also covers an order planned to finish late whose due day has not come, which is F-RPT-3 (P1); the whole queue and conflict list on the dashboard, rejected for the copies above.
 - Consequences: each read derives the status of every order due by `dueSoonUntil`, also the completed ones, as the order list does with a status filter (DEC-31, A28), finds the conflicts of the whole version and reads every lot for the queue count; that is fast at plant size. The start address still opens the machine register.
+
+## Proposed
+
+None at present. An entry made while building and already followed by the code waits here for review; on approval its status becomes Accepted and it moves up.
 
 ## Open
 
