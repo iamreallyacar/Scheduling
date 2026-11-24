@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.Time.Testing;
 using TireScheduler.Api.Errors;
+using TireScheduler.Api.Modules.Orders;
 using TireScheduler.Api.Security;
 using TireScheduler.Api.Tests.Fakes;
 using static TireScheduler.Api.Tests.TestData.MasterDataTestData;
@@ -91,6 +92,41 @@ public sealed class OrderLifecycleTests : IAsyncDisposable
 
         await ProblemAssert.HasProblemAsync(response, HttpStatusCode.Conflict, ProblemCodes.OrderNotDeletable);
         Assert.Equal(HttpStatusCode.OK, (await planner.GetAsync(OrderPath(order.GetProperty("id").GetInt32()))).StatusCode);
+    }
+
+    // Each of these writes changes the order row, so it would wait for a held row even without its
+    // lock, but only after its checks had read the lots. The lot starts while the row is held, as a
+    // start under the same lock would (DEC-62), so only a write that locks the row before its
+    // checks sees the start and is rejected.
+    [Theory]
+    [InlineData(OrderWrite.Update, ProblemCodes.OrderLocked)]
+    [InlineData(OrderWrite.Cancel, ProblemCodes.OrderLotInProgress)]
+    [InlineData(OrderWrite.Delete, ProblemCodes.OrderNotDeletable)]
+    public async Task AC_19_AC_49_AC_51_an_order_write_locks_the_order_row_before_it_checks_the_lots(OrderWrite orderWrite, string expectedCode)
+    {
+        using ApiSession planner = await PlannerWithProductAsync("HELD");
+        int productId = await ProductIdAsync(planner, "HELD");
+        JsonElement order = await CreateOrderAsync(planner, NewOrder("SO-HELD", productId, quantity: 10));
+        int orderId = order.GetProperty("id").GetInt32();
+
+        await using HeldRowLock heldOrder = await HeldRowLock.TakeAsync<OrdersDbContext, Order>(api.Factory, orderId);
+        Task<HttpResponseMessage> write = orderWrite switch
+        {
+            OrderWrite.Update => planner.PutAsync(OrderPath(orderId), NewOrder("SO-HELD", productId, quantity: 11)),
+            OrderWrite.Cancel => planner.PostAsync($"{OrderPath(orderId)}/cancel"),
+            OrderWrite.Delete => planner.DeleteAsync(OrderPath(orderId)),
+            _ => throw new ArgumentOutOfRangeException(nameof(orderWrite), orderWrite, "No request for this write."),
+        };
+        await heldOrder.ReleaseOnceItWaitsAsync(write, whileHeld: () => lotActivity.StartedLotIds.Add(LotIds(order)[0]));
+
+        await ProblemAssert.HasProblemAsync(await write, HttpStatusCode.Conflict, expectedCode);
+    }
+
+    public enum OrderWrite
+    {
+        Update,
+        Cancel,
+        Delete,
     }
 
     public enum LotFact

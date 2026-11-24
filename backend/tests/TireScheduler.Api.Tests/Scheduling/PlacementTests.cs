@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using TireScheduler.Api.Errors;
+using TireScheduler.Api.Modules.Orders;
 using TireScheduler.Api.Modules.Scheduling;
 using TireScheduler.Api.Security;
 using TireScheduler.Api.Tests.Fakes;
@@ -213,6 +214,24 @@ public sealed class PlacementTests : IAsyncDisposable
         AssertRejection(problem, "R4", "lot", lotIds[0]);
         JsonElement violation = Assert.Single(problem.GetProperty("violations").EnumerateArray());
         Assert.Equal(Berlin(16, 8).AddMinutes(BuildingLotMinutes), violation.GetProperty("earliestAllowedStart").GetDateTimeOffset());
+    }
+
+    // R4 spans machines, so two placements of one order on different machines are kept apart only by
+    // the order row lock; without it both could pass the check against the other's old placement.
+    [Fact]
+    public async Task AC_89_a_placement_waits_while_another_command_holds_the_row_of_its_order()
+    {
+        TestPlant plant = await CreatePlantAsync("AC89L");
+        using ApiSession planner = await api.Factory.SignInAsRoleAsync(UserRole.Planner);
+        JsonElement order = await CreateOrderAsync(planner, NewOrder("SO-89-L", plant.ProductId, quantity: LotQuantity));
+        int[] lotIds = LotIds(order);
+        await PlaceLotAsync(planner, lotIds[0], plant.Builder1, Berlin(16, 8));
+
+        await using HeldRowLock heldOrder = await HeldRowLock.TakeAsync<OrdersDbContext, Order>(api.Factory, order.GetProperty("id").GetInt32());
+        Task<HttpResponseMessage> placement = planner.PutAsync(PlacementPath(LiveVersion, lotIds[1]), Placement(plant.Press1, Berlin(16, 8).AddMinutes(BuildingLotMinutes)));
+        await heldOrder.ReleaseOnceItWaitsAsync(placement);
+
+        Assert.Equal(HttpStatusCode.OK, (await placement).StatusCode);
     }
 
     [Fact]

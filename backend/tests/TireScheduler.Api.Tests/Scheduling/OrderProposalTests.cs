@@ -2,6 +2,8 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.Time.Testing;
 using TireScheduler.Api.Errors;
+using TireScheduler.Api.Modules.MasterData;
+using TireScheduler.Api.Modules.MasterData.Machines;
 using TireScheduler.Api.Security;
 using TireScheduler.Api.Tests.Fakes;
 using TireScheduler.Api.Tests.TestData;
@@ -157,6 +159,25 @@ public sealed class OrderProposalTests : IAsyncDisposable
             return (lotId, placement.GetProperty("resource").GetProperty("id").GetInt32(), placement.GetProperty("plannedStart").GetDateTimeOffset(), placement.GetProperty("plannedEnd").GetDateTimeOffset());
         }));
         Assert.Empty(QueuedLotIds(await planner.GetJsonAsync(UnscheduledLotsPath(LiveVersion))));
+    }
+
+    // The search may pick any machine of a lot's type, so the commit locks all of them (DEC-60). Press 2
+    // is held because the proposal picks Press 1: a commit that locked only the machines it uses
+    // would not wait.
+    [Fact]
+    public async Task AC_134_a_commit_waits_while_another_command_holds_a_machine_of_a_lot_type()
+    {
+        TestPlant plant = await SchedulingTestData.CreatePlantAsync(api.Factory, "AC134L");
+        using ApiSession planner = await api.Factory.SignInAsRoleAsync(UserRole.Planner);
+        int orderId = (await CreateOrderAsync(planner, NewOrder("SO-134-L", plant.ProductId, quantity: LotQuantity))).GetProperty("id").GetInt32();
+        JsonElement proposal = await ReadProposalAsync(planner, orderId, notBefore: null);
+        Assert.DoesNotContain(plant.Press2, LotsOf(proposal).Select(lot => lot.ResourceId));
+
+        await using HeldRowLock heldPress = await HeldRowLock.TakeAsync<MasterDataDbContext, Resource>(api.Factory, plant.Press2);
+        Task<HttpResponseMessage> commit = planner.PostAsync(AsapCommitPath(LiveVersion, orderId), CommitBodyOf(proposal));
+        await heldPress.ReleaseOnceItWaitsAsync(commit);
+
+        Assert.Equal(HttpStatusCode.OK, (await commit).StatusCode);
     }
 
     [Fact]

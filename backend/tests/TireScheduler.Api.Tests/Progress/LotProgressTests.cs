@@ -1,8 +1,6 @@
 using System.Net;
 using System.Text.Json;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
-using TireScheduler.Api.Database;
 using TireScheduler.Api.Errors;
 using TireScheduler.Api.Modules.Orders;
 using TireScheduler.Api.Security;
@@ -246,19 +244,11 @@ public sealed class LotProgressTests : IAsyncDisposable
         JsonElement order = await CreateOrderAsync(planner, NewOrder("SO-211-L", plant.ProductId, quantity: LotQuantity));
         int buildingLot = LotIds(order)[0];
         await PlaceLotAsync(planner, buildingLot, plant.Builder1, Berlin(16, 8));
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
 
-        await using AsyncServiceScope holderScope = api.Factory.Services.CreateAsyncScope();
-        OrdersDbContext holder = holderScope.ServiceProvider.GetRequiredService<OrdersDbContext>();
-        OpenTransaction holderTransaction = await holderScope.ServiceProvider.GetRequiredService<RequestTransaction>().BeginAsync(holder, cancellationToken);
-        Assert.True(await holder.LockRowAsync<Order>(order.GetProperty("id").GetInt32(), cancellationToken));
-
+        await using HeldRowLock heldOrder = await HeldRowLock.TakeAsync<OrdersDbContext, Order>(api.Factory, order.GetProperty("id").GetInt32());
         Task<HttpResponseMessage> start = planner.PutAsync(ProgressPath(buildingLot), ProgressBody(Berlin(16, 8)));
-        Task waited = await Task.WhenAny(start, Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken));
-        Assert.NotSame(start, waited);
+        await heldOrder.ReleaseOnceItWaitsAsync(start);
 
-        await holderTransaction.CommitAsync(cancellationToken);
-        await holderTransaction.DisposeAsync();
         Assert.Equal(HttpStatusCode.OK, (await start).StatusCode);
     }
 

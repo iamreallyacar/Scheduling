@@ -36,6 +36,7 @@ Each completed finding was fixed by a task; the decision it names gives the reas
 | 26 | `check_docs.py` required a criteria section only for the M1 and M2 features | Task M3-16 |
 | 27 | The architecture test took its module list as typed in, so a new module folder escaped every dependency rule | Task M5-4 |
 | 32 | API tests read the field names of a 400 answer with a copied expression | Task M5-5 |
+| 36 | Only the R2 race had a lock test | Task M5-6 |
 
 ## Second audit
 
@@ -112,14 +113,6 @@ The rules of the first two audits still hold: no system clock reads, no hand-wri
 - Why it matters: an order then names a product that no longer exists, which breaks AC-20, and every order list, dashboard and order read that includes it fails with 500 (`MissingProduct`). A mixed routing breaks A1 or fails with `KeyNotFoundException`. A machine create against a type delete answers 500 instead of 409.
 - What to do: add product and resource type locks to `IMasterDataLocks`. Order create and update begin a transaction and lock the product before reading the routing; product and type deletes lock their row before the reference checks; routing saves and machine writes lock the type. Add a lock test in the style of AC-211.
 - Task: M5-7.
-
-#### 36. Only the R2 race has a lock test
-
-- Where: `backend/tests/TireScheduler.Api.Tests/Scheduling/PlacementTests.cs` line 308 is the only concurrent test in Scheduling and Queries; `Progress/LotProgressTests.cs` covers progress only.
-- Problem: no test fails if a lock is removed from order update, cancel or delete (`OrderRegister.cs` lines 51, 89 and 110), from the R4 order lock of a placement, from the resource locks of the whole-order commit (DEC-60), or from the resource locks of a holiday or shift save (DEC-44).
-- Why it matters: those locks keep AC-19, AC-49, AC-50, R4 and the DEC-60 commit correct, and removing any of them passes every test today.
-- What to do: one test per lock that holds the row and checks that the other write waits, as the AC-211 test does.
-- Task: M5-6.
 
 #### 37. Parallel wrong passwords are counted once and answer 500
 

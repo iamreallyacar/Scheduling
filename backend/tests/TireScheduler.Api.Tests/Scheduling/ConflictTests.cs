@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
 using TireScheduler.Api.Errors;
 using TireScheduler.Api.Modules.MasterData;
+using TireScheduler.Api.Modules.MasterData.Machines;
 using TireScheduler.Api.Modules.Scheduling;
 using TireScheduler.Api.Security;
 using TireScheduler.Api.Tests.Fakes;
@@ -68,6 +69,43 @@ public sealed class ConflictTests : IAsyncDisposable
         Assert.Equal(Berlin(23, 2), await LivePlannedEndAsync(planner, orderAId, lotA));
         Assert.False((await planner.GetJsonAsync(OrderPath(orderAId))).GetProperty("isLate").GetBoolean());
         Assert.Empty((await planner.GetJsonAsync(ConflictsPath(LiveVersion))).EnumerateArray());
+    }
+
+    // A working time change recomputes the planned ends of every machine, so it locks every machine
+    // first (DEC-44); a placement saved meanwhile on a machine it had not locked would keep an end
+    // computed from the old working time.
+    [Theory]
+    [InlineData(WorkingTimeWrite.AddHoliday)]
+    [InlineData(WorkingTimeWrite.DeleteHoliday)]
+    [InlineData(WorkingTimeWrite.SaveShifts)]
+    public async Task AC_182_a_working_time_change_waits_while_another_command_holds_a_machine_with_a_placement(WorkingTimeWrite workingTimeWrite)
+    {
+        TestPlant plant = await CreatePlantAsync("AC182L");
+        using ApiSession planner = await api.Factory.SignInAsRoleAsync(UserRole.Planner);
+        await PlaceLotAsync(planner, LotIds(await CreateOrderAsync(planner, NewOrder("SO-182-L", plant.ProductId, quantity: LotQuantity)))[1], plant.Press1, Berlin(16, 8));
+        using ApiSession admin = await api.Factory.SignInAsRoleAsync(UserRole.Admin);
+        int calendarId = await PlantCalendarIdAsync(admin);
+        int holidayId = await CreateHolidayAsync(admin, "2026-11-24", "AC182L holiday");
+
+        await using HeldRowLock heldPress = await HeldRowLock.TakeAsync<MasterDataDbContext, Resource>(api.Factory, plant.Press1);
+        Task<HttpResponseMessage> write = workingTimeWrite switch
+        {
+            WorkingTimeWrite.AddHoliday => admin.PostAsync(HolidaysPath, new { date = "2026-11-25", name = "AC182L second holiday" }),
+            WorkingTimeWrite.DeleteHoliday => admin.DeleteAsync($"{HolidaysPath}/{holidayId}"),
+            WorkingTimeWrite.SaveShifts => admin.PutAsync(ShiftsPath(calendarId), new { shifts = new[] { Shift("Monday", "00:00", "24:00") } }),
+            _ => throw new ArgumentOutOfRangeException(nameof(workingTimeWrite), workingTimeWrite, "No request for this write."),
+        };
+        await heldPress.ReleaseOnceItWaitsAsync(write);
+        HttpResponseMessage response = await write;
+
+        Assert.True(response.IsSuccessStatusCode, $"The {workingTimeWrite} answered {response.StatusCode} after the machine was released.");
+    }
+
+    public enum WorkingTimeWrite
+    {
+        AddHoliday,
+        DeleteHoliday,
+        SaveShifts,
     }
 
     [Fact]
