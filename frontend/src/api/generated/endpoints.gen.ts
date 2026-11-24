@@ -136,3 +136,6 @@ export const listConflictedPlacements = (versionId: Api.ListConflictedPlacements
 
 export const getTimeline = (versionId: Api.GetTimelineData['path']['versionId'], query: NonNullable<Api.GetTimelineData['query']>) =>
   requestApi<Api.GetTimelineResponse>('GET', { url: '/api/v1/versions/{versionId}/timeline', path: { versionId }, query } satisfies Api.GetTimelineData);
+
+export const getDashboard = (versionId: Api.GetDashboardData['path']['versionId']) =>
+  requestApi<Api.GetDashboardResponse>('GET', { url: '/api/v1/versions/{versionId}/dashboard', path: { versionId } } satisfies Api.GetDashboardData);

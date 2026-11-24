@@ -68,6 +68,15 @@ export type CurrentUserResponse = {
     canAdminister: boolean;
 };
 
+export type DashboardResponse = {
+    dueSoonUntil: string;
+    overdueOrders: Array<OrderSummaryResponse>;
+    dueSoonOrders: Array<OrderSummaryResponse>;
+    unscheduledLotCount: number;
+    conflictedPlacementCount: number;
+    downMachines: Array<ResourceViewResponse>;
+};
+
 export type DayOfWeek = 'Sunday' | 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
 
 export type EarliestSlotResponse = {
@@ -1242,3 +1251,21 @@ export type GetTimelineResponses = {
 };
 
 export type GetTimelineResponse = GetTimelineResponses[keyof GetTimelineResponses];
+
+export type GetDashboardData = {
+    body?: never;
+    path: {
+        versionId: string;
+    };
+    query?: never;
+    url: '/api/v1/versions/{versionId}/dashboard';
+};
+
+export type GetDashboardResponses = {
+    /**
+     * OK
+     */
+    200: DashboardResponse;
+};
+
+export type GetDashboardResponse = GetDashboardResponses[keyof GetDashboardResponses];

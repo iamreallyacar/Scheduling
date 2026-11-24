@@ -50,7 +50,7 @@ flowchart LR
 | Orders | Order, Operation, OperationDependency, Lot | MasterData (routing at order creation), Engine (lot duration, DEC-28) |
 | Scheduling | ScheduleVersion, Placement, Unavailability; calls the engine | MasterData (resources, calendars), Orders (lots, dependencies), Engine |
 | Progress | LotProgress; answers the progress ports of Orders and Scheduling and, for Queries, `ILotProgressReader` (DEC-62) | Orders (the order lock, the lots and whether the order is cancelled), Scheduling (a lot must be placed in the live version before it starts) |
-| Queries | Read models only, including all derived statuses and `isLate` (the proposal's `wouldBeLate`, of placements not yet stored, comes from Scheduling, DEC-60); serves the order reads (DEC-29), the machine reads (DEC-39), the unscheduled-lots queue, the conflicted placements and the timeline | All modules, read-only; Engine (late flag, DEC-30); the working periods come from Scheduling (DEC-49) |
+| Queries | Read models only, including all derived statuses and `isLate` (the proposal's `wouldBeLate`, of placements not yet stored, comes from Scheduling, DEC-60); serves the order reads (DEC-29), the machine reads (DEC-39), the unscheduled-lots queue, the conflicted placements, the timeline and the dashboard (DEC-65) | All modules, read-only; Engine (late flag, DEC-30); the working periods come from Scheduling (DEC-49) |
 | Engine | Scheduling rules and search over plain values | Nothing |
 | Plant generator (`TireScheduler.PlantGenerator`) | Parameters, presets and a seeded synthetic plant as plain values | Engine (lot duration) |
 | Plant loader (`TireScheduler.PlantLoader`) | Writing a generated plant into a running API as an Admin, and on request placing its orders in the live schedule | Plant generator; the API over HTTP only |
@@ -242,7 +242,7 @@ flowchart LR
 
 ### Frontend
 
-- Owner: `frontend/src`, one folder per area (`auth`, `orders`, `machines`, `schedule`, `calendar`, `products`, `routing`, `shell`, `forms`, `api`).
+- Owner: `frontend/src`, one folder per area (`auth`, `dashboard`, `orders`, `machines`, `schedule`, `calendar`, `products`, `routing`, `shell`, `forms`, `api`).
 - Rules: Design, Frontend rules.
 - Detail: screens in [wireframes.md](REQUIREMENTS/wireframes.md).
 

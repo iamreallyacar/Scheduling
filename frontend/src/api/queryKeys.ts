@@ -21,6 +21,7 @@ export const queryKeys = {
   conflictedPlacements: (versionId: string) => ['versions', versionId, 'conflicts'],
   timeline: (versionId: string, range: { from: string; to: string }) => ['versions', versionId, 'timeline', range],
   earliestSlot: (versionId: string, lotId: number, search: { resourceId?: number; notBefore?: string }) => ['versions', versionId, 'lots', lotId, 'earliest-slot', search],
+  dashboard: (versionId: string) => ['versions', versionId, 'dashboard'],
   asapProposal: (versionId: string, orderId: number, search: { notBefore?: string }) => ['versions', versionId, 'orders', orderId, 'asap-proposal', search],
 } as const;
 

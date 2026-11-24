@@ -3,6 +3,7 @@ import { RequireSession } from './auth/RequireSession';
 import { SIGN_IN_PATH } from './auth/signInLocation';
 import { SignInPage } from './auth/SignInPage';
 import { CalendarPage } from './calendar/CalendarPage';
+import { DashboardPage } from './dashboard/DashboardPage';
 import { MachinePage } from './machines/MachinePage';
 import { MachineRegisterPage } from './machines/MachineRegisterPage';
 import { OrderListPage } from './orders/OrderListPage';
@@ -21,6 +22,7 @@ export function App() {
       <Route element={<RequireSession />}>
         <Route element={<AppShell />}>
           <Route index element={<Navigate to="/machines" replace />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/orders" element={<OrderListPage />} />
           <Route path="/orders/:orderId" element={<OrderPage />} />
           <Route path="/schedule" element={<SchedulePage />} />

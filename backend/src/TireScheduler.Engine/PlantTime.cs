@@ -44,6 +44,10 @@ public static class PlantTime
         return new DateTimeOffset(localTime, offset).ToUniversalTime();
     }
 
+    // The plant-local date that holds the instant; the dashboard's today (A49).
+    public static DateOnly DateOf(DateTimeOffset instant, string timeZoneId) =>
+        LocalDate(instant, TimeZoneInfo.FindSystemTimeZoneById(timeZoneId));
+
     internal static DateOnly LocalDate(DateTimeOffset instant, TimeZoneInfo zone) =>
         DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(instant, zone).DateTime);
 

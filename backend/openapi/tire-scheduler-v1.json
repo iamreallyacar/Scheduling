@@ -1514,6 +1514,36 @@
           }
         }
       }
+    },
+    "/api/v1/versions/{versionId}/dashboard": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "operationId": "GetDashboard",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1770,6 +1800,49 @@
           },
           "canAdminister": {
             "type": "boolean"
+          }
+        }
+      },
+      "DashboardResponse": {
+        "required": [
+          "dueSoonUntil",
+          "overdueOrders",
+          "dueSoonOrders",
+          "unscheduledLotCount",
+          "conflictedPlacementCount",
+          "downMachines"
+        ],
+        "type": "object",
+        "properties": {
+          "dueSoonUntil": {
+            "type": "string",
+            "format": "date"
+          },
+          "overdueOrders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderSummaryResponse"
+            }
+          },
+          "dueSoonOrders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderSummaryResponse"
+            }
+          },
+          "unscheduledLotCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "conflictedPlacementCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "downMachines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceViewResponse"
+            }
           }
         }
       },
@@ -3349,6 +3422,9 @@
     },
     {
       "name": "Progress"
+    },
+    {
+      "name": "Dashboard"
     }
   ]
 }

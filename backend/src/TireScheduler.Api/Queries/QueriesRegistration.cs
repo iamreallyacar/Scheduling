@@ -1,3 +1,4 @@
+using TireScheduler.Api.Queries.Dashboard;
 using TireScheduler.Api.Queries.Machines;
 using TireScheduler.Api.Queries.Orders;
 using TireScheduler.Api.Queries.Schedule;
@@ -14,6 +15,7 @@ public static class QueriesRegistration
         services.AddScoped<UnscheduledLotReader>();
         services.AddScoped<ConflictedPlacementReader>();
         services.AddScoped<TimelineReader>();
+        services.AddScoped<DashboardReader>();
         return services;
     }
 
@@ -22,6 +24,7 @@ public static class QueriesRegistration
         OrderViewEndpoints.Map(api);
         MachineViewEndpoints.Map(api);
         ScheduleViewEndpoints.Map(api);
+        DashboardEndpoints.Map(api);
         return api;
     }
 }

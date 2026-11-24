@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace TireScheduler.Engine.Tests;
 
 // A due date ends at the first instant of the next plant-local day (DEC-22, A27).
@@ -66,6 +68,16 @@ public sealed class PlantTimeTests
     public void A27_a_plant_local_time_inside_a_dst_gap_is_the_first_time_after_the_gap()
     {
         Assert.Equal(Utc(2027, 3, 28, 1, 0), PlantTime.LocalToUtc(new DateTime(2027, 3, 28, 2, 30, 0), "Europe/Berlin"));
+    }
+
+    [Theory]
+    [InlineData("2026-11-23T22:59:00Z", "2026-11-23")]
+    [InlineData("2026-11-23T23:00:00Z", "2026-11-24")]
+    [InlineData("2026-07-10T21:59:00Z", "2026-07-10")]
+    [InlineData("2026-07-10T22:00:00Z", "2026-07-11")]
+    public void AC_219_the_plant_local_date_of_an_instant_changes_at_local_midnight(string instant, string expectedDate)
+    {
+        Assert.Equal(DateOnly.Parse(expectedDate, CultureInfo.InvariantCulture), PlantTime.DateOf(DateTimeOffset.Parse(instant, CultureInfo.InvariantCulture), "Europe/Berlin"));
     }
 
     [Fact]

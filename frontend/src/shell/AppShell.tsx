@@ -28,6 +28,7 @@ export function AppShell() {
       <header className="app-header">
         <span className="app-title">Tire Production Scheduler</span>
         <nav aria-label="Main">
+          <NavLink to="/dashboard">Dashboard</NavLink>
           <NavLink to="/orders">Orders</NavLink>
           <NavLink to="/schedule">Schedule</NavLink>
           <NavLink to="/machines">Machines</NavLink>

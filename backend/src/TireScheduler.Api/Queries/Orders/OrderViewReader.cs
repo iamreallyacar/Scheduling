@@ -89,7 +89,7 @@ internal sealed class OrderViewReader(IOrderReader orders, IPlacementReader plac
             OrderSummaryPage orderPage = await orders.ListPageAsync(request.Criteria, request.Page, request.PageSize, cancellationToken);
             return new OrderPageResponse
             {
-                Items = await SummarizeAsync(orderPage.Items, now, cancellationToken),
+                Items = await SummarizeAsync(ScheduleVersionAlias.Live, orderPage.Items, now, cancellationToken),
                 Page = orderPage.Page,
                 PageSize = orderPage.PageSize,
                 TotalCount = orderPage.TotalCount,
@@ -97,7 +97,7 @@ internal sealed class OrderViewReader(IOrderReader orders, IPlacementReader plac
         }
 
         IReadOnlyList<OrderSummary> candidates = await orders.ListAllAsync(request.Criteria, cancellationToken);
-        List<OrderSummaryResponse> matching = (await SummarizeAsync(candidates, now, cancellationToken)).Where(request.Matches).ToList();
+        List<OrderSummaryResponse> matching = (await SummarizeAsync(ScheduleVersionAlias.Live, candidates, now, cancellationToken)).Where(request.Matches).ToList();
         return new OrderPageResponse
         {
             Items = matching.Skip((request.Page - 1) * request.PageSize).Take(request.PageSize).ToList(),
@@ -107,10 +107,31 @@ internal sealed class OrderViewReader(IOrderReader orders, IPlacementReader plac
         };
     }
 
-    private async Task<List<OrderSummaryResponse>> SummarizeAsync(IReadOnlyList<OrderSummary> summaries, DateTimeOffset now, CancellationToken cancellationToken)
+    // The orders due on or before lastDueDate that are neither completed nor cancelled, in the
+    // default sort (AC-68), with their status and late flag in the version at now (DEC-65).
+    public async Task<IReadOnlyList<OrderSummaryResponse>> ListUnfinishedDueByAsync(string versionId, DateOnly lastDueDate, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        OrderListCriteria dueByLastDate = new()
+        {
+            SearchText = null,
+            CustomerText = null,
+            DueFrom = null,
+            DueTo = lastDueDate,
+            Priorities = new HashSet<OrderPriority>(),
+            Sort = OrderSort.Default,
+        };
+        IReadOnlyList<OrderSummary> candidates = await orders.ListAllAsync(dueByLastDate, cancellationToken);
+        return
+        [
+            .. (await SummarizeAsync(versionId, candidates, now, cancellationToken))
+                .Where(order => order.Status is not (OrderStatus.Completed or OrderStatus.Cancelled)),
+        ];
+    }
+
+    private async Task<List<OrderSummaryResponse>> SummarizeAsync(string versionId, IReadOnlyList<OrderSummary> summaries, DateTimeOffset now, CancellationToken cancellationToken)
     {
         int[] lotIds = [.. summaries.SelectMany(order => order.LotIds)];
-        IReadOnlyDictionary<int, PlacementValues> livePlacements = await LivePlacementsAsync(lotIds, cancellationToken);
+        IReadOnlyDictionary<int, PlacementValues> versionPlacements = await placements.PlacementsOfLotsAsync(versionId, lotIds, cancellationToken);
         IReadOnlyDictionary<int, LotActuals> actuals = await progress.ActualsOfLotsAsync(lotIds, cancellationToken);
         return summaries.Select(order => new OrderSummaryResponse
         {
@@ -123,8 +144,8 @@ internal sealed class OrderViewReader(IOrderReader orders, IPlacementReader plac
             Priority = order.Priority,
             CreatedAt = order.CreatedAt,
             CancelledAt = order.CancelledAt,
-            Status = StatusOf(order, livePlacements, actuals),
-            IsLate = IsLate(order, livePlacements, actuals, now),
+            Status = StatusOf(order, versionPlacements, actuals),
+            IsLate = IsLate(order, versionPlacements, actuals, now),
         }).ToList();
     }
 
