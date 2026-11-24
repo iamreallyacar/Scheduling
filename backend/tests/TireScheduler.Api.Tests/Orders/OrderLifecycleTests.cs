@@ -2,6 +2,8 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.Time.Testing;
 using TireScheduler.Api.Errors;
+using TireScheduler.Api.Modules.MasterData;
+using TireScheduler.Api.Modules.MasterData.Machines;
 using TireScheduler.Api.Modules.Orders;
 using TireScheduler.Api.Security;
 using TireScheduler.Api.Tests.Fakes;
@@ -127,6 +129,27 @@ public sealed class OrderLifecycleTests : IAsyncDisposable
         Update,
         Cancel,
         Delete,
+    }
+
+    // A cancel deletes the placements of its order and a working time change updates them one at a
+    // time under the machine locks. The cancel takes the same machine locks first, so the two run
+    // one after the other instead of taking two placement rows in opposite orders (DEC-67).
+    [Fact]
+    public async Task AC_223_AC_50_a_cancel_waits_while_another_command_holds_a_machine()
+    {
+        using ApiSession planner = await PlannerWithProductAsync("CANCELHELD");
+        JsonElement order = await CreateOrderAsync(planner, NewOrder("SO-CANCELHELD", await ProductIdAsync(planner, "CANCELHELD")));
+        int orderId = order.GetProperty("id").GetInt32();
+        int lotId = LotIds(order)[0];
+        await RecordAsync(LotFact.Placed, order, lotId);
+        int resourceId = Lot(await planner.GetJsonAsync(OrderPath(orderId)), lotId).GetProperty("placement").GetProperty("resource").GetProperty("id").GetInt32();
+
+        await using HeldRowLock heldMachine = await HeldRowLock.TakeAsync<MasterDataDbContext, Resource>(api.Factory, resourceId);
+        Task<HttpResponseMessage> cancel = planner.PostAsync($"{OrderPath(orderId)}/cancel");
+        await heldMachine.ReleaseOnceItWaitsAsync(cancel);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await cancel).StatusCode);
+        Assert.Equal(JsonValueKind.Null, Lot(await planner.GetJsonAsync(OrderPath(orderId)), lotId).GetProperty("placement").ValueKind);
     }
 
     public enum LotFact

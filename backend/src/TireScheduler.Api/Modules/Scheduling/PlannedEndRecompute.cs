@@ -20,8 +20,9 @@ internal sealed class PlannedEndRecompute(
         {
             foreach (RecomputedEnd changedEnd in PlacementRules.RecomputeEnds(await snapshots.ForVersionAsync(versionId, cancellationToken)))
             {
-                // A remove or a cancel deletes placements under the order lock only, so one read in
-                // the snapshot can be gone by its update; a removed placement has no end to keep.
+                // Removing a placement locks only the order, so one read in the snapshot can be gone
+                // by its update; a removed placement has no end to keep. A cancel waits for the
+                // resource locks this change holds (DEC-67).
                 // A tracked update would fail on the missing row, so this one updates whatever is left.
                 await context.Placements
                     .Where(placement => placement.Id == changedEnd.PlacementId)

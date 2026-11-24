@@ -74,6 +74,7 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 | DEC-64 | Order progress answers a percentage rounded down, shown on the order page only | Accepted | 2026-11-24 (M5-2) | domain-model §6, AC-215 to AC-217 |
 | DEC-65 | The dashboard is one read from Queries that selects the orders, counts the queue and conflicts and lists the machines down; the page shows no progress | Accepted | 2026-11-24 (M5-3) | API.md section "Routes", wireframes.md section 6, AC-218 to AC-221, A49, A50 |
 | DEC-66 | Writes that refer to a product or machine type lock its row, and its delete locks it before the reference checks | Proposed | 2026-11-24 (M5-7) | ARCHITECTURE.md section "Persistence rules", AC-20, AC-222 |
+| DEC-67 | An order cancel locks every resource in ascending id order before the order, as a working time change does | Proposed | 2026-11-24 (M5-21) | ARCHITECTURE.md section "Persistence rules", AC-50, AC-182, AC-223 |
 
 ## Accepted
 
@@ -530,6 +531,13 @@ An entry made while building and already followed by the code waits here for rev
 - Reason: the reference checks read committed rows without a lock, so under READ COMMITTED a delete and a write that adds a reference could both pass their checks and commit. Orders keeps the product id without a foreign key, so an order then named a missing product and every read that includes it failed with 500; the foreign keys inside MasterData turned the same race into a 500 instead of a 409. The product lock also keeps the routing an order reads from being replaced halfway, since a routing save holds the same lock (A1).
 - Alternatives: serializable transactions for these writes, rejected because every command would need a retry for serialization failures; a share lock (`FOR SHARE`) for the writes that only refer to a row, so that two routing saves with a common type do not wait on each other, rejected as a second lock kind that plant-size traffic does not need; a machine type lock in `IMasterDataLocks`, left out because no module outside MasterData writes a type id that a routing does not already hold: an order copies the types of the routing it reads under the product lock, and a type in a routing cannot be deleted.
 - Consequences: writes that refer to the same product or type run one after the other, for example two routing saves with a common machine type, or an order create and a routing save of its product. The locks are taken order, then product, then machine types, and machine, then type; no command takes them the other way round, so no two commands wait on each other.
+
+### DEC-67 An order cancel locks every resource before the order
+
+- Decision: cancelling an order locks every resource row in ascending id order through `IMasterDataLocks.LockEveryResourceAsync`, and then the order row, before its checks. A shift or holiday save takes its resource locks through the same method (DEC-44). Removing one placement still locks only the order.
+- Reason: a cancel deletes all unstarted placements of the order, and a shift or holiday save updates the planned end of each placement one at a time under the resource locks. With only the order locked, the two could take two placement rows of the order in opposite orders, and PostgreSQL then aborts one of them as a deadlock, which answers 500 (AC-25). Holding the same resource locks first makes them run one after the other, and keeps the lock order of every command the same: resources in ascending id order, then the order, then product and machine types (DEC-66). Removing one placement touches one placement row, so it cannot take two rows in opposite orders.
+- Alternatives: lock only the resources of the order's placements, rejected because they must be read before the locks and a placement moved meanwhile would need a check and a retry; take placement rows in ascending id order in both writes, rejected as a second lock order that every later write of several placements must also keep; retry a deadlocked request, rejected because the request's one transaction spans modules (DEC-33) and would have to be run again as a whole.
+- Consequences: a cancel waits while any placement command, proposal commit or working time change holds a machine, and they wait for it. Cancels are rare and short, so the wait is too.
 
 ## Open
 

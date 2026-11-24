@@ -108,10 +108,10 @@ public sealed class ConflictTests : IAsyncDisposable
         SaveShifts,
     }
 
-    // Removing a placement or cancelling its order locks only the order, so a working time change
-    // can read a placement that such a command deletes before the change updates its end. The held
-    // placement row stands for that command: its delete is open when the holiday save reads, and
-    // commits while the save waits to update the row.
+    // Removing a placement locks only the order, so a working time change can read a placement
+    // that a remove deletes before the change updates its end. The held placement row stands for
+    // that remove: its delete is open when the holiday save reads, and commits while the save
+    // waits to update the row.
     [Fact]
     public async Task AC_182_AC_25_a_holiday_save_succeeds_when_a_placement_it_recomputes_is_deleted_meanwhile()
     {

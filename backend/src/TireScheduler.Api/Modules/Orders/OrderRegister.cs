@@ -86,10 +86,13 @@ internal sealed class OrderRegister(
     }
 
     // AC-50, AC-51. The placements of its lots that have not started leave the schedule in the
-    // same transaction, so they stop blocking machines (A13, DEC-33).
+    // same transaction, so they stop blocking machines (A13, DEC-33). Every machine is locked
+    // before the order, as a working time change does, so the two never take those placement
+    // rows in opposite orders (DEC-67, AC-223).
     public async Task CancelAsync(int orderId, CancellationToken cancellationToken)
     {
         await using OpenTransaction transaction = await requestTransaction.BeginAsync(context, cancellationToken);
+        await masterDataLocks.LockEveryResourceAsync(cancellationToken);
         Order order = await LockAndLoadAsync(orderId, cancellationToken);
         RejectCancelled(order);
         IReadOnlyCollection<int> lotIds = await LotIdsAsync(orderId, cancellationToken);
