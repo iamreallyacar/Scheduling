@@ -12,6 +12,7 @@ internal sealed class OrderProposalSearch(
     ScheduleVersions versions,
     ScheduleSnapshotLoader snapshots,
     IOrderReader orders,
+    ILotProgressStates lotProgress,
     IOptions<SchedulingOptions> options,
     TimeProvider clock)
 {
@@ -34,6 +35,7 @@ internal sealed class OrderProposalSearch(
         }
 
         IReadOnlyList<ProposalLotResponse> lots = LotsOf(details, snapshot, proposal);
+        IReadOnlyDictionary<int, DateTimeOffset> actualEnds = await lotProgress.ActualEndsAsync([.. order.Lots.Select(lot => lot.Id)], cancellationToken);
         return new OrderProposalResponse
         {
             OrderId = orderId,
@@ -41,15 +43,14 @@ internal sealed class OrderProposalSearch(
             Lots = lots,
             // Every order has a lot, because an order needs a product with a routing stage.
             FinishesAt = lots.Max(lot => lot.PlannedEnd),
-            // The engine's late flag rule, which Queries uses for stored placements (DEC-30). Until
-            // task M5-1 no lot is completed, so there is no completion time, as in OrderLateRules.
+            // The engine's late flag rule, which Queries uses for stored placements (DEC-30).
             WouldBeLate = OrderLateness.IsLate(new LatenessFacts(
                 details.Order.DueDate,
                 snapshot.PlantTimeZoneId,
                 clock.GetUtcNow(),
                 IsCancelled: details.Order.CancelledAt is not null,
                 PlannedEnds: [.. lots.Select(lot => lot.PlannedEnd)],
-                CompletedAt: null)),
+                CompletedAt: OrderLateness.CompletionTime([.. order.Lots.Select(lot => actualEnds.TryGetValue(lot.Id, out DateTimeOffset actualEnd) ? actualEnd : (DateTimeOffset?)null)]))),
         };
     }
 

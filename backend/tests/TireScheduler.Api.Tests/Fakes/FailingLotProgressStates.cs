@@ -7,4 +7,7 @@ internal sealed class FailingLotProgressStates : ILotProgressStates
 {
     public Task<IReadOnlyDictionary<int, StartedLotState>> StartedLotsAsync(IReadOnlyCollection<int> lotIds, CancellationToken cancellationToken) =>
         throw new InvalidOperationException("Progress cannot be read (test).");
+
+    public Task<IReadOnlyDictionary<int, DateTimeOffset>> ActualEndsAsync(IReadOnlyCollection<int> lotIds, CancellationToken cancellationToken) =>
+        throw new InvalidOperationException("Progress cannot be read (test).");
 }

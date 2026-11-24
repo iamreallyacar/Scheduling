@@ -122,6 +122,12 @@ export const proposeOrderAsap = (versionId: Api.ProposeOrderAsapData['path']['ve
 export const commitOrderAsapProposal = (versionId: Api.CommitOrderAsapProposalData['path']['versionId'], orderId: Api.CommitOrderAsapProposalData['path']['orderId'], body: Api.CommitOrderAsapProposalData['body']) =>
   requestApi<Api.CommitOrderAsapProposalResponse>('POST', { url: '/api/v1/versions/{versionId}/orders/{orderId}/asap-proposal/commit', path: { versionId, orderId }, body } satisfies Api.CommitOrderAsapProposalData);
 
+export const recordLotProgress = (lotId: Api.RecordLotProgressData['path']['lotId'], body: Api.RecordLotProgressData['body']) =>
+  requestApi<Api.RecordLotProgressResponse>('PUT', { url: '/api/v1/lots/{lotId}/progress', path: { lotId }, body } satisfies Api.RecordLotProgressData);
+
+export const removeLotProgress = (lotId: Api.RemoveLotProgressData['path']['lotId']) =>
+  requestApi<Api.RemoveLotProgressResponse>('DELETE', { url: '/api/v1/lots/{lotId}/progress', path: { lotId } } satisfies Api.RemoveLotProgressData);
+
 export const listUnscheduledLots = (versionId: Api.ListUnscheduledLotsData['path']['versionId']) =>
   requestApi<Api.ListUnscheduledLotsResponse>('GET', { url: '/api/v1/versions/{versionId}/unscheduled-lots', path: { versionId } } satisfies Api.ListUnscheduledLotsData);
 

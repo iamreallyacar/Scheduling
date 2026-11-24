@@ -1340,6 +1340,69 @@
         }
       }
     },
+    "/api/v1/lots/{lotId}/progress": {
+      "put": {
+        "tags": [
+          "Progress"
+        ],
+        "operationId": "RecordLotProgress",
+        "parameters": [
+          {
+            "name": "lotId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LotProgressRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LotProgressResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Progress"
+        ],
+        "operationId": "RemoveLotProgress",
+        "parameters": [
+          {
+            "name": "lotId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
     "/api/v1/versions/{versionId}/unscheduled-lots": {
       "get": {
         "tags": [
@@ -1581,6 +1644,7 @@
           "lotNo",
           "quantity",
           "durationMinutes",
+          "status",
           "orderId",
           "orderNo",
           "sequenceNo",
@@ -1619,6 +1683,9 @@
           "durationMinutes": {
             "type": "integer",
             "format": "int32"
+          },
+          "status": {
+            "$ref": "#/components/schemas/LotStatus"
           },
           "orderId": {
             "type": "integer",
@@ -1877,6 +1944,53 @@
           }
         }
       },
+      "LotProgressRequest": {
+        "required": [
+          "actualStart"
+        ],
+        "type": "object",
+        "properties": {
+          "actualStart": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "actualEnd": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "LotProgressResponse": {
+        "required": [
+          "lotId",
+          "actualStart",
+          "actualEnd"
+        ],
+        "type": "object",
+        "properties": {
+          "lotId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "actualStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actualEnd": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
       "LotResponse": {
         "required": [
           "id",
@@ -1884,7 +1998,9 @@
           "quantity",
           "durationMinutes",
           "status",
-          "placement"
+          "placement",
+          "actualStart",
+          "actualEnd"
         ],
         "type": "object",
         "properties": {
@@ -1916,6 +2032,20 @@
                 "$ref": "#/components/schemas/LotPlacementView"
               }
             ]
+          },
+          "actualStart": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "actualEnd": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -2524,6 +2654,7 @@
         "enum": [
           "Down",
           "Maintenance",
+          "Running",
           "Idle"
         ]
       },
@@ -3210,6 +3341,9 @@
     },
     {
       "name": "Schedule"
+    },
+    {
+      "name": "Progress"
     }
   ]
 }

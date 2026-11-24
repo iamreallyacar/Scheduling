@@ -32,4 +32,12 @@ public static class OrderLateness
 
         return facts.Now >= endOfDueDay || facts.PlannedEnds.Any(plannedEnd => plannedEnd > endOfDueDay);
     }
+
+    // The CompletedAt of LatenessFacts from the actual ends of every lot of the order, null for a
+    // lot that has not completed, so every caller of IsLate reads it in the same way (DEC-62).
+    public static DateTimeOffset? CompletionTime(IReadOnlyCollection<DateTimeOffset?> actualEndsOfEveryLot)
+    {
+        ArgumentNullException.ThrowIfNull(actualEndsOfEveryLot);
+        return actualEndsOfEveryLot.Count == 0 || actualEndsOfEveryLot.Any(actualEnd => actualEnd is null) ? null : actualEndsOfEveryLot.Max();
+    }
 }

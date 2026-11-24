@@ -4,6 +4,7 @@ import type { ResourceStatus, UnavailabilityKind } from '../api/generated';
 export const RESOURCE_STATUS_LABELS: Record<ResourceStatus, string> = {
   Down: 'Down',
   Maintenance: 'Maintenance',
+  Running: 'Running',
   Idle: 'Idle',
 };
 

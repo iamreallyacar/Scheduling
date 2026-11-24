@@ -42,6 +42,7 @@ export type ConflictedPlacementResponse = {
     lotNo: number;
     quantity: number;
     durationMinutes: number;
+    status: LotStatus;
     orderId: number;
     orderNo: string;
     sequenceNo: number;
@@ -111,6 +112,17 @@ export type LotPredecessorResponse = {
     minLagMinutes: number;
 };
 
+export type LotProgressRequest = {
+    actualStart: null | string;
+    actualEnd?: null | string;
+};
+
+export type LotProgressResponse = {
+    lotId: number;
+    actualStart: string;
+    actualEnd: null | string;
+};
+
 export type LotResponse = {
     id: number;
     lotNo: number;
@@ -118,6 +130,8 @@ export type LotResponse = {
     durationMinutes: number;
     status: LotStatus;
     placement: null | LotPlacementView;
+    actualStart: null | string;
+    actualEnd: null | string;
 };
 
 export type LotStatus = 'Unscheduled' | 'Scheduled' | 'InProgress' | 'Completed' | 'Cancelled';
@@ -263,7 +277,7 @@ export type ResourceResponse = {
     isActive: boolean;
 };
 
-export type ResourceStatus = 'Down' | 'Maintenance' | 'Idle';
+export type ResourceStatus = 'Down' | 'Maintenance' | 'Running' | 'Idle';
 
 export type ResourceTypeRequest = {
     name: string;
@@ -1134,6 +1148,42 @@ export type CommitOrderAsapProposalResponses = {
 };
 
 export type CommitOrderAsapProposalResponse = CommitOrderAsapProposalResponses[keyof CommitOrderAsapProposalResponses];
+
+export type RemoveLotProgressData = {
+    body?: never;
+    path: {
+        lotId: number;
+    };
+    query?: never;
+    url: '/api/v1/lots/{lotId}/progress';
+};
+
+export type RemoveLotProgressResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type RemoveLotProgressResponse = RemoveLotProgressResponses[keyof RemoveLotProgressResponses];
+
+export type RecordLotProgressData = {
+    body: LotProgressRequest;
+    path: {
+        lotId: number;
+    };
+    query?: never;
+    url: '/api/v1/lots/{lotId}/progress';
+};
+
+export type RecordLotProgressResponses = {
+    /**
+     * OK
+     */
+    200: LotProgressResponse;
+};
+
+export type RecordLotProgressResponse = RecordLotProgressResponses[keyof RecordLotProgressResponses];
 
 export type ListUnscheduledLotsData = {
     body?: never;

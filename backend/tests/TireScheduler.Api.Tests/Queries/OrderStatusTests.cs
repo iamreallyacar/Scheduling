@@ -9,7 +9,7 @@ namespace TireScheduler.Api.Tests.Queries;
 
 // F-ORD-2 through the order reads of Queries (DEC-29), on a fixed clock in the plant time zone
 // Europe/Berlin, for orders without placements; Scheduled and the late flag from a planned end are
-// in Scheduling/PlacementTests.cs. Until task M5-1 stores progress, no lot is started.
+// in Scheduling/PlacementTests.cs, and In Progress and Completed in Progress/LotProgressTests.cs.
 public sealed class OrderStatusTests : IAsyncDisposable
 {
     private const string DueDate = "2026-11-10";

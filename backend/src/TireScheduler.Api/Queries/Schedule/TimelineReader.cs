@@ -1,5 +1,6 @@
 using TireScheduler.Api.Modules.MasterData;
 using TireScheduler.Api.Modules.Orders;
+using TireScheduler.Api.Modules.Progress;
 using TireScheduler.Api.Modules.Scheduling;
 using TireScheduler.Api.Queries.Machines;
 using TireScheduler.Api.Queries.Orders;
@@ -14,6 +15,7 @@ internal sealed class TimelineReader(
     IUnavailabilityReader unavailabilities,
     IWorkingPeriodReader workingPeriods,
     IOrderReader orders,
+    ILotProgressReader progress,
     IMasterDataReader masterData,
     MachineViewReader machines,
     TimeProvider clock)
@@ -64,7 +66,7 @@ internal sealed class TimelineReader(
         };
     }
 
-    // In the order of placementsInRange. The late flag needs every placed lot of the order in the
+    // In the order of placementsInRange. The late flag needs every lot of the order in the
     // version, also those outside the range.
     private async Task<IReadOnlyList<(int ResourceId, TimelinePlacementResponse Response)>> DescribeAsync(
         string versionId,
@@ -79,14 +81,13 @@ internal sealed class TimelineReader(
         // A live placement keeps its order from being deleted (A13), so every placed lot is found.
         IReadOnlyDictionary<int, LotContext> lotsById = await orders.FindLotContextsAsync([.. placementsInRange.Select(placement => placement.LotId)], cancellationToken);
         List<OrderSummary> ordersInRange = [.. placementsInRange.Select(placement => lotsById[placement.LotId].Order).DistinctBy(order => order.Id)];
-        IReadOnlyDictionary<int, PlacementValues> placementsOfTheirLots = await placements.PlacementsOfLotsAsync(
-            versionId,
-            [.. ordersInRange.SelectMany(order => order.LotIds)],
-            cancellationToken);
+        int[] lotIdsOfTheirOrders = [.. ordersInRange.SelectMany(order => order.LotIds)];
+        IReadOnlyDictionary<int, PlacementValues> placementsOfTheirLots = await placements.PlacementsOfLotsAsync(versionId, lotIdsOfTheirOrders, cancellationToken);
+        IReadOnlyDictionary<int, LotActuals> actualsOfTheirLots = await progress.ActualsOfLotsAsync(lotIdsOfTheirOrders, cancellationToken);
         DateTimeOffset now = clock.GetUtcNow();
         Dictionary<int, bool> isLateByOrder = ordersInRange.ToDictionary(
             order => order.Id,
-            order => OrderLateRules.IsLate(order, placementsOfTheirLots, masterData.PlantTimeZoneId, now));
+            order => OrderLateRules.IsLate(order, placementsOfTheirLots, actualsOfTheirLots, masterData.PlantTimeZoneId, now));
 
         return
         [
@@ -102,7 +103,7 @@ internal sealed class TimelineReader(
                     LotNo = lotContext.Lot.LotNo,
                     Quantity = lotContext.Lot.Quantity,
                     DurationMinutes = lotContext.Lot.DurationMinutes,
-                    Status = LotStatusRules.Derive(lotContext.Order.CancelledAt, isPlacedInVersion: true),
+                    Status = LotStatusRules.Derive(lotContext.Order.CancelledAt, actualsOfTheirLots.GetValueOrDefault(lotContext.Lot.Id), isPlacedInVersion: true),
                     OrderId = lotContext.Order.Id,
                     OrderNo = lotContext.Order.OrderNo,
                     Product = lotContext.Order.Product,

@@ -21,5 +21,6 @@ public static class ProblemCodes
     public const string OrderNotDeletable = "order.not_deletable";
     public const string SlotNone = "slot.none";
     public const string ProposalStale = "proposal.stale";
+    public const string ProgressNotPlaced = "progress.not_placed";
     public const string ServerError = "server.error";
 }

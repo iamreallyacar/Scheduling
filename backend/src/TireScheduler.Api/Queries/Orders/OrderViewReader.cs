@@ -1,12 +1,13 @@
 using TireScheduler.Api.Modules.MasterData;
 using TireScheduler.Api.Modules.Orders;
+using TireScheduler.Api.Modules.Progress;
 using TireScheduler.Api.Modules.Scheduling;
 
 namespace TireScheduler.Api.Queries.Orders;
 
 // The order reads (DEC-29): what Orders stores, with the statuses, late flag and progress derived
-// on every read from the placements of the live version.
-internal sealed class OrderViewReader(IOrderReader orders, IPlacementReader placements, IMasterDataReader masterData, TimeProvider clock)
+// on every read from the placements of the live version and the lots' progress.
+internal sealed class OrderViewReader(IOrderReader orders, IPlacementReader placements, ILotProgressReader progress, IMasterDataReader masterData, TimeProvider clock)
 {
     public async Task<OrderResponse> GetAsync(int orderId, CancellationToken cancellationToken)
     {
@@ -14,8 +15,9 @@ internal sealed class OrderViewReader(IOrderReader orders, IPlacementReader plac
         OrderSummary order = details.Order;
         IReadOnlyDictionary<int, PlacementValues> livePlacements = await LivePlacementsAsync(order.LotIds, cancellationToken);
         IReadOnlyDictionary<int, NamedReference> resources = await ResourcesAsync(livePlacements.Values, cancellationToken);
+        IReadOnlyDictionary<int, LotActuals> actuals = await progress.ActualsOfLotsAsync(order.LotIds, cancellationToken);
         List<OperationResponse> operations = details.Operations
-            .Select(operation => WithLotStatus(operation, order.CancelledAt, livePlacements, resources))
+            .Select(operation => WithLotStatus(operation, order.CancelledAt, livePlacements, actuals, resources))
             .ToList();
         return new OrderResponse
         {
@@ -28,8 +30,8 @@ internal sealed class OrderViewReader(IOrderReader orders, IPlacementReader plac
             Priority = order.Priority,
             CreatedAt = order.CreatedAt,
             CancelledAt = order.CancelledAt,
-            Status = StatusOf(order, livePlacements),
-            IsLate = IsLate(order, livePlacements, clock.GetUtcNow()),
+            Status = StatusOf(order, livePlacements, actuals),
+            IsLate = IsLate(order, livePlacements, actuals, clock.GetUtcNow()),
             Progress = OrderProgressRules.Measure(operations),
             Operations = operations,
             Dependencies = details.Dependencies,
@@ -40,6 +42,7 @@ internal sealed class OrderViewReader(IOrderReader orders, IPlacementReader plac
         OperationDetails operation,
         DateTimeOffset? orderCancelledAt,
         IReadOnlyDictionary<int, PlacementValues> livePlacements,
+        IReadOnlyDictionary<int, LotActuals> actuals,
         IReadOnlyDictionary<int, NamedReference> resources) => new()
     {
         Id = operation.Id,
@@ -53,13 +56,16 @@ internal sealed class OrderViewReader(IOrderReader orders, IPlacementReader plac
             .Select(lot =>
             {
                 PlacementValues? placement = livePlacements.GetValueOrDefault(lot.Id);
+                LotActuals? lotActuals = actuals.GetValueOrDefault(lot.Id);
                 return new LotResponse
                 {
                     Id = lot.Id,
                     LotNo = lot.LotNo,
                     Quantity = lot.Quantity,
                     DurationMinutes = lot.DurationMinutes,
-                    Status = LotStatusRules.Derive(orderCancelledAt, isPlacedInVersion: placement is not null),
+                    Status = LotStatusRules.Derive(orderCancelledAt, lotActuals, isPlacedInVersion: placement is not null),
+                    ActualStart = lotActuals?.ActualStart,
+                    ActualEnd = lotActuals?.ActualEnd,
                     Placement = placement is null
                         ? null
                         : new LotPlacementView
@@ -74,7 +80,7 @@ internal sealed class OrderViewReader(IOrderReader orders, IPlacementReader plac
     };
 
     // Without a filter on derived values only one page is read; with one, every order matching
-    // the other filters is derived first (DEC-31). Either way the placements are read once.
+    // the other filters is derived first (DEC-31). Either way the placements and progress are read once.
     public async Task<OrderPageResponse> ListAsync(OrderListRequest request, CancellationToken cancellationToken)
     {
         DateTimeOffset now = clock.GetUtcNow();
@@ -103,7 +109,9 @@ internal sealed class OrderViewReader(IOrderReader orders, IPlacementReader plac
 
     private async Task<List<OrderSummaryResponse>> SummarizeAsync(IReadOnlyList<OrderSummary> summaries, DateTimeOffset now, CancellationToken cancellationToken)
     {
-        IReadOnlyDictionary<int, PlacementValues> livePlacements = await LivePlacementsAsync([.. summaries.SelectMany(order => order.LotIds)], cancellationToken);
+        int[] lotIds = [.. summaries.SelectMany(order => order.LotIds)];
+        IReadOnlyDictionary<int, PlacementValues> livePlacements = await LivePlacementsAsync(lotIds, cancellationToken);
+        IReadOnlyDictionary<int, LotActuals> actuals = await progress.ActualsOfLotsAsync(lotIds, cancellationToken);
         return summaries.Select(order => new OrderSummaryResponse
         {
             Id = order.Id,
@@ -115,8 +123,8 @@ internal sealed class OrderViewReader(IOrderReader orders, IPlacementReader plac
             Priority = order.Priority,
             CreatedAt = order.CreatedAt,
             CancelledAt = order.CancelledAt,
-            Status = StatusOf(order, livePlacements),
-            IsLate = IsLate(order, livePlacements, now),
+            Status = StatusOf(order, livePlacements, actuals),
+            IsLate = IsLate(order, livePlacements, actuals, now),
         }).ToList();
     }
 
@@ -127,9 +135,11 @@ internal sealed class OrderViewReader(IOrderReader orders, IPlacementReader plac
     private Task<IReadOnlyDictionary<int, NamedReference>> ResourcesAsync(IEnumerable<PlacementValues> placementValues, CancellationToken cancellationToken) =>
         masterData.GetResourceNamesAsync([.. placementValues.Select(placement => placement.ResourceId).Distinct()], cancellationToken);
 
-    private static OrderStatus StatusOf(OrderSummary order, IReadOnlyDictionary<int, PlacementValues> livePlacements) =>
-        OrderStatusRules.Derive(order.CancelledAt, isAnyLotPlacedInVersion: order.LotIds.Any(livePlacements.ContainsKey));
+    private static OrderStatus StatusOf(OrderSummary order, IReadOnlyDictionary<int, PlacementValues> livePlacements, IReadOnlyDictionary<int, LotActuals> actuals) =>
+        OrderStatusRules.Derive(
+            order.CancelledAt,
+            [.. order.LotIds.Select(lotId => LotStatusRules.Derive(order.CancelledAt, actuals.GetValueOrDefault(lotId), livePlacements.ContainsKey(lotId)))]);
 
-    private bool IsLate(OrderSummary order, IReadOnlyDictionary<int, PlacementValues> livePlacements, DateTimeOffset now) =>
-        OrderLateRules.IsLate(order, livePlacements, masterData.PlantTimeZoneId, now);
+    private bool IsLate(OrderSummary order, IReadOnlyDictionary<int, PlacementValues> livePlacements, IReadOnlyDictionary<int, LotActuals> actuals, DateTimeOffset now) =>
+        OrderLateRules.IsLate(order, livePlacements, actuals, masterData.PlantTimeZoneId, now);
 }

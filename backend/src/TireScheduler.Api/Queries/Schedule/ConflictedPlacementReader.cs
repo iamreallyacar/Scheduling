@@ -1,11 +1,13 @@
 using TireScheduler.Api.Modules.MasterData;
 using TireScheduler.Api.Modules.Orders;
+using TireScheduler.Api.Modules.Progress;
 using TireScheduler.Api.Modules.Scheduling;
+using TireScheduler.Api.Queries.Orders;
 
 namespace TireScheduler.Api.Queries.Schedule;
 
 // The conflicted placements of a version (F-SCH-4), in the order Scheduling finds them (AC-183).
-internal sealed class ConflictedPlacementReader(IPlacementConflictReader conflicts, IOrderReader orders, IMasterDataReader masterData)
+internal sealed class ConflictedPlacementReader(IPlacementConflictReader conflicts, IOrderReader orders, ILotProgressReader progress, IMasterDataReader masterData)
 {
     public async Task<IReadOnlyList<ConflictedPlacementResponse>> ListAsync(string versionId, CancellationToken cancellationToken)
     {
@@ -16,7 +18,10 @@ internal sealed class ConflictedPlacementReader(IPlacementConflictReader conflic
         }
 
         // Every conflicted lot's order was found by FindConflicts, so each lot is found here.
-        IReadOnlyDictionary<int, LotContext> lotsById = await orders.FindLotContextsAsync([.. placementConflicts.Select(conflict => conflict.LotId)], cancellationToken);
+        int[] conflictedLotIds = [.. placementConflicts.Select(conflict => conflict.LotId)];
+        IReadOnlyDictionary<int, LotContext> lotsById = await orders.FindLotContextsAsync(conflictedLotIds, cancellationToken);
+        // The page offers no move for a started lot (DEC-63).
+        IReadOnlyDictionary<int, LotActuals> actuals = await progress.ActualsOfLotsAsync(conflictedLotIds, cancellationToken);
         // A resource with placements cannot be deleted (AC-20), so every placement finds its resource.
         IReadOnlyDictionary<int, NamedReference> resourcesById = await masterData.GetResourceNamesAsync(
             [.. placementConflicts.Select(conflict => conflict.ResourceId).Distinct()],
@@ -37,6 +42,7 @@ internal sealed class ConflictedPlacementReader(IPlacementConflictReader conflic
                     LotNo = lotContext.Lot.LotNo,
                     Quantity = lotContext.Lot.Quantity,
                     DurationMinutes = lotContext.Lot.DurationMinutes,
+                    Status = LotStatusRules.Derive(lotContext.Order.CancelledAt, actuals.GetValueOrDefault(conflict.LotId), isPlacedInVersion: true),
                     OrderId = lotContext.Order.Id,
                     OrderNo = lotContext.Order.OrderNo,
                     SequenceNo = lotContext.Operation.SequenceNo,

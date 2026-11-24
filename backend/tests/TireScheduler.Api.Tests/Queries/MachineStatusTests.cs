@@ -7,8 +7,8 @@ using static TireScheduler.Api.Tests.TestData.SchedulingTestData;
 
 namespace TireScheduler.Api.Tests.Queries;
 
-// F-MNT-2 through the machine reads of Queries (DEC-39), on a fixed clock. Running needs lot
-// progress and follows in task M5-1.
+// F-MNT-2 through the machine reads of Queries (DEC-39), on a fixed clock. Running, which needs
+// lot progress, is in Progress/LotProgressTests.cs.
 public sealed class MachineStatusTests : IAsyncDisposable
 {
     private static readonly DateTimeOffset Now = Berlin(17, 10);

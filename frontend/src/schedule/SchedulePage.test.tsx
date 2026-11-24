@@ -45,6 +45,7 @@ const brokenDownPlacement: ConflictedPlacementResponse = {
   lotNo: 3,
   quantity: 200,
   durationMinutes: 240,
+  status: 'Scheduled',
   orderId: 9,
   orderNo: 'SO-1042',
   sequenceNo: 2,

@@ -17,8 +17,9 @@ using static TireScheduler.Api.Tests.TestData.SchedulingTestData;
 namespace TireScheduler.Api.Tests.Scheduling;
 
 // F-SCH-1 and the API level of the scheduling rules (acceptance-criteria.md sections 4 and 8), on
-// the plant default calendar in Europe/Berlin. Lot progress comes from FakeLotActivity until
-// task M5-1 stores it.
+// the plant default calendar in Europe/Berlin. Lot progress comes from FakeLotActivity, so R8 is
+// also tested in states the API cannot reach (DEC-62); Progress/LotProgressTests.cs tests it with
+// real progress.
 public sealed class PlacementTests : IAsyncDisposable
 {
     private readonly PostgresFixture postgres;

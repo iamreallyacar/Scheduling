@@ -1,4 +1,5 @@
 using TireScheduler.Api.Modules.Orders;
+using TireScheduler.Api.Modules.Progress;
 using TireScheduler.Api.Modules.Scheduling;
 using TireScheduler.Api.Queries.Orders;
 
@@ -6,17 +7,21 @@ namespace TireScheduler.Api.Queries.Schedule;
 
 // The unscheduled-lots queue (F-SCH-7): the lots whose derived status in the version is
 // Unscheduled, in the order list's default sort, then by stage (AC-174).
-internal sealed class UnscheduledLotReader(IOrderReader orders, IPlacementReader placements)
+internal sealed class UnscheduledLotReader(IOrderReader orders, IPlacementReader placements, ILotProgressReader progress)
 {
     public async Task<IReadOnlyList<UnscheduledLotResponse>> ListAsync(string versionId, CancellationToken cancellationToken)
     {
         // First, so a version that does not exist is answered before every order is read.
         IReadOnlySet<int> placedLotIds = await placements.PlacedLotIdsAsync(versionId, cancellationToken);
         IReadOnlyList<OrderDetails> allOrders = await orders.ListAllDetailsAsync(cancellationToken);
+        // Only an unplaced lot can be Unscheduled, so only their progress is read.
+        IReadOnlyDictionary<int, LotActuals> actualsOfUnplacedLots = await progress.ActualsOfLotsAsync(
+            [.. allOrders.SelectMany(order => order.Order.LotIds).Where(lotId => !placedLotIds.Contains(lotId))],
+            cancellationToken);
         return
         [
             .. allOrders.SelectMany(order => order.Operations.SelectMany(operation => operation.Lots
-                .Where(lot => LotStatusRules.Derive(order.Order.CancelledAt, placedLotIds.Contains(lot.Id)) == LotStatus.Unscheduled)
+                .Where(lot => LotStatusRules.Derive(order.Order.CancelledAt, actualsOfUnplacedLots.GetValueOrDefault(lot.Id), placedLotIds.Contains(lot.Id)) == LotStatus.Unscheduled)
                 .Select(lot => ToResponse(order, operation, lot)))),
         ];
     }

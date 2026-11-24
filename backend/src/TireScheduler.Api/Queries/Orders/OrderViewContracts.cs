@@ -76,6 +76,11 @@ public sealed record LotResponse
 
     // In the live version; null while the lot is not placed (AC-71).
     public required LotPlacementView? Placement { get; init; }
+
+    // Null before the lot has started, and the end until it has completed (AC-72).
+    public required DateTimeOffset? ActualStart { get; init; }
+
+    public required DateTimeOffset? ActualEnd { get; init; }
 }
 
 public sealed record LotPlacementView

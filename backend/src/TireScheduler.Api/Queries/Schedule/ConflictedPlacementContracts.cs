@@ -1,5 +1,6 @@
 using TireScheduler.Api.Modules.MasterData;
 using TireScheduler.Api.Modules.Scheduling;
+using TireScheduler.Api.Queries.Orders;
 
 namespace TireScheduler.Api.Queries.Schedule;
 
@@ -22,6 +23,9 @@ public sealed record ConflictedPlacementResponse
     public required int Quantity { get; init; }
 
     public required int DurationMinutes { get; init; }
+
+    // The lot's derived status in the version (DEC-63).
+    public required LotStatus Status { get; init; }
 
     public required int OrderId { get; init; }
 

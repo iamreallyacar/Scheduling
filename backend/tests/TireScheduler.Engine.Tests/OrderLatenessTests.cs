@@ -55,6 +55,17 @@ public sealed class OrderLatenessTests
         Assert.Equal(expectedLate, OrderLateness.IsLate(completed));
     }
 
+    [Fact]
+    public void AC_60_the_completion_time_is_the_last_actual_end_once_every_lot_has_one()
+    {
+        DateTimeOffset firstEnd = EndOfDueDay.AddHours(-3);
+        DateTimeOffset lastEnd = EndOfDueDay.AddHours(2);
+
+        Assert.Equal(lastEnd, OrderLateness.CompletionTime([lastEnd, firstEnd]));
+        Assert.Null(OrderLateness.CompletionTime([firstEnd, null]));
+        Assert.Null(OrderLateness.CompletionTime([]));
+    }
+
     private static LatenessFacts Unfinished(DateTimeOffset now, DateTimeOffset[]? plannedEnds = null) =>
         new(DueDate, Berlin, now, IsCancelled: false, PlannedEnds: plannedEnds ?? [], CompletedAt: null);
 }

@@ -45,6 +45,7 @@ api.MapAuthEndpoints();
 api.MapMasterDataEndpoints();
 api.MapOrdersEndpoints();
 api.MapSchedulingEndpoints();
+api.MapProgressEndpoints();
 api.MapQueriesEndpoints();
 
 await app.RunStartupStepsAsync();
