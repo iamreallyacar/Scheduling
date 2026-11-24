@@ -72,6 +72,7 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 | DEC-62 | Lot progress is saved whole and removed on `/lots/{id}/progress` under the order's row lock; Queries reads it through a Progress reader, and the engine gives the completion time | Proposed | 2026-11-24 (M5-1) | API.md section "Routes", ARCHITECTURE.md section "Persistence rules", AC-206 to AC-211, A47 |
 | DEC-63 | A started lot offers no place or move action and says why, instead of a read-only placement form | Proposed | 2026-11-24 (M5-1) | wireframes.md section 3, AC-213 |
 | DEC-64 | Order progress answers a percentage rounded down, shown on the order page only | Proposed | 2026-11-24 (M5-2) | domain-model §6, AC-215 to AC-217 |
+| DEC-65 | The dashboard is one read from Queries that selects the orders, counts the queue and conflicts and lists the machines down; the page shows no progress | Proposed | 2026-11-24 (M5-3) | API.md section "Routes", wireframes.md section 6, AC-218 to AC-221, A49, A50 |
 
 ## Accepted
 
@@ -514,6 +515,13 @@ Made while building M1 (2026-11-10) and M2 (2026-11-18) and already followed by 
 - Reason: the quantities count each tire once per stage, so the order page read "0 of 22 tires completed" for an order of 11 tires with two stages. A percentage needs no unit. Rounding down keeps 100 for an order whose lots are all completed, and the server computes it so the page repeats no rule. The list is for finding orders, and its status and late flag already show which need attention; progress there needs the lot quantities that the list does not read.
 - Alternatives: the page divides the two quantities itself, rejected because the rounding would be a rule in the frontend; completed stages over all stages, rejected because it ignores lot sizes once an operation has several lots (F-ORD-7); a progress column in the order list, rejected for the reason above and still possible as a field of the order summary.
 - Consequences: the API keeps `completedQuantity` and `totalQuantity`. Task M5-3 decides whether the dashboard shows progress.
+
+### DEC-65 The dashboard read
+
+- Decision: `GET /versions/{v}/dashboard` is served by Queries (`DashboardReader`) to any role. It answers `dueSoonUntil`, the overdue and the due-soon orders as order summaries with their status and late flag in the version (A49), the number of unscheduled lots and of conflicted placements, and the active machines that are Down as the machine list has them (A50). Today is the plant-local date of now, which the engine gives (`PlantTime.DateOf`). The counts come from the readers of the queue and the conflict list, and the orders from the order reads, so each rule is written once. The page `/dashboard` shows the answer, links each order to its order page, the counts to the schedule page and each machine to its machine page, and shows no order progress, which settles the question DEC-64 left to this task.
+- Reason: which order is overdue or due soon and which machine is down are rules, so the server decides them and the page repeats none. "Overdue" needs the plant-local today, which only the engine computes on the server (`ARCHITECTURE.md` section "Time rules"). Counts instead of the lists for the lots and conflicts, because the schedule page lists them with their actions, and two copies of those lists would drift. Progress needs the lot quantities, which the order summaries do not read (DEC-64), and the status already says whether an order has started.
+- Alternatives: the page putting together the order list with a due date and status filter, the queue, the conflicts and the machine list, rejected because the page would pick the dates and the statuses that make an order overdue; "overdue" as every late order, rejected because the late flag also covers an order planned to finish late whose due day has not come, which is F-RPT-3 (P1); the whole queue and conflict list on the dashboard, rejected for the copies above.
+- Consequences: each read derives the status of every order due by `dueSoonUntil`, also the completed ones, as the order list does with a status filter (DEC-31, A28), finds the conflicts of the whole version and reads every lot for the queue count; that is fast at plant size. The start address still opens the machine register.
 
 ## Open
 

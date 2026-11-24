@@ -1,6 +1,6 @@
 # Wireframes
 
-Status: DRAFT, written in task P8 on 2026-11-10; section 5 in task M3-2, the built parts of section 3 in task M3-4 and the conflict list of section 2 in task M3-5 and the timeline of section 2 in task M3-6 on 2026-11-18. Low-fidelity sketches of the three scheduling screens and the machine page: layout, content and states, not visual design. Sources: [features.md](features.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [acceptance-criteria.md](acceptance-criteria.md), [domain-model.md](domain-model.md).
+Status: DRAFT, written in task P8 on 2026-11-10; section 5 in task M3-2, the built parts of section 3 in task M3-4 and the conflict list of section 2 in task M3-5 and the timeline of section 2 in task M3-6 on 2026-11-18; section 6 in task M5-3 on 2026-11-24. Low-fidelity sketches of the three scheduling screens, the machine page and the dashboard: layout, content and states, not visual design. Sources: [features.md](features.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [acceptance-criteria.md](acceptance-criteria.md), [domain-model.md](domain-model.md).
 
 ## 1. Conventions
 
@@ -223,3 +223,39 @@ Behavior:
 - Start and end are typed as plant-local date and time (A38). A rejected save shows the problem and the field errors and keeps the entered values (AC-26).
 - Recording an unavailability is always saved, also when it overlaps placed lots; those placements are flagged as conflicts by task M3-5 (DEC-18).
 
+## 6. Dashboard
+
+Feature F-RPT-1; task M5-3; DEC-65. Route `/dashboard`, first in the main navigation. Data from `GET /versions/live/dashboard`.
+
+```
++----------------------------------------------------------------------------------------------+
+| Tire Scheduler   Dashboard  Orders  Schedule  Machines  Products            J. Doe (Planner) |
++----------------------------------------------------------------------------------------------+
+| Dashboard - Live                                                                             |
++----------------------------------------------------------------------------------------------+
+| Overdue orders (2)                                                                           |
+| Order    Customer          Product   Due date     Status                                     |
+| SO-1038  Tire Shop North   PS-205    2026-11-20   In Progress  Late                          |
+| SO-1041  Fleet Service     TR-315    2026-11-23   Scheduled  Late                            |
++----------------------------------------------------------------------------------------------+
+| Due by 2026-12-01 (3)                                                                        |
+| Order    Customer          Product   Due date     Status                                     |
+| SO-1042  Tire Shop North   PS-205    2026-11-24   Scheduled  Late                            |
+| SO-1047  Auto Center West  PS-205    2026-11-27   Pending                                    |
+| SO-1051  Fleet Service     TR-315    2026-12-01   Scheduled                                  |
++----------------------------------------------------------------------------------------------+
+| Schedule                                                                                     |
+| 12 unscheduled lots                                                    [Open schedule]       |
+| 3 conflicted placements                                                [Open schedule]       |
++----------------------------------------------------------------------------------------------+
+| Machines down (1)                                                                            |
+| Press 1   Curing                                                                             |
++----------------------------------------------------------------------------------------------+
+```
+
+Behavior:
+
+- Everything comes from the one read, in its order (AC-218, AC-220); the page picks no order, date or machine itself (DEC-65). Order numbers open the order page and machine names the machine page.
+- The status and the Late mark are shown as in the order list (AC-150); progress is on the order page only (DEC-64, DEC-65).
+- The two counts link to the schedule page, which lists the lots and the conflicts with their actions; the dashboard has no actions of its own, so a Viewer sees the same page.
+- An empty part says so: "No overdue orders.", "No orders due by 2026-12-01.", "No machine is down." A failed read shows its problem instead of the parts.

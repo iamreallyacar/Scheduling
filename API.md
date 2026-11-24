@@ -26,7 +26,7 @@ Planned route areas for v1. Routes that are built are in the OpenAPI document.
 | Unavailability | `/resources/{id}/unavailabilities` (list, latest start first, and record), `/resources/{id}/unavailabilities/{unavailabilityId}` (change and delete) |
 | Scheduling | `/versions/{v}/lots/{id}/placement`, `/versions/{v}/lots/{id}/earliest-slot`, `/versions/{v}/orders/{id}/asap-proposal`, `/versions/{v}/timeline`, `/versions/{v}/conflicts`, `/versions/{v}/unscheduled-lots` |
 | Progress | `/lots/{id}/progress`: `PUT` with `{ actualStart, actualEnd }` records or corrects a lot's progress as a whole and answers it, `DELETE` removes it (DEC-62, A47) |
-| Views (Queries) | `GET /orders` (paged; `search`, `status`, `late`, `customer`, `dueFrom`, `dueTo`, `priority`, `sort`, A29) and `GET /orders/{id}` (with operations, lots with their `status`, dependencies, and `progress` as `completedQuantity`, `totalQuantity` and `percentComplete`, DEC-64), each order with `status` and `isLate` (DEC-29); `/versions/{v}/dashboard` |
+| Views (Queries) | `GET /orders` (paged; `search`, `status`, `late`, `customer`, `dueFrom`, `dueTo`, `priority`, `sort`, A29) and `GET /orders/{id}` (with operations, lots with their `status`, dependencies, and `progress` as `completedQuantity`, `totalQuantity` and `percentComplete`, DEC-64), each order with `status` and `isLate` (DEC-29); `/versions/{v}/dashboard` (`dueSoonUntil`, `overdueOrders` and `dueSoonOrders` as order summaries, `unscheduledLotCount`, `conflictedPlacementCount`, and `downMachines` as in the machine list, DEC-65) |
 
 ## Scheduling calls
 
