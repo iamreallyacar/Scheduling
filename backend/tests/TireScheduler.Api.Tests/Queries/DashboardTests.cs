@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.Time.Testing;
@@ -67,6 +68,22 @@ public sealed class DashboardTests : IAsyncDisposable
         Assert.Equal("Fleet Service", listed.GetProperty("customerName").GetString());
         Assert.Equal("AC218", listed.GetProperty("product").GetProperty("code").GetString());
         Assert.Equal(LotQuantity, listed.GetProperty("quantity").GetInt32());
+    }
+
+    [Fact]
+    public async Task AC_218_the_status_and_late_flag_follow_the_placements_of_the_version_read()
+    {
+        TestPlant plant = await CreatePlantAsync(api.Factory, "AC218V");
+        using ApiSession planner = await api.Factory.SignInAsRoleAsync(UserRole.Planner);
+        int lotId = LotIds(await CreateOrderAsync(planner, NewOrder("SO-218", plant.ProductId, quantity: LotQuantity, dueDate: "2026-11-18")))[0];
+        // Placed only in a scenario, ending Thu 10:00, after the end of the due day.
+        int scenarioId = await AddScenarioPlacementAsync(api.Factory, lotId, plant.Builder1, Berlin(19, 8), Berlin(19, 10));
+
+        JsonElement live = await planner.GetJsonAsync(DashboardPath(LiveVersion));
+        JsonElement scenario = await planner.GetJsonAsync(DashboardPath(scenarioId.ToString(CultureInfo.InvariantCulture)));
+
+        Assert.Equal([("SO-218", "2026-11-18", "Pending", false)], OrderValues(live.GetProperty("dueSoonOrders")));
+        Assert.Equal([("SO-218", "2026-11-18", "Scheduled", true)], OrderValues(scenario.GetProperty("dueSoonOrders")));
     }
 
     [Fact]
