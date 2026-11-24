@@ -2,7 +2,6 @@ using TireScheduler.Api.Database;
 using TireScheduler.Api.Errors;
 using TireScheduler.Api.Modules.Orders;
 using TireScheduler.Api.Modules.Scheduling;
-
 namespace TireScheduler.Api.Modules.Progress;
 
 // F-PRG-1: records, corrects and removes the progress of a lot (DEC-62, A47). Every write locks
@@ -25,15 +24,17 @@ internal sealed class ProgressRegister(
         int orderId = await orders.FindOrderIdOfLotAsync(lotId, cancellationToken) ?? throw LotNotFound();
 
         await using OpenTransaction transaction = await requestTransaction.BeginAsync(context, cancellationToken);
-        await LockOpenOrderOfLotAsync(orderId, lotId, cancellationToken);
+        OrderSchedulingFacts order = await LockOrderOfLotAsync(orderId, lotId, cancellationToken);
         // The lot runs on its live placement's machine (domain-model.md section 2).
         IReadOnlyDictionary<int, PlacementValues> livePlacements = await placements.PlacementsOfLotsAsync(ScheduleVersionAlias.Live, [lotId], cancellationToken);
-        if (!livePlacements.ContainsKey(lotId))
+        if (!ProgressRules.CanRecordProgress(livePlacements.ContainsKey(lotId), order.IsCancelled))
         {
-            throw ApiProblemException.Rejected(
-                StatusCodes.Status409Conflict,
-                ProblemCodes.ProgressNotPlaced,
-                "This lot is not placed in the live schedule, so it cannot have started. Place it first.");
+            throw order.IsCancelled
+                ? OrderCancelled()
+                : ApiProblemException.Rejected(
+                    StatusCodes.Status409Conflict,
+                    ProblemCodes.ProgressNotPlaced,
+                    "This lot is not placed in the live schedule, so it cannot have started. Place it first.");
         }
 
         LotProgress? progress = await context.LotProgress.FindAsync([lotId], cancellationToken);
@@ -56,7 +57,11 @@ internal sealed class ProgressRegister(
         int orderId = await orders.FindOrderIdOfLotAsync(lotId, cancellationToken) ?? throw LotNotFound();
 
         await using OpenTransaction transaction = await requestTransaction.BeginAsync(context, cancellationToken);
-        await LockOpenOrderOfLotAsync(orderId, lotId, cancellationToken);
+        if ((await LockOrderOfLotAsync(orderId, lotId, cancellationToken)).IsCancelled)
+        {
+            throw OrderCancelled();
+        }
+
         LotProgress progress = await context.LotProgress.FindAsync([lotId], cancellationToken)
             ?? throw ApiProblemException.NotFound("Progress of this lot");
         context.LotProgress.Remove(progress);
@@ -96,7 +101,7 @@ internal sealed class ProgressRegister(
 
     // Read again under the lock: the order may have been cancelled or deleted, or its lots generated
     // again, since the lot was looked up. A cancelled order no longer changes (A47).
-    private async Task LockOpenOrderOfLotAsync(int orderId, int lotId, CancellationToken cancellationToken)
+    private async Task<OrderSchedulingFacts> LockOrderOfLotAsync(int orderId, int lotId, CancellationToken cancellationToken)
     {
         OrderSchedulingFacts? order = await orderLocks.LockOrderAsync(orderId, cancellationToken)
             ? await orders.FindSchedulingFactsAsync(orderId, cancellationToken)
@@ -106,14 +111,13 @@ internal sealed class ProgressRegister(
             throw LotNotFound();
         }
 
-        if (order.IsCancelled)
-        {
-            throw ApiProblemException.Rejected(
-                StatusCodes.Status409Conflict,
-                ProblemCodes.OrderCancelled,
-                "The order of this lot is cancelled, so its progress cannot change any more.");
-        }
+        return order;
     }
+
+    private static ApiProblemException OrderCancelled() => ApiProblemException.Rejected(
+        StatusCodes.Status409Conflict,
+        ProblemCodes.OrderCancelled,
+        "The order of this lot is cancelled, so its progress cannot change any more.");
 
     private static ApiProblemException LotNotFound() => ApiProblemException.NotFound("This lot");
 }

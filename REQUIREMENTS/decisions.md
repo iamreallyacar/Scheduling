@@ -77,6 +77,7 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 | DEC-67 | An order cancel locks every resource in ascending id order before the order, as a working time change does | Proposed | 2026-11-24 (M5-21) | ARCHITECTURE.md section "Persistence rules", AC-50, AC-182, AC-223 |
 | DEC-68 | A sign-in locks the user's row before it checks the lockout and the password | Proposed | 2026-11-24 (M5-9) | ARCHITECTURE.md section "Persistence rules", AC-3, AC-224 |
 | DEC-69 | A lot lasts at most one year and a routing has at most 50 stages, as named constants | Proposed | 2026-11-24 (M5-10) | API.md section "Conventions", AC-145, AC-225, WQ5 |
+| DEC-70 | Lot and order answers carry the actions they allow, derived in Queries from the rules the server rejects by; the pages show no action from the status | Proposed | 2026-11-24 (M5-20) | API.md section "Routes", AC-234 to AC-237, WQ6, supersedes the page rule of DEC-63 |
 
 ## Accepted
 
@@ -508,6 +509,7 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 - Decision: on the order page, in the timeline popover and in the conflict list, an In Progress or Completed lot offers no [Place...] or [Move...] and says that it has started and stays on its machine (R8). The conflicted placements answer carries the lot's derived `status` so the list can tell.
 - Reason: `wireframes.md` section 3 planned a read-only placement form with the reason, which would show only what the row already shows (machine and planned times) and a sentence. The sentence alone gives the planner the same answer with less code, and the page shows the status the API returns, as it already does to hide the buttons for a cancelled order.
 - Alternatives: the read-only form, rejected for the reason above; keeping [Move...] and letting the server answer 422 `rule.R8.started`, rejected because it offers an action that always fails.
+- Superseded in part by DEC-70: the pages no longer hide the actions by the status; the answers carry the actions. The rest of this decision stands.
 
 ### DEC-64 Order progress as a percentage
 
@@ -555,6 +557,13 @@ An entry made while building and already followed by the code waits here for rev
 - Alternatives: a tighter lot limit such as a month, rejected because a large order cannot be split into several lots until F-ORD-7 (P1); an iterative cycle check without a stage limit, rejected because a routing of a tire plant has a handful of stages, and the limit also keeps the order write and the proposal small.
 - Consequences: an order whose lot would run longer than a year cannot be created until F-ORD-7 splits lots. The OpenAPI document gives `stages` a `maxItems`. Lots saved before the limit are not checked again.
 
+### DEC-70 Actions decided by the server
+
+- Decision: every lot of the order answer, every placement of the timeline and every conflicted placement carries `actions` with `canChangePlacement` (place or move) and `canRecordProgress`; the order answer carries `actions` with `canScheduleAsap`. Queries derives them (`LotActionRules`, `OrderActionRules`): `canChangePlacement` calls `LotRules.CanChangePlacement` of the engine, the R8 rule that `PlacementContext` rejects by; `canRecordProgress` is true for a lot with a live placement in an order that is not cancelled, the two checks of a progress write; `canScheduleAsap` is true for an order that is not cancelled. The pages show an action only when its flag is true, and `hasStarted` and the status checks are gone. The flags depend on the state only, never on the role, which the pages still check for the roles that may write. The server still rejects every action it does not allow (R7).
+- Reason: the user answered WQ6 that no page repeats a rule (AUDIT.md item 28). A change to R8 or to what a cancelled order allows is now made in the server only.
+- Alternatives: a list of action names per lot, rejected because the pages need a yes or no per button and a list needs a name constant on both sides; flags on the order summary of the list, rejected because the list offers no action; the same fields for the status only, kept as they are because the pages also show the status.
+- Consequences: this supersedes the part of DEC-63 that has the pages hide the actions by the status; the rest of DEC-63 stands (a started lot offers no place or move and says why, now when the answer's `canChangePlacement` is false for a placed lot). The conflicted placements answer keeps its `status` for the page's text. A new action means a new flag in the API and OpenAPI document.
+
 ## Open
 
 The only list of open questions. BQ questions wait for the business; until it answers, the docs follow the assumption named. WQ questions were found while sketching the wireframes or building the tasks. Each must be answered before the task in "Needed by"; record the answer in the row (or as a new decision) and update the documents it affects.
@@ -571,4 +580,4 @@ The only list of open questions. BQ questions wait for the business; until it an
 | WQ2 | The proposal review shows whether the order would be late, but the proposal response has no lateness field, and the UI must not compute rules | Settled in task M4-4 by DEC-60: the proposal answers `finishesAt` and `wouldBeLate`, computed in Scheduling with the engine's late flag rule that Queries uses too | M4-4 |
 | WQ3 | The timeline needs a time range, but `/versions/{v}/timeline` has no range parameters yet | Settled in task M3-6 by DEC-45: `from` and `to` are required plant-local dates, at most 31 days apart, and the UI picks the default two weeks from the Monday of the current plant week | M3-6 |
 | WQ5 | What are the longest lot (in minutes) and the most stages per routing the API accepts? Today a lot may last up to 2,147,483,647 minutes (AC-145) and a routing has no stage limit (AUDIT.md item 39) | Settled by the user on 2026-11-24: a lot at most 525,600 minutes (one year) and a routing at most 50 stages, both named constants, larger values rejected with 400 `validation.failed`. A tighter lot limit would block large orders, which cannot be split into lots until F-ORD-7 (P1); these limits keep the working time walk far below year 9999 and the routing cycle check shallow (DEC-69) | M5-10 |
-| WQ6 | Should the API answer which actions each lot and order allow, or may the UI keep hiding actions by the derived status while the server enforces the rules (AUDIT.md item 28, DEC-63)? | The lot and order answers carry the actions they allow, derived in Queries, so no page repeats a rule; the server still rejects every case (R7) | M5-20 |
+| WQ6 | Should the API answer which actions each lot and order allow, or may the UI keep hiding actions by the derived status while the server enforces the rules (AUDIT.md item 28, DEC-63)? | Settled by the user on 2026-11-24: the lot and order answers carry the actions they allow, derived in Queries, so no page repeats a rule; the server still rejects every case (R7). Built in task M5-20 by DEC-70 | M5-20 |

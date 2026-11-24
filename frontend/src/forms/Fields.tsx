@@ -3,6 +3,11 @@ import type { ApiProblem } from '../api/problem';
 
 // Form fields that show the server's messages for their field next to it (AC-26). `name` is
 // the field name the API uses in `errors`.
+
+// The 15-minute grid of DEC-3 and A2 in seconds, the unit of an input's step. The API does not
+// send it, so the page names it here; it is never used to round or reject a time.
+export const START_GRID_STEP_SECONDS = 15 * 60;
+
 interface FieldProps {
   label: string;
   name: string;
@@ -15,15 +20,18 @@ interface TextFieldProps extends FieldProps {
   /** A date field holds the date as YYYY-MM-DD, a date and time field as YYYY-MM-DDTHH:mm. */
   type?: 'text' | 'email' | 'password' | 'date' | 'datetime-local';
   autoComplete?: HTMLInputAutoCompleteAttribute;
+  /** Seconds a date and time picker moves by; a hint only, the server still decides which times are allowed. */
+  step?: number;
 }
 
-export function TextField({ label, name, problem, value, onChange, type = 'text', autoComplete = 'off' }: TextFieldProps) {
+export function TextField({ label, name, problem, value, onChange, type = 'text', autoComplete = 'off', step }: TextFieldProps) {
   return (
     <Field label={label} name={name} problem={problem}>
       {(inputProps) => (
         <input
           {...inputProps}
           type={type}
+          step={step}
           name={name}
           autoComplete={autoComplete}
           value={value}

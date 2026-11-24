@@ -20,7 +20,7 @@ internal sealed class ConflictedPlacementReader(IPlacementConflictReader conflic
         // Every conflicted lot's order was found by FindConflicts, so each lot is found here.
         int[] conflictedLotIds = [.. placementConflicts.Select(conflict => conflict.LotId)];
         IReadOnlyDictionary<int, LotContext> lotsById = await orders.FindLotContextsAsync(conflictedLotIds, cancellationToken);
-        // The page offers no move for a started lot (DEC-63).
+        // The status and actions of a started lot come from its progress (DEC-63, DEC-70).
         IReadOnlyDictionary<int, LotActuals> actuals = await progress.ActualsOfLotsAsync(conflictedLotIds, cancellationToken);
         // A resource with placements cannot be deleted (AC-20), so every placement finds its resource.
         IReadOnlyDictionary<int, NamedReference> resourcesById = await masterData.GetResourceNamesAsync(
@@ -32,6 +32,7 @@ internal sealed class ConflictedPlacementReader(IPlacementConflictReader conflic
             .. placementConflicts.Select(conflict =>
             {
                 LotContext lotContext = lotsById[conflict.LotId];
+                LotStatus status = LotStatusRules.Derive(lotContext.Order.CancelledAt, actuals.GetValueOrDefault(conflict.LotId), isPlacedInVersion: true);
                 return new ConflictedPlacementResponse
                 {
                     PlacementId = conflict.PlacementId,
@@ -42,7 +43,8 @@ internal sealed class ConflictedPlacementReader(IPlacementConflictReader conflic
                     LotNo = lotContext.Lot.LotNo,
                     Quantity = lotContext.Lot.Quantity,
                     DurationMinutes = lotContext.Lot.DurationMinutes,
-                    Status = LotStatusRules.Derive(lotContext.Order.CancelledAt, actuals.GetValueOrDefault(conflict.LotId), isPlacedInVersion: true),
+                    Status = status,
+                    Actions = LotActionRules.Derive(status, orderIsCancelled: lotContext.Order.CancelledAt is not null, isPlacedLive: true),
                     OrderId = lotContext.Order.Id,
                     OrderNo = lotContext.Order.OrderNo,
                     SequenceNo = lotContext.Operation.SequenceNo,

@@ -8,7 +8,7 @@ import { NOTHING_CHOSEN, numberOrNullIfEmpty } from '../forms/fieldValues';
 import { FormPanel } from '../forms/FormPanel';
 import { QueryResult } from '../forms/QueryResult';
 import { useProducts } from '../products/productQueries';
-import { ORDER_PRIORITIES } from './orderValues';
+import { ORDER_PRIORITIES, priorityOfOption } from './orderValues';
 
 interface OrderFormProps {
   /** The order to change, or null to create one. */
@@ -88,7 +88,7 @@ export function OrderForm({ order, onSaved, onClose }: OrderFormProps) {
         name="priority"
         value={priority}
         onChange={(chosen) => {
-          setPriority(ORDER_PRIORITIES.find((candidate) => candidate === chosen) ?? 'Normal');
+          setPriority(priorityOfOption(chosen));
         }}
         problem={problem}
         options={priorityOptions}

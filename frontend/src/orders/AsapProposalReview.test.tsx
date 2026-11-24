@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { CurrentUserResponse, OrderProposalResponse, OrderResponse, TimelineResponse } from '../api/generated';
 import { type FakeApiAnswer, type FakeApiRequest, plannerUser, problem, sentBody, stubApi, viewerUser } from '../testing/fakeApi';
@@ -62,6 +62,7 @@ const timeline: TimelineResponse = {
             quantity: 20,
             durationMinutes: 120,
             status: 'Scheduled',
+            actions: { canChangePlacement: true, canRecordProgress: true },
             orderId: 9,
             orderNo: 'SO-9',
             product: { id: passengerTire.id, code: passengerTire.code, name: passengerTire.name },
@@ -130,6 +131,19 @@ describe('as-soon-as-possible review', () => {
     expect(requests.some((request) => request.path === COMMIT_PATH)).toBe(false);
   });
 
+  it('AC_228 Recalculate with a not-before time the page cannot read shows a field error and asks nothing', async () => {
+    const requests = stubProposalApi(plannerUser, { [`POST ${PROPOSAL_PATH}`]: () => ({ status: 200, body: proposal }) });
+    const { user, review } = await openReview();
+    await within(review).findByRole('table', { name: 'Proposal' });
+
+    await user.type(within(review).getByLabelText('Not before'), '20266-11-17T08:00');
+    await user.click(within(review).getByRole('button', { name: 'Recalculate' }));
+
+    expect(within(review).getByLabelText('Not before')).toHaveAccessibleDescription('Enter a date and time the page can read, with a four-digit year.');
+    expect(within(review).getByRole('table', { name: 'Proposal' })).toBeInTheDocument();
+    expect(requests.filter((request) => request.method === 'POST' && request.path === PROPOSAL_PATH)).toHaveLength(1);
+  });
+
   it('AC_201 Recalculate asks again from the typed not-before time on the plant clock', async () => {
     const requests = stubProposalApi(plannerUser, {
       [`POST ${PROPOSAL_PATH}`]: (request) => ({ status: 200, body: request.query.has('notBefore') ? { ...proposal, wouldBeLate: true } : proposal }),
@@ -143,6 +157,50 @@ describe('as-soon-as-possible review', () => {
     expect(await within(review).findByText('Order would finish 17 Nov 2026, 06:37, due 2026-12-01: late')).toBeInTheDocument();
     const proposalRequests = requests.filter((request) => request.method === 'POST' && request.path === PROPOSAL_PATH);
     expect(proposalRequests.at(-1)?.query.get('notBefore')).toBe('2026-11-17T07:00:00.000Z');
+  });
+
+  it('AC_233 the not-before time of the review steps in 15 minutes', async () => {
+    stubProposalApi(plannerUser);
+    const { review } = await openReview();
+    await within(review).findByRole('table', { name: 'Proposal' });
+
+    expect(within(review).getByLabelText('Not before')).toHaveAttribute('step', '900');
+  });
+
+  it('AC_232 Commit is disabled with a hint while the typed time differs from the proposal, and the review follows Recalculate', async () => {
+    const requests = stubProposalApi(plannerUser);
+    const { user, review } = await openReview();
+    await within(review).findByRole('table', { name: 'Proposal' });
+    const field = within(review).getByLabelText('Not before');
+    const commit = () => within(review).getByRole('button', { name: 'Commit 2 placements' });
+    expect(commit()).toBeEnabled();
+
+    await user.type(field, '2026-11-17T08:00');
+    expect(commit()).toBeDisabled();
+    expect(within(review).getByText('Recalculate to use the new time')).toBeInTheDocument();
+
+    await user.clear(field);
+    expect(commit()).toBeEnabled();
+    expect(within(review).queryByText('Recalculate to use the new time')).not.toBeInTheDocument();
+
+    await user.type(field, '2026-11-17T08:00');
+    await user.click(within(review).getByRole('button', { name: 'Recalculate' }));
+    await waitFor(() => { expect(commit()).toBeEnabled(); });
+    expect(within(review).queryByText('Recalculate to use the new time')).not.toBeInTheDocument();
+    const recalculated = requests.filter((request) => request.method === 'POST' && request.path === PROPOSAL_PATH).at(-1);
+    expect(recalculated?.query.get('notBefore')).toMatch(/^2026-11-17T/);
+  });
+
+  it('AC_232 AC_228 a time the page cannot read keeps Commit disabled after Recalculate refuses it', async () => {
+    stubProposalApi(plannerUser);
+    const { user, review } = await openReview();
+    await within(review).findByRole('table', { name: 'Proposal' });
+
+    await user.type(within(review).getByLabelText('Not before'), '20266-11-17T08:00');
+    await user.click(within(review).getByRole('button', { name: 'Recalculate' }));
+
+    expect(within(review).getByRole('button', { name: 'Commit 2 placements' })).toBeDisabled();
+    expect(within(review).getByText('Recalculate to use the new time')).toBeInTheDocument();
   });
 
   it('AC_202 the commit sends the proposal unchanged, closes the review and the page shows the placements', async () => {
@@ -224,7 +282,7 @@ describe('as-soon-as-possible review', () => {
     expect(screen.queryByRole('button', { name: 'Schedule as soon as possible' })).not.toBeInTheDocument();
     unmount();
 
-    stubProposalApi(plannerUser, {}, () => ({ ...order, status: 'Cancelled', cancelledAt: '2026-11-18T10:00:00Z' }));
+    stubProposalApi(plannerUser, {}, () => ({ ...order, status: 'Cancelled', cancelledAt: '2026-11-18T10:00:00Z', actions: { canScheduleAsap: false } }));
     renderApp('/orders/5');
     expect(await screen.findByRole('button', { name: 'Edit order' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Schedule as soon as possible' })).not.toBeInTheDocument();

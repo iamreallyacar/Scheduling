@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
 import type { RuleViolation } from '../api/problem';
-import { hasStarted, LOT_STATUS_LABELS, STARTED_LOT_NOTE } from '../orders/orderValues';
+import { LOT_STATUS_LABELS, STARTED_LOT_NOTE } from '../orders/orderValues';
 import { formatPlantTime } from '../calendar/plantClock';
 import { usePlantTimeZone } from '../calendar/plantTimeZone';
 import { lotTitle } from './lotTitle';
@@ -49,12 +49,12 @@ export function LotPopover({ bar, violations, renderConflictLink, onMove, onClos
       )}
       <div className="form-actions">
         {onMove !== null &&
-          (hasStarted(placement.status) ? (
-            <p>{STARTED_LOT_NOTE}</p>
-          ) : (
+          (placement.actions.canChangePlacement ? (
             <button type="button" onClick={onMove}>
               Move...
             </button>
+          ) : (
+            <p>{STARTED_LOT_NOTE}</p>
           ))}
         <Link to={`/orders/${String(placement.orderId)}`}>Open order</Link>
       </div>

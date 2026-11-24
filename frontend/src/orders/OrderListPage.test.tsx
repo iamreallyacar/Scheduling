@@ -131,6 +131,23 @@ describe('order list', () => {
     expect(await screen.findByText('No orders match these filters.')).toBeInTheDocument();
   });
 
+  it('AC_231 says a page after the first has no orders and shows the pager to go back', async () => {
+    const requests = stubOrderListApi(viewerUser, (request) =>
+      Number(request.query.get('page') ?? '1') > 1 ? { items: [], page: 3, pageSize: 50, totalCount: 60 } : onePage,
+    );
+    const user = userEvent.setup();
+    renderApp('/orders?status=Pending&page=3');
+
+    expect(await screen.findByText('Page 3 has no orders.')).toBeInTheDocument();
+    expect(screen.queryByText('No orders yet.')).not.toBeInTheDocument();
+    expect(screen.queryByText('No orders match these filters.')).not.toBeInTheDocument();
+    expect(screen.getByText('Page 3 of 2, 60 orders')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Previous page' }));
+
+    expect(orderListRequests(requests).at(-1)?.query.get('page')).toBe('2');
+  });
+
   it('AC_149 shows the problem when the server rejects the filters in the address', async () => {
     stubApi({
       'GET /api/v1/me': () => ({ status: 200, body: viewerUser }),

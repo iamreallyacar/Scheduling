@@ -14,14 +14,17 @@ export function useConflictedPlacements() {
 
 export type EarliestSlotSearch = NonNullable<GetEarliestSlotData['query']>;
 
-// Asked only when the planner searches (refetch), and again on every search, because a search
-// without notBefore starts at the server's now. An answer is dropped as soon as no form shows it,
-// so a form opened again or a field typed back to an earlier value never shows an old suggestion.
-export function useEarliestSlot(lotId: number, search: EarliestSlotSearch) {
+// Asked only once the planner has searched (until then the search is null), with the search as it was on the
+// button press, and again on every press, because a search without notBefore starts at the
+// server's now. An answer is dropped as soon as no form shows it, so a form opened again never
+// shows an old suggestion.
+export function useEarliestSlot(lotId: number, search: EarliestSlotSearch | null) {
   return useQuery({
-    queryKey: queryKeys.earliestSlot(SCHEDULE_VERSION, lotId, search),
-    queryFn: () => getEarliestSlot(SCHEDULE_VERSION, lotId, search),
-    enabled: false,
+    queryKey: queryKeys.earliestSlot(SCHEDULE_VERSION, lotId, search ?? {}),
+    queryFn: () => getEarliestSlot(SCHEDULE_VERSION, lotId, search ?? {}),
+    enabled: search !== null,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
     gcTime: 0,
   });
 }

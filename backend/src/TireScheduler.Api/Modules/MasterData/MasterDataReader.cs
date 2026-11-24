@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using TireScheduler.Api.Database;
 using TireScheduler.Api.Modules.MasterData.Calendars;
 using TireScheduler.Api.Modules.MasterData.Machines;
+using TireScheduler.Api.Modules.MasterData.Routings;
 
 namespace TireScheduler.Api.Modules.MasterData;
 
@@ -19,9 +20,7 @@ internal sealed class MasterDataReader(MasterDataDbContext context, MachineRegis
             return null;
         }
 
-        List<RoutingStageValues> stages = await context.RoutingStages
-            .Where(stage => stage.ProductId == productId)
-            .OrderBy(stage => stage.SequenceNo)
+        List<RoutingStageValues> stages = await context.StagesOf(productId)
             .Select(stage => new RoutingStageValues
             {
                 SequenceNo = stage.SequenceNo,
@@ -31,10 +30,7 @@ internal sealed class MasterDataReader(MasterDataDbContext context, MachineRegis
                 UnitsPerCycle = stage.UnitsPerCycle,
             })
             .ToListAsync(cancellationToken);
-        List<RoutingLinkValues> dependencies = await context.RoutingDependencies
-            .Where(dependency => dependency.ProductId == productId)
-            .OrderBy(dependency => dependency.SuccessorStage!.SequenceNo)
-            .ThenBy(dependency => dependency.PredecessorStage!.SequenceNo)
+        List<RoutingLinkValues> dependencies = await context.DependenciesOf(productId)
             .Select(dependency => new RoutingLinkValues
             {
                 PredecessorSequenceNo = dependency.PredecessorStage!.SequenceNo,

@@ -34,6 +34,22 @@ public sealed class ParameterCheckTests
         Assert.Equal(parameterName, failure.ParamName);
     }
 
+    [Theory]
+    [InlineData("Press", "Press")]
+    [InlineData("Press", "press")]
+    [InlineData("Press", "  Press ")]
+    public void AC_156_machine_name_prefixes_that_the_api_would_see_as_equal_fail_naming_the_second(string first, string second)
+    {
+        PlantParameters broken = PlantPresets.Small with
+        {
+            MachineTypes = [PlantPresets.Small.MachineTypes[0] with { MachineNamePrefix = first }, PlantPresets.Small.MachineTypes[1] with { MachineNamePrefix = second }, .. PlantPresets.Small.MachineTypes.Skip(2)],
+        };
+
+        ArgumentException failure = Assert.ThrowsAny<ArgumentException>(() => SyntheticPlant.Generate(broken, seed: 1, GeneratorCases.StartMonday));
+
+        Assert.Equal("MachineTypes[1].MachineNamePrefix", failure.ParamName);
+    }
+
     [Fact]
     public void AC_156_more_holidays_than_working_days_in_the_horizon_fail_naming_the_holiday_count()
     {

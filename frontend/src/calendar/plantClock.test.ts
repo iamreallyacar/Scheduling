@@ -1,4 +1,4 @@
-import { plantLocalToUtc, utcToPlantLocal } from './plantClock';
+import { isPlantLocalText, plantLocalToUtc, utcToPlantLocal } from './plantClock';
 
 const BERLIN = 'Europe/Berlin';
 
@@ -21,5 +21,16 @@ describe('plant clock', () => {
   it('AC_171 shows a UTC time as the plant-local value a date and time field holds', () => {
     expect(utcToPlantLocal('2026-11-17T05:00:00Z', BERLIN)).toBe('2026-11-17T06:00');
     expect(utcToPlantLocal('2026-10-25T01:30:00Z', BERLIN)).toBe('2026-10-25T02:30');
+  });
+
+  it('AC_228 rejects a text that matches the pattern but names no real time', () => {
+    for (const impossible of ['2026-13-01T08:00', '2026-02-31T08:00', '2026-11-17T25:00', '2026-11-17T08:60', '0026-11-17T08:00']) {
+      expect(isPlantLocalText(impossible)).toBe(false);
+    }
+    expect(isPlantLocalText('2026-02-28T23:59')).toBe(true);
+  });
+
+  it('AC_228 reads a local time inside a DST gap without failing', () => {
+    expect(isPlantLocalText('2027-03-28T02:30')).toBe(true);
   });
 });

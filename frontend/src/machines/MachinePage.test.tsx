@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { CurrentUserResponse, ResourceViewResponse, UnavailabilityResponse } from '../api/generated';
 import { type FakeApiAnswer, type FakeApiRequest, plannerUser, problem, sentBody, stubApi, viewerUser } from '../testing/fakeApi';
@@ -72,6 +72,35 @@ describe('machine page', () => {
     });
   });
 
+  it('AC_233 AC_171 the unavailability times keep a one-minute step', async () => {
+    stubMachinePageApi(plannerUser, {});
+    const user = userEvent.setup();
+    renderApp('/machines/20');
+
+    await user.click(await screen.findByRole('button', { name: 'Record unavailability' }));
+    const form = screen.getByRole('form', { name: 'Record unavailability' });
+    expect(within(form).getByLabelText('Start')).not.toHaveAttribute('step');
+    expect(within(form).getByLabelText('End')).not.toHaveAttribute('step');
+  });
+
+  it('AC_228 a start the page cannot read is a field error, nothing is sent and the entered values stay', async () => {
+    const requests = stubMachinePageApi(plannerUser);
+    const user = userEvent.setup();
+    renderApp('/machines/20');
+
+    await user.click(await screen.findByRole('button', { name: 'Record unavailability' }));
+    const form = screen.getByRole('form', { name: 'Record unavailability' });
+    await user.selectOptions(within(form).getByLabelText('Kind'), 'Breakdown');
+    await user.type(within(form).getByLabelText('Start'), '20266-11-19T07:30');
+    await user.type(within(form).getByLabelText('Reason'), 'Bladder burst');
+    await user.click(within(form).getByRole('button', { name: 'Save' }));
+
+    expect(within(form).getByLabelText('Start')).toHaveAccessibleDescription('Enter a date and time the page can read, with a four-digit year.');
+    expect(within(form).getByLabelText('Start')).toHaveValue('20266-11-19T07:30');
+    expect(within(form).getByLabelText('Reason')).toHaveValue('Bladder burst');
+    expect(requests.filter((request) => request.method === 'POST')).toEqual([]);
+  });
+
   it('AC_171 a planner gives an open breakdown its end, starting from the saved values', async () => {
     const requests = stubMachinePageApi(plannerUser, {
       [`PUT ${UNAVAILABILITIES}/7`]: (request) => ({ status: 200, body: { ...openBreakdown, ...(request.body as object) } }),
@@ -92,6 +121,27 @@ describe('machine page', () => {
       end: '2026-11-18T12:15:00.000Z',
       reason: 'Hydraulic leak',
     });
+  });
+
+  it('AC_230 saving only a new end sends the stored start unchanged, also in the second occurrence of the repeated autumn hour', async () => {
+    const autumnBreakdown: UnavailabilityResponse = { ...openBreakdown, start: '2026-10-25T01:30:00Z' };
+    const requests = stubApi({
+      'GET /api/v1/me': () => ({ status: 200, body: plannerUser }),
+      'GET /api/v1/resources/20': () => ({ status: 200, body: press }),
+      [`GET ${UNAVAILABILITIES}`]: () => ({ status: 200, body: [autumnBreakdown] }),
+      [`PUT ${UNAVAILABILITIES}/7`]: (request) => ({ status: 200, body: { ...autumnBreakdown, ...(request.body as object) } }),
+    });
+    const user = userEvent.setup();
+    renderApp('/machines/20');
+
+    await user.click(await screen.findByRole('button', { name: /^Edit breakdown from/ }));
+    const form = screen.getByRole('form', { name: 'Edit unavailability' });
+    expect(within(form).getByLabelText('Start')).toHaveValue('2026-10-25T02:30');
+    await user.type(within(form).getByLabelText('End'), '2026-10-25T10:00');
+    await user.click(within(form).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => { expect(sentBody(requests, 'PUT', `${UNAVAILABILITIES}/7`)).toEqual({ kind: 'Breakdown', start: '2026-10-25T01:30:00.000Z', end: '2026-10-25T09:00:00.000Z', reason: 'Hydraulic leak' }); },
+    );
   });
 
   it('AC_171 a rejected save shows the problem next to its field and keeps the entered values', async () => {

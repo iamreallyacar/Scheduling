@@ -70,9 +70,7 @@ internal sealed class RoutingRegister(MasterDataDbContext context, RequestTransa
 
     private async Task<RoutingResponse> ReadAsync(int productId, CancellationToken cancellationToken)
     {
-        List<RoutingStageResponse> stages = await context.RoutingStages
-            .Where(stage => stage.ProductId == productId)
-            .OrderBy(stage => stage.SequenceNo)
+        List<RoutingStageResponse> stages = await context.StagesOf(productId)
             .Select(stage => new RoutingStageResponse
             {
                 SequenceNo = stage.SequenceNo,
@@ -82,10 +80,7 @@ internal sealed class RoutingRegister(MasterDataDbContext context, RequestTransa
                 UnitsPerCycle = stage.UnitsPerCycle,
             })
             .ToListAsync(cancellationToken);
-        List<RoutingDependencyResponse> dependencies = await context.RoutingDependencies
-            .Where(dependency => dependency.ProductId == productId)
-            .OrderBy(dependency => dependency.SuccessorStage!.SequenceNo)
-            .ThenBy(dependency => dependency.PredecessorStage!.SequenceNo)
+        List<RoutingDependencyResponse> dependencies = await context.DependenciesOf(productId)
             .Select(dependency => new RoutingDependencyResponse
             {
                 PredecessorSequenceNo = dependency.PredecessorStage!.SequenceNo,

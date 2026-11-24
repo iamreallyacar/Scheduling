@@ -35,6 +35,7 @@ Settings are read from environment variables (or `dotnet user-secrets` for the A
 | `Scheduling__SearchHorizonDays` | API | How many days after its start the earliest-slot search and the whole-order proposal look for a slot (AC-123). Default 90 (`appsettings.json`); startup stops with an error naming it if it is not more than 0 |
 | `Security__CookiesRequireHttps` | API | `true` marks the session and anti-forgery cookies HTTPS-only. Default `true`; `false` only in `appsettings.Development.json`. Behind a proxy that ends HTTPS, the proxy must pass the original scheme on (`ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`) |
 | `PlantLoader__Email`, `PlantLoader__Password` | plant loader | Sign-in of the Admin the loader writes as. Required by the loader only; never put them in a committed file |
+| `PlantLoader__RequestTimeoutSeconds` | plant loader | Seconds one request to the API may take before the loader stops with an error (AC-226). Optional; default 300, a whole number above 0 |
 | `API_PROXY_TARGET` | frontend dev server | Address of the API for the `/api` proxy. Set in `frontend/.env.development` |
 
 ### Load a generated plant
@@ -51,7 +52,7 @@ dotnet run --project backend/src/TireScheduler.PlantLoader -- --preset plant --s
 - `--start` (default the Monday of the current week, A32): first day of the horizon, `yyyy-MM-dd`.
 - `--api` (default `http://localhost:5080`): address of the API.
 - `--schedule` (no value): after loading, place every order in the live schedule with the as-soon-as-possible proposal, earliest due date first, from the start of the horizon (DEC-61). An order with no free slot stays unplaced and is named. With the default start, lots on days before today are planned too; give a later `--start` for a schedule that lies ahead.
-- The loader prints the seed, start date and counts, and with `--schedule` the placed lots and orders. Exit code 0 means loaded; 1 means the API rejected a request or the plant was not empty, with the reason printed; 2 means the command line or settings were wrong. A run that stopped halfway leaves the rows written so far, so start again on a new database.
+- The loader prints the seed, start date and counts, and with `--schedule` the placed lots and orders. Exit code 0 means loaded; 1 means the API rejected a request, did not answer in time or answered something that is not JSON, or the plant was not empty, with the reason printed; 2 means the command line or settings were wrong. A run that stopped halfway leaves the rows written so far, so start again on a new database.
 
 ## Developer setup
 

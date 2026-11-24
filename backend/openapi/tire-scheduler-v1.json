@@ -1675,6 +1675,7 @@
           "quantity",
           "durationMinutes",
           "status",
+          "actions",
           "orderId",
           "orderNo",
           "sequenceNo",
@@ -1716,6 +1717,9 @@
           },
           "status": {
             "$ref": "#/components/schemas/LotStatus"
+          },
+          "actions": {
+            "$ref": "#/components/schemas/LotActionsResponse"
           },
           "orderId": {
             "type": "integer",
@@ -1925,6 +1929,21 @@
           }
         }
       },
+      "LotActionsResponse": {
+        "required": [
+          "canChangePlacement",
+          "canRecordProgress"
+        ],
+        "type": "object",
+        "properties": {
+          "canChangePlacement": {
+            "type": "boolean"
+          },
+          "canRecordProgress": {
+            "type": "boolean"
+          }
+        }
+      },
       "LotPlacementRequest": {
         "required": [
           "resourceId",
@@ -2071,6 +2090,7 @@
           "quantity",
           "durationMinutes",
           "status",
+          "actions",
           "placement",
           "actualStart",
           "actualEnd"
@@ -2095,6 +2115,9 @@
           },
           "status": {
             "$ref": "#/components/schemas/LotStatus"
+          },
+          "actions": {
+            "$ref": "#/components/schemas/LotActionsResponse"
           },
           "placement": {
             "oneOf": [
@@ -2214,6 +2237,17 @@
             "items": {
               "$ref": "#/components/schemas/LotResponse"
             }
+          }
+        }
+      },
+      "OrderActionsResponse": {
+        "required": [
+          "canScheduleAsap"
+        ],
+        "type": "object",
+        "properties": {
+          "canScheduleAsap": {
+            "type": "boolean"
           }
         }
       },
@@ -2415,6 +2449,7 @@
           "status",
           "isLate",
           "progress",
+          "actions",
           "operations",
           "dependencies"
         ],
@@ -2463,6 +2498,9 @@
           },
           "progress": {
             "$ref": "#/components/schemas/OrderProgressResponse"
+          },
+          "actions": {
+            "$ref": "#/components/schemas/OrderActionsResponse"
           },
           "operations": {
             "type": "array",
@@ -3046,6 +3084,7 @@
           "quantity",
           "durationMinutes",
           "status",
+          "actions",
           "orderId",
           "orderNo",
           "product",
@@ -3085,6 +3124,9 @@
           },
           "status": {
             "$ref": "#/components/schemas/LotStatus"
+          },
+          "actions": {
+            "$ref": "#/components/schemas/LotActionsResponse"
           },
           "orderId": {
             "type": "integer",

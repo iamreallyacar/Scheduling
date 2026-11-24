@@ -122,7 +122,7 @@ function LoadedOrder({ order }: { order: OrderResponse }) {
           >
             Delete order
           </button>
-          {order.status !== 'Cancelled' && (
+          {order.actions.canScheduleAsap && (
             <button
               type="button"
               onClick={() => {

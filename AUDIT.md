@@ -39,6 +39,7 @@ Each completed finding was fixed by a task; the decision it names gives the reas
 | 35 | Deleting a product or machine type could race an order create, a routing save or a machine write | Task M5-7, DEC-66 |
 | 36 | Only the R2 race had a lock test | Task M5-6 |
 | 40 | A holiday or shift save, and a second unavailability write, could answer 500 when a delete ran at the same moment | Task M5-8 |
+| 28 | The frontend decided which lot actions to offer from the status, against the rule that it repeats no business rule | Task M5-20, DEC-70 |
 
 ## Second audit
 
@@ -59,14 +60,6 @@ Eight reviewers looked at the code after M5, four for maintainability and four f
 The rules of the first two audits still hold: no system clock reads, no hand-written locks, no stored statuses, named required records, and modules talk through ports. The engine rules R1 to R8, the earliest-slot search, the derived statuses and the late flag held up under the correctness review. The open correctness findings are about two writes that meet at the same time, inputs with no upper bound, and a few edge cases in the frontend's time fields.
 
 ### Open
-
-#### 28. The frontend decides which lot actions to offer, against the rule that it repeats no business rule
-
-- Where: `frontend/src/orders/OrderTables.tsx` lines 86 to 108, `orders/orderValues.ts` line 25 (`hasStarted`), `schedule/ConflictList.tsx` line 70, `schedule/LotPopover.tsx` line 52, `orders/OrderPage.tsx` line 125.
-- Problem: the pages show Place, Move, Progress and "Schedule as soon as possible" from status checks such as `lot.status === 'Unscheduled' || lot.status === 'Scheduled'` and `order.status !== 'Cancelled'`. DEC-63 accepted hiding actions of a started lot this way, but CLAUDE.md says the frontend never repeats a business rule. The server still rejects every case (R7), so this is about which buttons are shown.
-- Why it matters: a change to R8 or to what a cancelled order allows has to be made in five frontend places in step with the server, and a missed one leaves a button that only answers 422.
-- What to do: decide one of two. Either the lot and order answers carry the allowed actions, derived in `Queries/` (an API change), or a new decision records that the UI may hide an action by the derived status while the server enforces it.
-- Task: M5-20, after WQ6.
 
 #### 29. Response fields are copied in two places where DEC-34 asks for one mapping
 

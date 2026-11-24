@@ -1,11 +1,12 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { recordLotProgress, removeLotProgress } from '../api/generated/endpoints.gen';
-import { problemOf } from '../api/problem';
-import { plantLocalToUtc, utcToPlantLocal } from '../calendar/plantClock';
+import { problemOf, type ApiProblem } from '../api/problem';
+import { utcToPlantLocal } from '../calendar/plantClock';
 import { usePlantTimeZone } from '../calendar/plantTimeZone';
 import { TextField } from '../forms/Fields';
 import { FormPanel } from '../forms/FormPanel';
+import { readPlantTimes } from '../forms/plantTimeFields';
 
 /** The lot whose progress the form records, with the progress it has. */
 export interface ProgressTarget {
@@ -28,17 +29,15 @@ export function LotProgressForm({ target, onClose }: LotProgressFormProps) {
   const [start, setStart] = useState(target.actualStart === null ? '' : utcToPlantLocal(target.actualStart, timeZone));
   const [end, setEnd] = useState(target.actualEnd === null ? '' : utcToPlantLocal(target.actualEnd, timeZone));
 
+  const [timeProblem, setTimeProblem] = useState<ApiProblem | null>(null);
+
   // An empty start is sent as null, so the server reports it as missing.
   const saveMutation = useMutation({
-    mutationFn: () =>
-      recordLotProgress(target.lotId, {
-        actualStart: start === '' ? null : plantLocalToUtc(start, timeZone),
-        actualEnd: end === '' ? null : plantLocalToUtc(end, timeZone),
-      }),
+    mutationFn: (times: { actualStart: string | null; actualEnd: string | null }) => recordLotProgress(target.lotId, times),
     onSuccess: onClose,
   });
   const clearMutation = useMutation({ mutationFn: () => removeLotProgress(target.lotId), onSuccess: onClose });
-  const problem = problemOf(saveMutation.error) ?? problemOf(clearMutation.error);
+  const problem = timeProblem ?? problemOf(saveMutation.error) ?? problemOf(clearMutation.error);
   const title = `Progress - ${target.title}`;
 
   return (
@@ -51,7 +50,12 @@ export function LotProgressForm({ target, onClose }: LotProgressFormProps) {
       submitLabel="Save progress"
       onSubmit={() => {
         clearMutation.reset();
-        saveMutation.mutate();
+        saveMutation.reset();
+        const reading = readPlantTimes({ actualStart: start, actualEnd: end }, timeZone, { actualStart: target.actualStart, actualEnd: target.actualEnd });
+        setTimeProblem(reading.problem);
+        if (reading.problem === null) {
+          saveMutation.mutate(reading.utc);
+        }
       }}
       extraActions={
         target.actualStart !== null && (
@@ -60,6 +64,7 @@ export function LotProgressForm({ target, onClose }: LotProgressFormProps) {
             disabled={clearMutation.isPending}
             onClick={() => {
               saveMutation.reset();
+              setTimeProblem(null);
               clearMutation.mutate();
             }}
           >

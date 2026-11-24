@@ -64,7 +64,17 @@ internal sealed class SchedulerApiClient(HttpClient client)
     {
         // Read before sending, because sending makes the address absolute.
         string target = $"{request.Method.Method} {request.RequestUri!.OriginalString}";
-        HttpResponseMessage response = await client.SendAsync(request, cancellationToken);
+        HttpResponseMessage response;
+        try
+        {
+            response = await client.SendAsync(request, cancellationToken);
+        }
+        catch (TaskCanceledException failure) when (!cancellationToken.IsCancellationRequested)
+        {
+            // HttpClient.Timeout ends a request this way.
+            throw new LoaderException($"{target} got no answer within the request timeout; {LoaderCommandLine.RequestTimeoutVariable} sets it.", failure);
+        }
+
         if (response.IsSuccessStatusCode)
         {
             return response;
@@ -91,9 +101,18 @@ internal sealed class SchedulerApiClient(HttpClient client)
         }
     }
 
-    private static async Task<T> ReadAsync<T>(HttpResponseMessage response, HttpRequestMessage request, CancellationToken cancellationToken) =>
-        await response.Content.ReadFromJsonAsync<T>(Json, cancellationToken)
-            ?? throw new LoaderException($"{request.Method} {request.RequestUri} answered without a body.");
+    private static async Task<T> ReadAsync<T>(HttpResponseMessage response, HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await response.Content.ReadFromJsonAsync<T>(Json, cancellationToken)
+                ?? throw new LoaderException($"{request.Method} {request.RequestUri} answered without a body.");
+        }
+        catch (Exception failure) when (failure is JsonException or NotSupportedException)
+        {
+            throw new LoaderException($"{request.Method} {request.RequestUri} answered something that is not JSON the loader can read: {failure.Message}", failure);
+        }
+    }
 
     private static Uri ApiUri(string path) => new(ApiBase + path, UriKind.Relative);
 

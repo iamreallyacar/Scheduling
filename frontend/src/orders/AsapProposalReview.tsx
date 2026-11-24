@@ -2,11 +2,12 @@ import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { OrderProposalResponse, OrderResponse } from '../api/generated';
 import { commitOrderAsapProposal } from '../api/generated/endpoints.gen';
-import { hasProblemCode, problemOf } from '../api/problem';
+import { hasProblemCode, problemOf, type ApiProblem } from '../api/problem';
 import { SCHEDULE_VERSION } from '../api/scheduleVersion';
-import { formatPlantTime, plantLocalToUtc } from '../calendar/plantClock';
+import { formatPlantTime } from '../calendar/plantClock';
 import { usePlantTimeZone } from '../calendar/plantTimeZone';
-import { TextField } from '../forms/Fields';
+import { START_GRID_STEP_SECONDS, TextField } from '../forms/Fields';
+import { readPlantTimes } from '../forms/plantTimeFields';
 import { ProblemSummary } from '../forms/ProblemSummary';
 import { ProposalPreview } from '../schedule/ProposalPreview';
 import { useAsapProposal, type AsapProposalSearch } from '../schedule/scheduleQueries';
@@ -25,8 +26,11 @@ interface AsapProposalReviewProps {
 export function AsapProposalReview({ order, onClose }: AsapProposalReviewProps) {
   const timeZone = usePlantTimeZone();
   const [notBefore, setNotBefore] = useState('');
+  // The text the shown proposal was asked with; display state only, the server decides the proposal.
+  const [askedText, setAskedText] = useState('');
   // Without notBefore the server proposes from its own now (AC-125).
   const [search, setSearch] = useState<AsapProposalSearch>({});
+  const [timeProblem, setTimeProblem] = useState<ApiProblem | null>(null);
   const proposal = useAsapProposal(order.id, search);
   const commitMutation = useMutation({
     mutationFn: (committed: OrderProposalResponse) =>
@@ -38,12 +42,18 @@ export function AsapProposalReview({ order, onClose }: AsapProposalReviewProps) 
       }),
     onSuccess: onClose,
   });
-  const proposalProblem = proposal.isError ? problemOf(proposal.error) : null;
+  const proposalProblem = timeProblem ?? (proposal.isError ? problemOf(proposal.error) : null);
   const title = `Schedule order ${order.orderNo} as soon as possible`;
 
   const recalculate = () => {
     commitMutation.reset();
-    const typedSearch: AsapProposalSearch = notBefore === '' ? {} : { notBefore: plantLocalToUtc(notBefore, timeZone) };
+    const reading = readPlantTimes({ notBefore }, timeZone);
+    setTimeProblem(reading.problem);
+    if (reading.problem !== null) {
+      return;
+    }
+    setAskedText(notBefore);
+    const typedSearch: AsapProposalSearch = reading.utc.notBefore === null ? {} : { notBefore: reading.utc.notBefore };
     // The same search from now is asked again, because now has moved on.
     if (typedSearch.notBefore === search.notBefore) {
       void proposal.refetch();
@@ -58,7 +68,7 @@ export function AsapProposalReview({ order, onClose }: AsapProposalReviewProps) 
       <p>
         Product {order.product.code} {order.product.name}, quantity {order.quantity}, due {order.dueDate}. Times in {timeZone}.
       </p>
-      <TextField label="Not before" name="notBefore" type="datetime-local" value={notBefore} onChange={setNotBefore} problem={proposalProblem} />
+      <TextField label="Not before" name="notBefore" type="datetime-local" step={START_GRID_STEP_SECONDS} value={notBefore} onChange={setNotBefore} problem={proposalProblem} />
       <p>Empty means now.</p>
       <div className="form-actions">
         <button type="button" disabled={proposal.isFetching} onClick={recalculate}>
@@ -73,7 +83,8 @@ export function AsapProposalReview({ order, onClose }: AsapProposalReviewProps) 
           proposal={proposal.data}
           order={order}
           // An answer being asked again is not yet the one on screen.
-          commitDisabled={commitMutation.isPending || proposal.isFetching}
+          commitDisabled={commitMutation.isPending || proposal.isFetching || notBefore !== askedText}
+          isTimeChanged={notBefore !== askedText}
           onCommit={() => {
             commitMutation.mutate(proposal.data);
           }}
@@ -102,10 +113,11 @@ interface ProposalContentProps {
   proposal: OrderProposalResponse;
   order: OrderResponse;
   commitDisabled: boolean;
+  isTimeChanged: boolean;
   onCommit: () => void;
 }
 
-function ProposalContent({ proposal, order, commitDisabled, onCommit }: ProposalContentProps) {
+function ProposalContent({ proposal, order, commitDisabled, isTimeChanged, onCommit }: ProposalContentProps) {
   const timeZone = usePlantTimeZone();
   const proposedCount = proposal.lots.filter((lot) => lot.isProposed).length;
   if (proposedCount === 0) {
@@ -143,6 +155,7 @@ function ProposalContent({ proposal, order, commitDisabled, onCommit }: Proposal
       <h3>Preview (machines used by this order)</h3>
       <ProposalPreview proposal={proposal} orderNo={order.orderNo} />
       <p>{`Order would finish ${formatPlantTime(proposal.finishesAt, timeZone)}, due ${order.dueDate}: ${proposal.wouldBeLate ? 'late' : 'on time'}`}</p>
+      {isTimeChanged && <p className="page-message">Recalculate to use the new time</p>}
       <p>Nothing is saved until you commit. Existing placements are never moved.</p>
       <div className="form-actions">
         <button type="button" disabled={commitDisabled} onClick={onCommit}>

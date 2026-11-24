@@ -3,7 +3,7 @@ import { PlantTime } from '../calendar/PlantTime';
 import { lotTitle } from '../schedule/lotTitle';
 import type { PlacementTarget } from '../schedule/placementTarget';
 import type { ProgressTarget } from './LotProgressForm';
-import { hasStarted, LOT_STATUS_LABELS, STARTED_LOT_NOTE } from './orderValues';
+import { LOT_STATUS_LABELS, STARTED_LOT_NOTE } from './orderValues';
 
 /** What a Planner can open for a lot. */
 export interface LotActions {
@@ -83,9 +83,9 @@ export function OrderTables({ order, lotActions }: OrderTablesProps) {
                 <td>{lot.actualEnd !== null && <PlantTime value={lot.actualEnd} />}</td>
                 {lotActions !== null && (
                   <td>
-                    {hasStarted(lot.status) && <span>{STARTED_LOT_NOTE}</span>}
-                    {/* Placed and unplaced lots only: a cancelled order's lots cannot be placed and a started lot stays where it is (R8). */}
-                    {(lot.status === 'Unscheduled' || lot.status === 'Scheduled') && (
+                    {/* Only a placed lot can be refused for having started: an unplaced one of a cancelled order has nothing to say (R8, DEC-70). */}
+                    {!lot.actions.canChangePlacement && lot.placement !== null && <span>{STARTED_LOT_NOTE}</span>}
+                    {lot.actions.canChangePlacement && (
                       <button
                         type="button"
                         onClick={() => {
@@ -104,8 +104,7 @@ export function OrderTables({ order, lotActions }: OrderTablesProps) {
                         {lot.placement === null ? 'Place...' : 'Move...'}
                       </button>
                     )}
-                    {/* A start needs a live placement, and a cancelled order no longer changes (A47). */}
-                    {order.status !== 'Cancelled' && (lot.status === 'Scheduled' || hasStarted(lot.status)) && (
+                    {lot.actions.canRecordProgress && (
                       <button
                         type="button"
                         onClick={() => {

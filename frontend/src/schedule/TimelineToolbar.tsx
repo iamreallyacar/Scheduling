@@ -1,7 +1,7 @@
 import { useId } from 'react';
 import type { NamedReference } from '../api/generated';
 import { usePlantTimeZone } from '../calendar/plantTimeZone';
-import { formatPlantDate, type TimelineZoom } from './timelineRange';
+import { formatPlantDate, TIMELINE_ZOOMS, type TimelineZoom } from './timelineRange';
 
 interface TimelineToolbarProps {
   firstDay: string;
@@ -47,7 +47,7 @@ export function TimelineToolbar(props: TimelineToolbarProps) {
       <div className="form-actions">
         <fieldset className="inline-fieldset">
           <legend>Zoom</legend>
-          {(Object.keys(ZOOM_LABELS) as TimelineZoom[]).map((zoomOption) => (
+          {TIMELINE_ZOOMS.map((zoomOption) => (
             <label key={zoomOption}>
               <input
                 type="radio"

@@ -94,6 +94,7 @@ internal sealed class TimelineReader(
             .. placementsInRange.Select(placement =>
             {
                 LotContext lotContext = lotsById[placement.LotId];
+                LotStatus status = LotStatusRules.Derive(lotContext.Order.CancelledAt, actualsOfTheirLots.GetValueOrDefault(lotContext.Lot.Id), isPlacedInVersion: true);
                 return (placement.ResourceId, new TimelinePlacementResponse
                 {
                     PlacementId = placement.Id,
@@ -103,7 +104,8 @@ internal sealed class TimelineReader(
                     LotNo = lotContext.Lot.LotNo,
                     Quantity = lotContext.Lot.Quantity,
                     DurationMinutes = lotContext.Lot.DurationMinutes,
-                    Status = LotStatusRules.Derive(lotContext.Order.CancelledAt, actualsOfTheirLots.GetValueOrDefault(lotContext.Lot.Id), isPlacedInVersion: true),
+                    Status = status,
+                    Actions = LotActionRules.Derive(status, orderIsCancelled: lotContext.Order.CancelledAt is not null, isPlacedLive: true),
                     OrderId = lotContext.Order.Id,
                     OrderNo = lotContext.Order.OrderNo,
                     Product = lotContext.Order.Product,

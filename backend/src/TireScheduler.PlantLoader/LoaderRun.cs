@@ -12,10 +12,11 @@ public static class LoaderRun
         ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(errors);
 
-        GeneratedPlant plant = SyntheticPlant.Generate(settings.Parameters, settings.Seed, settings.StartDate);
-        await output.WriteLineAsync(string.Create(CultureInfo.InvariantCulture, $"Loading preset {settings.PresetName}, seed {settings.Seed}, start {settings.StartDate:yyyy-MM-dd}, into {client.BaseAddress}."));
+        client.Timeout = TimeSpan.FromSeconds(settings.RequestTimeoutSeconds);
         try
         {
+            GeneratedPlant plant = GeneratePlant(settings);
+            await output.WriteLineAsync(string.Create(CultureInfo.InvariantCulture, $"Loading preset {settings.PresetName}, seed {settings.Seed}, start {settings.StartDate:yyyy-MM-dd}, into {client.BaseAddress}."));
             SchedulerApiClient api = new(client);
             await api.SignInAsync(settings.Email, settings.Password, cancellationToken);
             WrittenPlant written = await new PlantWriter(api).WriteAsync(plant, cancellationToken);
@@ -45,6 +46,20 @@ public static class LoaderRun
         {
             await errors.WriteLineAsync($"Loading stopped: the API at {client.BaseAddress} cannot be reached: {failure.Message}");
             return 1;
+        }
+    }
+
+    // The checks of AC-156 fail with an ArgumentException naming the parameter.
+    private static GeneratedPlant GeneratePlant(LoaderSettings settings)
+    {
+        try
+        {
+            return SyntheticPlant.Generate(settings.Parameters, settings.Seed, settings.StartDate);
+        }
+        // Exact type: the checks throw a plain ArgumentException, while a subclass such as ArgumentNullException is a generator bug.
+        catch (ArgumentException failure) when (failure.GetType() == typeof(ArgumentException))
+        {
+            throw new LoaderException($"The plant parameters are not valid: {failure.Message}", failure);
         }
     }
 }

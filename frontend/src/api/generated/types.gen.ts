@@ -43,6 +43,7 @@ export type ConflictedPlacementResponse = {
     quantity: number;
     durationMinutes: number;
     status: LotStatus;
+    actions: LotActionsResponse;
     orderId: number;
     orderNo: string;
     sequenceNo: number;
@@ -97,6 +98,11 @@ export type HolidayResponse = {
     name: string;
 };
 
+export type LotActionsResponse = {
+    canChangePlacement: boolean;
+    canRecordProgress: boolean;
+};
+
 export type LotPlacementRequest = {
     resourceId: null | number;
     plannedStart: null | string;
@@ -138,6 +144,7 @@ export type LotResponse = {
     quantity: number;
     durationMinutes: number;
     status: LotStatus;
+    actions: LotActionsResponse;
     placement: null | LotPlacementView;
     actualStart: null | string;
     actualEnd: null | string;
@@ -165,6 +172,10 @@ export type OperationResponse = {
     cycleMinutes: number;
     unitsPerCycle: number;
     lots: Array<LotResponse>;
+};
+
+export type OrderActionsResponse = {
+    canScheduleAsap: boolean;
 };
 
 export type OrderCreatedResponse = {
@@ -221,6 +232,7 @@ export type OrderResponse = {
     status: OrderStatus;
     isLate: boolean;
     progress: OrderProgressResponse;
+    actions: OrderActionsResponse;
     operations: Array<OperationResponse>;
     dependencies: Array<OperationDependencyResponse>;
 };
@@ -369,6 +381,7 @@ export type TimelinePlacementResponse = {
     quantity: number;
     durationMinutes: number;
     status: LotStatus;
+    actions: LotActionsResponse;
     orderId: number;
     orderNo: string;
     product: ProductReference;

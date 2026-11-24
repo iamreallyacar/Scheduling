@@ -51,6 +51,11 @@ export function problemOf(error: unknown): ApiProblem | null {
   return { status: 0, code: 'client.error', detail: 'Something went wrong in the app. Reload the page and try again.', errors: {}, correlationId: null, violations: [] };
 }
 
+/** A problem found by the page itself before anything was sent (AC-228); the form shows it as it shows the server's. */
+export function clientFieldProblem(fieldMessages: Readonly<Record<string, readonly string[]>>): ApiProblem {
+  return { status: 0, code: 'client.invalid_field', detail: 'Check the fields marked below. Nothing was saved.', errors: fieldMessages, correlationId: null, violations: [] };
+}
+
 export function unreachableServerProblem(): ApiProblem {
   return { status: 0, code: 'network.unreachable', detail: 'The server could not be reached. Check your connection and try again.', errors: {}, correlationId: null, violations: [] };
 }

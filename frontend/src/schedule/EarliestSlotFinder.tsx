@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import type { EarliestSlotResponse, ResourceViewResponse } from '../api/generated';
-import { problemOf } from '../api/problem';
-import { formatPlantTime, plantLocalToUtc } from '../calendar/plantClock';
+import { problemOf, type ApiProblem } from '../api/problem';
+import { formatPlantTime } from '../calendar/plantClock';
 import { usePlantTimeZone } from '../calendar/plantTimeZone';
-import { SelectField, TextField } from '../forms/Fields';
+import { START_GRID_STEP_SECONDS, SelectField, TextField } from '../forms/Fields';
+import { readPlantTimes } from '../forms/plantTimeFields';
 import { ProblemSummary } from '../forms/ProblemSummary';
 import type { PlacementTarget } from './placementTarget';
 import { useEarliestSlot, type EarliestSlotSearch } from './scheduleQueries';
@@ -24,18 +25,37 @@ export function EarliestSlotFinder({ target, machines, onUse }: EarliestSlotFind
   const timeZone = usePlantTimeZone();
   const [searchResourceId, setSearchResourceId] = useState(ANY_MACHINE);
   const [notBefore, setNotBefore] = useState('');
-  const search: EarliestSlotSearch = {};
-  if (searchResourceId !== ANY_MACHINE) {
-    search.resourceId = Number(searchResourceId);
-  }
-  // Without notBefore the server searches from its own now (AC-125).
-  if (notBefore !== '') {
-    search.notBefore = plantLocalToUtc(notBefore, timeZone);
-  }
+  // The search as it was when the planner pressed the button; null before the first press.
+  const [search, setSearch] = useState<EarliestSlotSearch | null>(null);
+  const [timeProblem, setTimeProblem] = useState<ApiProblem | null>(null);
+  // A suggestion answers the fields as they were pressed, so changing either hides it until the next press.
+  const changeSearchField = (change: () => void) => {
+    change();
+    setSearch(null);
+    setTimeProblem(null);
+  };
   const earliestSlot = useEarliestSlot(target.lotId, search);
-  const problem = earliestSlot.isError ? problemOf(earliestSlot.error) : null;
+  const problem = timeProblem ?? (earliestSlot.isError ? problemOf(earliestSlot.error) : null);
   const findSlot = () => {
-    void earliestSlot.refetch();
+    const reading = readPlantTimes({ notBefore }, timeZone);
+    setTimeProblem(reading.problem);
+    if (reading.problem !== null) {
+      return;
+    }
+    const typedSearch: EarliestSlotSearch = {};
+    if (searchResourceId !== ANY_MACHINE) {
+      typedSearch.resourceId = Number(searchResourceId);
+    }
+    // Without notBefore the server searches from its own now (AC-125).
+    if (reading.utc.notBefore !== null) {
+      typedSearch.notBefore = reading.utc.notBefore;
+    }
+    // The same search is asked again, because now has moved on.
+    if (search !== null && JSON.stringify(typedSearch) === JSON.stringify(search)) {
+      void earliestSlot.refetch();
+    } else {
+      setSearch(typedSearch);
+    }
   };
 
   return (
@@ -56,14 +76,30 @@ export function EarliestSlotFinder({ target, machines, onUse }: EarliestSlotFind
         label="Search on"
         name="resourceId"
         value={searchResourceId}
-        onChange={setSearchResourceId}
+        onChange={(value) => {
+          changeSearchField(() => {
+            setSearchResourceId(value);
+          });
+        }}
         problem={problem}
         options={[
           { value: ANY_MACHINE, label: `Any ${target.resourceType.name}` },
           ...machines.map((machine) => ({ value: String(machine.id), label: machine.name })),
         ]}
       />
-      <TextField label="Not before" name="notBefore" type="datetime-local" value={notBefore} onChange={setNotBefore} problem={problem} />
+      <TextField
+        label="Not before"
+        name="notBefore"
+        type="datetime-local"
+        step={START_GRID_STEP_SECONDS}
+        value={notBefore}
+        onChange={(value) => {
+          changeSearchField(() => {
+            setNotBefore(value);
+          });
+        }}
+        problem={problem}
+      />
       <p>Empty means now.</p>
       <div className="form-actions">
         <button type="button" disabled={earliestSlot.isFetching} onClick={findSlot}>
@@ -72,7 +108,7 @@ export function EarliestSlotFinder({ target, machines, onUse }: EarliestSlotFind
       </div>
       <ProblemSummary problem={problem} />
       {problem !== null && <ViolationList violations={problem.violations} />}
-      {earliestSlot.isSuccess && (
+      {search !== null && earliestSlot.isSuccess && (
         <p>
           {`Suggested: ${earliestSlot.data.resource.name}, ${formatPlantTime(earliestSlot.data.plannedStart, timeZone)} - ${formatPlantTime(earliestSlot.data.plannedEnd, timeZone)}`}{' '}
           <button

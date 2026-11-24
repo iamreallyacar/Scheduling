@@ -40,6 +40,17 @@ internal static class PlantParameterChecks
             NotBlank(machineTypes[position].MachineNamePrefix, $"{path}.{nameof(MachineTypeParameters.MachineNamePrefix)}");
             AtLeast(machineTypes[position].MachineCount, 1, $"{path}.{nameof(MachineTypeParameters.MachineCount)}");
         }
+
+        // The API stores machine names trimmed and unique without regard to case (AC-141), and
+        // every machine name starts with its prefix, so equal prefixes would repeat names.
+        HashSet<string> seenPrefixes = new(StringComparer.OrdinalIgnoreCase);
+        for (int position = 0; position < machineTypes.Count; position++)
+        {
+            if (!seenPrefixes.Add(machineTypes[position].MachineNamePrefix.Trim()))
+            {
+                throw Invalid($"{nameof(PlantParameters.MachineTypes)}[{position}].{nameof(MachineTypeParameters.MachineNamePrefix)}", "Machine name prefixes must differ.");
+            }
+        }
     }
 
     private static void CheckRouting(PlantParameters parameters)

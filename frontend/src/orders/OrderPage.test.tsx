@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { CurrentUserResponse, LotResponse, OrderResponse } from '../api/generated';
 import { type FakeApiAnswer, type FakeApiRequest, plannerUser, problem, sentBody, stubApi, viewerUser } from '../testing/fakeApi';
@@ -264,6 +264,53 @@ describe('order page', () => {
     ]);
   });
 
+  it('AC_230 saving only a new actual end sends the stored start unchanged, also in the second occurrence of the repeated autumn hour', async () => {
+    const requests = stubOrderApi(plannerUser, { 'PUT /api/v1/lots/22/progress': () => ({ status: 204 }) }, () =>
+      withCuringLot(placedOrder, { status: 'InProgress', actions: startedLotActions, actualStart: '2026-10-25T01:30:00Z', actualEnd: null }),
+    );
+    const user = userEvent.setup();
+    renderApp('/orders/5');
+
+    const startedRow = rowOf(within(await screen.findByRole('table', { name: 'Lots' })).getByRole('rowheader', { name: '2' }));
+    await user.click(within(startedRow).getByRole('button', { name: 'Progress...' }));
+    const form = await screen.findByRole('form', { name: 'Progress - Order SO-5, stage 2 Curing press, lot 1' });
+    expect(within(form).getByLabelText('Actual start')).toHaveValue('2026-10-25T02:30');
+    await user.type(within(form).getByLabelText('Actual end'), '2026-10-25T10:00');
+    await user.click(within(form).getByRole('button', { name: 'Save progress' }));
+
+    await waitFor(() => { expect(sentBody(requests, 'PUT', '/api/v1/lots/22/progress')).toEqual({ actualStart: '2026-10-25T01:30:00.000Z', actualEnd: '2026-10-25T09:00:00.000Z' }); });
+  });
+
+  it('AC_233 the progress times keep a one-minute step', async () => {
+    stubOrderApi(plannerUser, {}, () => placedOrder);
+    const user = userEvent.setup();
+    renderApp('/orders/5');
+
+    const placedRow = rowOf(within(await screen.findByRole('table', { name: 'Lots' })).getByRole('rowheader', { name: '2' }));
+    await user.click(within(placedRow).getByRole('button', { name: 'Progress...' }));
+    const form = await screen.findByRole('form', { name: 'Progress - Order SO-5, stage 2 Curing press, lot 1' });
+    expect(within(form).getByLabelText('Actual start')).not.toHaveAttribute('step');
+    expect(within(form).getByLabelText('Actual end')).not.toHaveAttribute('step');
+  });
+
+  it('AC_228 an actual end the page cannot read is a field error, nothing is sent and the entered times stay', async () => {
+    const requests = stubOrderApi(plannerUser, {}, () => placedOrder);
+    const user = userEvent.setup();
+    renderApp('/orders/5');
+
+    const placedRow = rowOf(within(await screen.findByRole('table', { name: 'Lots' })).getByRole('rowheader', { name: '2' }));
+    await user.click(within(placedRow).getByRole('button', { name: 'Progress...' }));
+    const form = await screen.findByRole('form', { name: 'Progress - Order SO-5, stage 2 Curing press, lot 1' });
+    await user.type(within(form).getByLabelText('Actual start'), '2026-11-16T08:15');
+    await user.type(within(form).getByLabelText('Actual end'), '20266-11-16T19:00');
+    await user.click(within(form).getByRole('button', { name: 'Save progress' }));
+
+    expect(within(form).getByLabelText('Actual end')).toHaveAccessibleDescription('Enter a date and time the page can read, with a four-digit year.');
+    expect(within(form).getByLabelText('Actual start')).not.toBeInvalid();
+    expect(within(form).getByLabelText('Actual start')).toHaveValue('2026-11-16T08:15');
+    expect(requests.filter((request) => request.method === 'PUT')).toEqual([]);
+  });
+
   it('AC_212 AC_26 a rejected progress save keeps the entered times, and a Planner clears the progress of a completed lot', async () => {
     let shownOrder = completedOrder;
     stubOrderApi(
@@ -318,6 +365,40 @@ describe('order page', () => {
     expect(progressOnPage()).toBe('66% completed');
   });
 
+  it('AC_237 AC_234 AC_235 a Planner is offered the actions the answer allows, whatever the status says', async () => {
+    // The statuses say Scheduled and the order says Cancelled, so only the actions can decide.
+    const mismatched: OrderResponse = {
+      ...placedOrder,
+      status: 'Cancelled',
+      actions: { canScheduleAsap: false },
+      operations: placedOrder.operations.map((operation) => ({
+        ...operation,
+        lots: operation.lots.map((lot) =>
+          operation.sequenceNo === 1
+            ? { ...lot, actions: { canChangePlacement: true, canRecordProgress: false } }
+            : { ...lot, actions: { canChangePlacement: false, canRecordProgress: true } },
+        ),
+      })),
+    };
+    stubOrderApi(plannerUser, {}, () => mismatched);
+    renderApp('/orders/5');
+
+    const lots = await screen.findByRole('table', { name: 'Lots' });
+    const buildingRow = rowOf(within(lots).getByRole('rowheader', { name: '1' }));
+    const curingRow = rowOf(within(lots).getByRole('rowheader', { name: '2' }));
+    expect(within(buildingRow).getAllByRole('button').map((button) => button.textContent)).toEqual(['Place...']);
+    expect(within(curingRow).getAllByRole('button').map((button) => button.textContent)).toEqual(['Progress...']);
+    expect(within(curingRow).getByText('Started, so it stays on its machine.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Schedule as soon as possible' })).not.toBeInTheDocument();
+  });
+
+  it('AC_237 AC_235 the order offers Schedule as soon as possible when the answer allows it, whatever the status says', async () => {
+    stubOrderApi(plannerUser, {}, () => ({ ...order, status: 'Cancelled', actions: { canScheduleAsap: true } }));
+    renderApp('/orders/5');
+
+    expect(await screen.findByRole('button', { name: 'Schedule as soon as possible' })).toBeInTheDocument();
+  });
+
   it('AC_23 an unknown order shows the problem', async () => {
     stubApi({
       'GET /api/v1/me': () => ({ status: 200, body: plannerUser }),
@@ -340,6 +421,7 @@ const placedOrder: OrderResponse = {
           lots: operation.lots.map((lot) => ({
             ...lot,
             status: 'Scheduled' as const,
+            actions: { canChangePlacement: true, canRecordProgress: true },
             placement: { resource: { id: 7, name: 'Press 2' }, plannedStart: '2026-11-16T07:00:00Z', plannedEnd: '2026-11-16T17:42:00Z' },
           })),
         }
@@ -347,9 +429,12 @@ const placedOrder: OrderResponse = {
   ),
 };
 
+// A started lot stays where it is, and its progress can still be corrected (AC-234).
+const startedLotActions = { canChangePlacement: false, canRecordProgress: true };
+
 // The placed curing lot started at 08:15, and then completed at 19:00, in Berlin.
-const startedOrder: OrderResponse = withCuringLot(placedOrder, { status: 'InProgress', actualStart: '2026-11-16T07:15:00Z', actualEnd: null });
-const completedOrder: OrderResponse = withCuringLot(placedOrder, { status: 'Completed', actualStart: '2026-11-16T07:15:00Z', actualEnd: '2026-11-16T18:00:00Z' });
+const startedOrder: OrderResponse = withCuringLot(placedOrder, { status: 'InProgress', actions: startedLotActions, actualStart: '2026-11-16T07:15:00Z', actualEnd: null });
+const completedOrder: OrderResponse = withCuringLot(placedOrder, { status: 'Completed', actions: startedLotActions, actualStart: '2026-11-16T07:15:00Z', actualEnd: '2026-11-16T18:00:00Z' });
 
 function withCuringLot(baseOrder: OrderResponse, changes: Partial<LotResponse>): OrderResponse {
   return {

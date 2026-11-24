@@ -31,9 +31,51 @@ public sealed record OrderResponse
 
     public required OrderProgressResponse Progress { get; init; }
 
+    public required OrderActionsResponse Actions { get; init; }
+
     public required IReadOnlyList<OperationResponse> Operations { get; init; }
 
     public required IReadOnlyList<OperationDependencyResponse> Dependencies { get; init; }
+
+    internal static OrderResponse From(
+        OrderSummary order,
+        OrderStatus status,
+        bool isLate,
+        OrderProgressResponse progress,
+        OrderActionsResponse actions,
+        IReadOnlyList<OperationResponse> operations,
+        IReadOnlyList<OperationDependencyResponse> dependencies) => new()
+    {
+        Id = order.Id,
+        OrderNo = order.OrderNo,
+        CustomerName = order.CustomerName,
+        Product = order.Product,
+        Quantity = order.Quantity,
+        DueDate = order.DueDate,
+        Priority = order.Priority,
+        CreatedAt = order.CreatedAt,
+        CancelledAt = order.CancelledAt,
+        Status = status,
+        IsLate = isLate,
+        Progress = progress,
+        Actions = actions,
+        Operations = operations,
+        Dependencies = dependencies,
+    };
+}
+
+// What the order's state allows, whatever the role (DEC-70); the server still rejects the rest (R7).
+public sealed record OrderActionsResponse
+{
+    public required bool CanScheduleAsap { get; init; }
+}
+
+// What a lot's state allows, whatever the role (DEC-70): place or move it, and record its progress.
+public sealed record LotActionsResponse
+{
+    public required bool CanChangePlacement { get; init; }
+
+    public required bool CanRecordProgress { get; init; }
 }
 
 public sealed record OrderProgressResponse
@@ -77,6 +119,8 @@ public sealed record LotResponse
 
     public required LotStatus Status { get; init; }
 
+    public required LotActionsResponse Actions { get; init; }
+
     // In the live version; null while the lot is not placed (AC-71).
     public required LotPlacementView? Placement { get; init; }
 
@@ -118,6 +162,21 @@ public sealed record OrderSummaryResponse
     public required OrderStatus Status { get; init; }
 
     public required bool IsLate { get; init; }
+
+    internal static OrderSummaryResponse From(OrderSummary order, OrderStatus status, bool isLate) => new()
+    {
+        Id = order.Id,
+        OrderNo = order.OrderNo,
+        CustomerName = order.CustomerName,
+        Product = order.Product,
+        Quantity = order.Quantity,
+        DueDate = order.DueDate,
+        Priority = order.Priority,
+        CreatedAt = order.CreatedAt,
+        CancelledAt = order.CancelledAt,
+        Status = status,
+        IsLate = isLate,
+    };
 }
 
 public sealed record OrderPageResponse

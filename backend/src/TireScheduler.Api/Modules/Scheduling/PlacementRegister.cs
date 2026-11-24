@@ -60,13 +60,7 @@ internal sealed class PlacementRegister(
         placement.PlannedEnd = check.PlannedEnd ?? throw new InvalidOperationException("The engine accepted a placement without a planned end.");
         await context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return new LotPlacementResponse
-        {
-            LotId = lotId,
-            ResourceId = placement.ResourceId,
-            PlannedStart = placement.PlannedStart,
-            PlannedEnd = placement.PlannedEnd,
-        };
+        return LotPlacementResponse.From(placement);
     }
 
     // F-SCH-16: saves a whole-order proposal only while it is what the engine proposes from the same
@@ -128,13 +122,7 @@ internal sealed class PlacementRegister(
         context.Placements.AddRange(saved);
         await context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return [.. saved.Select(placement => new LotPlacementResponse
-        {
-            LotId = placement.LotId,
-            ResourceId = placement.ResourceId,
-            PlannedStart = placement.PlannedStart,
-            PlannedEnd = placement.PlannedEnd,
-        })];
+        return [.. saved.Select(LotPlacementResponse.From)];
     }
 
     // What the body itself gets wrong is a field error (AC-136, AC-200); what the schedule changed is stale.

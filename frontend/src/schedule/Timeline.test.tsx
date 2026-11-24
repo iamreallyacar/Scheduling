@@ -19,6 +19,7 @@ const curingBar: TimelinePlacementResponse = {
   quantity: 200,
   durationMinutes: 240,
   status: 'Scheduled',
+  actions: { canChangePlacement: true, canRecordProgress: true },
   orderId: 9,
   orderNo: 'SO-1042',
   product,
@@ -80,6 +81,7 @@ const conflictedCuring: ConflictedPlacementResponse = {
   quantity: 200,
   durationMinutes: 240,
   status: 'Scheduled',
+  actions: { canChangePlacement: true, canRecordProgress: true },
   orderId: 9,
   orderNo: 'SO-1042',
   sequenceNo: 2,
@@ -290,7 +292,7 @@ describe('timeline', () => {
         ...type,
         resources: type.resources.map((resource) => ({
           ...resource,
-          placements: resource.placements.map((placement) => (placement.placementId === curingBar.placementId ? { ...placement, status: 'InProgress' as const } : placement)),
+          placements: resource.placements.map((placement) => (placement.placementId === curingBar.placementId ? { ...placement, status: 'InProgress' as const, actions: { canChangePlacement: false, canRecordProgress: true } } : placement)),
         })),
       })),
     };
@@ -302,6 +304,31 @@ describe('timeline', () => {
 
     const popover = screen.getByRole('dialog', { name: 'Order SO-1042, stage 2 Curing press, lot 3' });
     expect(within(popover).getByText('In Progress, order late')).toBeInTheDocument();
+    expect(within(popover).getByText('Started, so it stays on its machine.')).toBeInTheDocument();
+    expect(within(popover).queryByRole('button', { name: 'Move...' })).not.toBeInTheDocument();
+  });
+
+  it('AC_237 the popover offers Move only when the answer allows it, whatever the status says', async () => {
+    const notMovable: TimelineResponse = {
+      ...twoWeeks,
+      resourceTypes: twoWeeks.resourceTypes.map((type) => ({
+        ...type,
+        resources: type.resources.map((resource) => ({
+          ...resource,
+          placements: resource.placements.map((placement) =>
+            placement.placementId === curingBar.placementId ? { ...placement, actions: { canChangePlacement: false, canRecordProgress: true } } : placement,
+          ),
+        })),
+      })),
+    };
+    stubScheduleApi({ user: plannerUser, timeline: () => notMovable });
+    const user = userEvent.setup();
+    renderApp('/schedule');
+
+    await user.click(await screen.findByRole('button', { name: '! SO-1042/L3' }));
+
+    const popover = screen.getByRole('dialog', { name: 'Order SO-1042, stage 2 Curing press, lot 3' });
+    expect(within(popover).getByText('Scheduled, order late')).toBeInTheDocument();
     expect(within(popover).getByText('Started, so it stays on its machine.')).toBeInTheDocument();
     expect(within(popover).queryByRole('button', { name: 'Move...' })).not.toBeInTheDocument();
   });

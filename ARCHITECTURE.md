@@ -129,7 +129,8 @@ Implements A2.
 - The server decides conflicts and computes planned ends; the UI shows the returned values and errors and keeps no business rules. Server state comes through a query cache library.
 - Query keys are defined in `src/api/queryKeys.ts`, and after every successful write the query client reads the cached queries again in one place; forms and pages refresh nothing themselves (DEC-36). Reason: a write changes data that other areas show, and a refresh list per form misses some of them silently.
 - One fetch wrapper (`src/api/request.ts`) adds the anti-forgery token and turns every rejection into an error that carries the problem details. The UI uses its `code` for behavior and shows `detail` to the user; form fields show the messages of their field.
-- Routes are split per module area.
+- Routes are split per module area. The shell wraps each page in `PageErrorBoundary` (`src/shell`), so a page that fails to draw shows an error message and the navigation stays usable.
+- Forms read typed plant-local times only through `src/forms/plantTimeFields.ts`, at the moment of a submit or button press: an unreadable text becomes a field error and nothing is sent (AC-228).
 - The UI passes `live` as the version everywhere, through one setting (`src/api/scheduleVersion.ts`). Reason: a scenario switcher (P2) then changes one value.
 - Generated types and endpoint functions in `src/api/generated` are never edited by hand (DEC-27). Pages call the API only through the endpoint functions, which `npm run generate:api` writes from the OpenAPI document with the method, URL and response type of each operation (DEC-37). Reason: a hand-written list let the method and the response type differ from the server.
 - The timeline (F-SCH-2) is read-only in v1, so it can be a simple custom component. Drag-and-drop (P1) is when a Gantt library should be evaluated.

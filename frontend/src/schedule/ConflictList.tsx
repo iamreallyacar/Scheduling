@@ -3,7 +3,7 @@ import type { ConflictedPlacementResponse } from '../api/generated';
 import { formatPlantTime } from '../calendar/plantClock';
 import { usePlantTimeZone } from '../calendar/plantTimeZone';
 import { QueryResult } from '../forms/QueryResult';
-import { hasStarted, STARTED_LOT_NOTE } from '../orders/orderValues';
+import { STARTED_LOT_NOTE } from '../orders/orderValues';
 import { placementTargetOf, type PlacementTarget } from './placementTarget';
 import { useConflictedPlacements } from './scheduleQueries';
 import { ViolationList, type ConflictLinkRenderer } from './ViolationList';
@@ -67,9 +67,7 @@ function ConflictTable({ placements, onMove, renderConflictLink }: ConflictListP
               </td>
               {onMove !== null && (
                 <td>
-                  {hasStarted(placement.status) ? (
-                    STARTED_LOT_NOTE
-                  ) : (
+                  {placement.actions.canChangePlacement ? (
                     <button
                       type="button"
                       onClick={() => {
@@ -78,6 +76,8 @@ function ConflictTable({ placements, onMove, renderConflictLink }: ConflictListP
                     >
                       Move...
                     </button>
+                  ) : (
+                    STARTED_LOT_NOTE
                   )}
                 </td>
               )}

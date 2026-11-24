@@ -57,7 +57,7 @@ function ScheduleOfRange() {
         showRange(addDays(firstDay, -DAYS_SHOWN[zoom]), zoom);
       }}
       onToday={() => {
-        showRange(firstDayHolding(plantToday(timeZone, new Date()), zoom), zoom);
+        showRange(firstDayHolding(plantToday(timeZone, new Date(nowMs)), zoom), zoom);
       }}
       onNext={() => {
         showRange(addDays(firstDay, DAYS_SHOWN[zoom]), zoom);

@@ -23,6 +23,14 @@ public sealed record LotPlacementResponse
     public required DateTimeOffset PlannedStart { get; init; }
 
     public required DateTimeOffset PlannedEnd { get; init; }
+
+    internal static LotPlacementResponse From(Placement placement) => new()
+    {
+        LotId = placement.LotId,
+        ResourceId = placement.ResourceId,
+        PlannedStart = placement.PlannedStart,
+        PlannedEnd = placement.PlannedEnd,
+    };
 }
 
 // A suggestion: nothing is saved (AC-126). Times in UTC.

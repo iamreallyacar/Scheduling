@@ -27,6 +27,8 @@ public sealed record ConflictedPlacementResponse
     // The lot's derived status in the version (DEC-63).
     public required LotStatus Status { get; init; }
 
+    public required LotActionsResponse Actions { get; init; }
+
     public required int OrderId { get; init; }
 
     public required string OrderNo { get; init; }

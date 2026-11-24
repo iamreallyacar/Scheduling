@@ -1,4 +1,5 @@
 using TireScheduler.Api.Modules.MasterData;
+using TireScheduler.Api.Modules.Orders;
 using TireScheduler.Api.Modules.Scheduling;
 using TireScheduler.Api.Queries.Machines;
 using TireScheduler.Api.Queries.Orders;
@@ -12,6 +13,7 @@ namespace TireScheduler.Api.Queries.Dashboard;
 internal sealed class DashboardReader(
     UnscheduledLotReader unscheduledLots,
     IPlacementConflictReader placementConflicts,
+    IOrderReader orders,
     OrderViewReader orderViews,
     MachineViewReader machineViews,
     IMasterDataReader masterData,
@@ -29,7 +31,7 @@ internal sealed class DashboardReader(
         DateTimeOffset now = clock.GetUtcNow();
         DateOnly today = PlantTime.DateOf(now, masterData.PlantTimeZoneId);
         DateOnly dueSoonUntil = today.AddDays(DueSoonDays);
-        IReadOnlyList<OrderSummaryResponse> unfinishedOrders = await orderViews.ListUnfinishedDueByAsync(versionId, dueSoonUntil, now, cancellationToken);
+        IReadOnlyList<OrderSummaryResponse> unfinishedOrders = await ListUnfinishedDueByAsync(versionId, dueSoonUntil, now, cancellationToken);
         IReadOnlyList<ResourceViewResponse> activeMachines = await machineViews.ListAsync(resourceTypeId: null, isActive: true, cancellationToken);
         return new DashboardResponse
         {
@@ -40,5 +42,26 @@ internal sealed class DashboardReader(
             ConflictedPlacementCount = conflictedPlacementCount,
             DownMachines = [.. activeMachines.Where(machine => machine.Status == ResourceStatus.Down)],
         };
+    }
+
+    // The orders due on or before lastDueDate that are neither completed nor cancelled, in the
+    // default sort (AC-68), with their status and late flag in the version at now (DEC-65).
+    private async Task<IReadOnlyList<OrderSummaryResponse>> ListUnfinishedDueByAsync(string versionId, DateOnly lastDueDate, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        OrderListCriteria dueByLastDate = new()
+        {
+            SearchText = null,
+            CustomerText = null,
+            DueFrom = null,
+            DueTo = lastDueDate,
+            Priorities = new HashSet<OrderPriority>(),
+            Sort = OrderSort.Default,
+        };
+        IReadOnlyList<OrderSummary> candidates = await orders.ListAllAsync(dueByLastDate, cancellationToken);
+        return
+        [
+            .. (await orderViews.SummarizeAsync(versionId, candidates, now, cancellationToken))
+                .Where(order => order.Status is not (OrderStatus.Completed or OrderStatus.Cancelled)),
+        ];
     }
 }

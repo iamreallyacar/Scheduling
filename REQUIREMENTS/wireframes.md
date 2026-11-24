@@ -135,7 +135,7 @@ What task M3-4 builds and what follows:
 - Built in task M3-4 (AC-180, AC-181): the header with order, stage, lot, quantity and duration; the Placement part, with "Calculated when saved" for the planned end (WQ1); [Save placement], [Remove placement] for a placed lot, and [Cancel]; the rejected save, which lists each violation's text and code and the earliest allowed start, without the [Show ...] links. The form opens from [Place...] in the queue and from [Place...] or [Move...] on the lots of the order page, which also show each lot's live machine, planned start and planned end (AC-71).
 - Built in task M4-2 (AC-196 to AC-198): "Find earliest slot", whose machine list is labelled "Search on". The "Depends on" lines with the earliest start from dependencies are deferred to `BACKLOG.md` (DEC-58).
 - Built in task M3-6 (AC-191): the [Show ...] links to the conflicting items and "Move..." in the lot popover.
-- Built in task M5-1 (AC-213): a started lot offers no [Place...] or [Move...] and says that it stays on its machine, instead of the read-only form this section first planned (DEC-63).
+- Built in task M5-1 (AC-213): a started lot offers no [Place...] or [Move...] and says that it stays on its machine, instead of the read-only form this section first planned (DEC-63); since M5-20 the page offers each action only when the `actions` of the answer allow it (DEC-70).
 
 Behavior:
 
@@ -143,7 +143,7 @@ Behavior:
 - "Find earliest slot" changes nothing (AC-126). "Use suggestion" copies the machine and start into the placement fields; the planner still saves. When the lot is already placed, the search ignores its own placement (AC-121).
 - The start picker offers 15-minute steps. A start outside working time is not blocked by the picker; the server rejects it under R6 and the form shows the error.
 - After a successful save the dialog closes and the timeline shows the server's `plannedEnd`.
-- Moving an existing placement opens the same form, filled in, with an extra [Remove placement] button. A started or completed lot offers no [Move...]; the page says that it stays on its machine instead (R8, AC-112, AC-113, DEC-63).
+- Moving an existing placement opens the same form, filled in, with an extra [Remove placement] button. A lot whose `actions` do not allow a move, which is a started or completed one, offers no [Move...]; the page says that it stays on its machine instead (R8, AC-112, AC-113, DEC-63, DEC-70).
 
 ## 4. ASAP proposal review
 

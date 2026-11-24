@@ -36,11 +36,11 @@ export function OrderListPage() {
       />
       <QueryResult query={orderPage}>
         {(page) =>
-          page.items.length === 0 ? (
+          page.items.length === 0 && page.page === 1 ? (
             <p className="page-message">{narrowsTheList(query) ? 'No orders match these filters.' : 'No orders yet.'}</p>
           ) : (
             <>
-              <OrderTable page={page} />
+              {page.items.length === 0 ? <p className="page-message">Page {page.page} has no orders.</p> : <OrderTable page={page} />}
               <OrderPager
                 page={page}
                 onGoTo={(pageNo) => {

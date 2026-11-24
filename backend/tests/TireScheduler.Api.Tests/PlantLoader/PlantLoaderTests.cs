@@ -85,7 +85,7 @@ public sealed class PlantLoaderTests(PostgresFixture postgres)
         // A machine name longer than the 100 characters of A23.
         PlantParameters tooLongMachineNames = PlantPresets.Small with
         {
-            MachineTypes = [.. PlantPresets.Small.MachineTypes.Select(type => type with { MachineNamePrefix = new string('M', 100) })],
+            MachineTypes = [.. PlantPresets.Small.MachineTypes.Select((type, position) => type with { MachineNamePrefix = new string((char)('M' + position), 100) })],
         };
 
         (int exitCode, _, string errors) = await RunAsync(factory, AdminSettings("small", tooLongMachineNames, seed: 1));

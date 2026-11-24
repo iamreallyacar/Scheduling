@@ -67,8 +67,18 @@ function wallClockOf(instant: number, timeZone: string): number {
   return Date.UTC(field('year'), field('month') - 1, field('day'), field('hour'), field('minute'), field('second'));
 }
 
+// A date and time field can hold a year of more than four digits, which this app cannot read.
+const LOCAL_TEXT_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
+
+export function isPlantLocalText(local: string): boolean {
+  const match = LOCAL_TEXT_PATTERN.exec(local);
+  // Date.UTC rolls an impossible part over (month 13, 31 February) and reads years 0000-0099 as 19xx,
+  // so a real time is one that writes back as the same text.
+  return match !== null && toLocalText(parseLocalText(local)) === local;
+}
+
 function parseLocalText(local: string): number {
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(local);
+  const match = LOCAL_TEXT_PATTERN.exec(local);
   if (match === null) {
     throw new Error(`"${local}" is not a local date and time (YYYY-MM-DDTHH:mm).`);
   }

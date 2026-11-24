@@ -38,7 +38,7 @@ public sealed class PlacementContext
     internal static IReadOnlyList<RuleViolation> LotViolations(SnapshotLot lot)
     {
         List<RuleViolation> violations = [];
-        if (lot.Progress != LotProgressState.NotStarted)
+        if (LotRules.HasStarted(lot.Progress))
         {
             violations.Add(LotViolation(RuleCodes.Started, lot));
         }

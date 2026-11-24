@@ -71,6 +71,8 @@ public sealed record TimelinePlacementResponse
 
     public required LotStatus Status { get; init; }
 
+    public required LotActionsResponse Actions { get; init; }
+
     public required int OrderId { get; init; }
 
     public required string OrderNo { get; init; }

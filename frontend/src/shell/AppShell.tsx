@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { NavLink, Outlet } from 'react-router';
+import { NavLink, Outlet, useLocation } from 'react-router';
 import { signOut } from '../api/generated/endpoints.gen';
 import { problemOf } from '../api/problem';
 import { isCurrentUserQuery, queryKeys } from '../api/queryKeys';
@@ -7,10 +7,12 @@ import { forgetAntiforgeryToken } from '../api/request';
 import { useSignedInUser } from '../auth/signedInUser';
 import { PlantTimeZoneProvider } from '../calendar/PlantTimeZoneProvider';
 import { ProblemSummary } from '../forms/ProblemSummary';
+import { PageErrorBoundary } from './PageErrorBoundary';
 
 // The frame around every signed-in page: navigation per module area, the user and sign-out.
 export function AppShell() {
   const user = useSignedInUser();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const signOutMutation = useMutation({
     mutationFn: signOut,
@@ -50,9 +52,12 @@ export function AppShell() {
       </header>
       <main>
         <ProblemSummary problem={problemOf(signOutMutation.error)} />
-        <PlantTimeZoneProvider>
-          <Outlet />
-        </PlantTimeZoneProvider>
+        {/* Keyed by address, so leaving a failed page by the navigation shows the next page. */}
+        <PageErrorBoundary key={location.pathname}>
+          <PlantTimeZoneProvider>
+            <Outlet />
+          </PlantTimeZoneProvider>
+        </PageErrorBoundary>
       </main>
     </>
   );

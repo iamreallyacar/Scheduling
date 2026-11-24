@@ -33,10 +33,9 @@ public static class PlantLoad
     // and the load follows any change to the working-time rule.
     private static long WorkingMinutesPerMachine(GeneratedPlant plant, string timeZoneId)
     {
-        ScheduleSnapshot snapshot = PlantSnapshot.From(plant, timeZoneId);
         IReadOnlyList<WorkingPeriod> periods = WorkingPeriods.Between(
-            snapshot.Calendars.Single(),
-            snapshot.Holidays,
+            PlantSnapshot.CalendarOf(plant),
+            PlantSnapshot.HolidaysOf(plant),
             timeZoneId,
             PlantTime.StartOfDay(plant.StartDate, timeZoneId),
             PlantTime.StartOfDay(plant.EndDate, timeZoneId));

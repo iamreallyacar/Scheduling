@@ -1,13 +1,14 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { placeLot, removeLotPlacement } from '../api/generated/endpoints.gen';
-import { problemOf } from '../api/problem';
+import { problemOf, type ApiProblem } from '../api/problem';
 import { SCHEDULE_VERSION } from '../api/scheduleVersion';
-import { plantLocalToUtc, utcToPlantLocal } from '../calendar/plantClock';
+import { utcToPlantLocal } from '../calendar/plantClock';
 import { usePlantTimeZone } from '../calendar/plantTimeZone';
-import { SelectField, TextField } from '../forms/Fields';
+import { START_GRID_STEP_SECONDS, SelectField, TextField } from '../forms/Fields';
 import { NOTHING_CHOSEN, numberOrNullIfEmpty } from '../forms/fieldValues';
 import { FormPanel } from '../forms/FormPanel';
+import { readPlantTimes } from '../forms/plantTimeFields';
 import { QueryResult } from '../forms/QueryResult';
 import { useMachines } from '../machines/machineQueries';
 import { EarliestSlotFinder } from './EarliestSlotFinder';
@@ -31,18 +32,17 @@ export function PlacementForm({ target, onClose, renderConflictLink }: Placement
   const machines = useMachines({ resourceTypeId: target.resourceType.id, isActive: true });
   const [resourceId, setResourceId] = useState(target.placement === null ? NOTHING_CHOSEN : String(target.placement.resourceId));
   const [start, setStart] = useState(target.placement === null ? '' : utcToPlantLocal(target.placement.plannedStart, timeZone));
+  // The UTC time behind the start text; a suggested slot can be in the second hour of the autumn night.
+  const [storedStart, setStoredStart] = useState<string | null>(target.placement?.plannedStart ?? null);
+  const [timeProblem, setTimeProblem] = useState<ApiProblem | null>(null);
 
   // Empty fields are sent as null, so the server reports what is missing.
   const saveMutation = useMutation({
-    mutationFn: () =>
-      placeLot(SCHEDULE_VERSION, target.lotId, {
-        resourceId: numberOrNullIfEmpty(resourceId),
-        plannedStart: start === '' ? null : plantLocalToUtc(start, timeZone),
-      }),
+    mutationFn: (plannedStart: string | null) => placeLot(SCHEDULE_VERSION, target.lotId, { resourceId: numberOrNullIfEmpty(resourceId), plannedStart }),
     onSuccess: onClose,
   });
   const removeMutation = useMutation({ mutationFn: () => removeLotPlacement(SCHEDULE_VERSION, target.lotId), onSuccess: onClose });
-  const problem = problemOf(saveMutation.error) ?? problemOf(removeMutation.error);
+  const problem = timeProblem ?? problemOf(saveMutation.error) ?? problemOf(removeMutation.error);
   const title = `${target.placement === null ? 'Place' : 'Move'} lot - ${lotTitle(target)}`;
 
   return (
@@ -59,7 +59,12 @@ export function PlacementForm({ target, onClose, renderConflictLink }: Placement
       submitLabel="Save placement"
       onSubmit={() => {
         removeMutation.reset();
-        saveMutation.mutate();
+        saveMutation.reset();
+        const reading = readPlantTimes({ plannedStart: start }, timeZone, { plannedStart: storedStart });
+        setTimeProblem(reading.problem);
+        if (reading.problem === null) {
+          saveMutation.mutate(reading.utc.plannedStart);
+        }
       }}
       extraActions={
         target.placement !== null && (
@@ -68,6 +73,7 @@ export function PlacementForm({ target, onClose, renderConflictLink }: Placement
             disabled={removeMutation.isPending}
             onClick={() => {
               saveMutation.reset();
+              setTimeProblem(null);
               removeMutation.mutate();
             }}
           >
@@ -86,6 +92,7 @@ export function PlacementForm({ target, onClose, renderConflictLink }: Placement
             onUse={(slot) => {
               setResourceId(String(slot.resource.id));
               setStart(utcToPlantLocal(slot.plannedStart, timeZone));
+              setStoredStart(slot.plannedStart);
             }}
           />
         )}
@@ -107,7 +114,7 @@ export function PlacementForm({ target, onClose, renderConflictLink }: Placement
             />
           )}
         </QueryResult>
-        <TextField label="Start" name="plannedStart" type="datetime-local" value={start} onChange={setStart} problem={problem} />
+        <TextField label="Start" name="plannedStart" type="datetime-local" step={START_GRID_STEP_SECONDS} value={start} onChange={setStart} problem={problem} />
         <p>Planned end: Calculated when saved</p>
       </fieldset>
     </FormPanel>

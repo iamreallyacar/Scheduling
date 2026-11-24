@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ConflictedPlacementResponse, ResourceViewResponse, UnscheduledLotResponse } from '../api/generated';
 import { type FakeApiAnswer, type FakeApiRequest, plannerUser, problem, sentBody, stubApi, viewerUser } from '../testing/fakeApi';
@@ -46,6 +46,7 @@ const brokenDownPlacement: ConflictedPlacementResponse = {
   quantity: 200,
   durationMinutes: 240,
   status: 'Scheduled',
+  actions: { canChangePlacement: true, canRecordProgress: true },
   orderId: 9,
   orderNo: 'SO-1042',
   sequenceNo: 2,
@@ -152,7 +153,7 @@ describe('schedule page', () => {
     stubApi({
       'GET /api/v1/me': () => ({ status: 200, body: plannerUser }),
       [`GET ${UNSCHEDULED_LOTS_PATH}`]: () => ({ status: 200, body: [] }),
-      [`GET ${CONFLICTS_PATH}`]: () => ({ status: 200, body: [{ ...brokenDownPlacement, status: 'InProgress' }, outsideShiftPlacement] }),
+      [`GET ${CONFLICTS_PATH}`]: () => ({ status: 200, body: [{ ...brokenDownPlacement, status: 'InProgress', actions: { canChangePlacement: false, canRecordProgress: true } }, outsideShiftPlacement] }),
     });
     renderApp('/schedule');
 
@@ -160,6 +161,22 @@ describe('schedule page', () => {
     const startedRow = within(conflicts).getByRole('row', { name: /SO-1042/ });
     expect(within(startedRow).getByText('Started, so it stays on its machine.')).toBeInTheDocument();
     expect(within(startedRow).queryByRole('button', { name: 'Move...' })).not.toBeInTheDocument();
+    expect(within(within(conflicts).getByRole('row', { name: /SO-1047/ })).getByRole('button', { name: 'Move...' })).toBeInTheDocument();
+  });
+
+  it('AC_237 a conflicted placement offers Move only when the answer allows it, whatever the status says', async () => {
+    stubApi({
+      'GET /api/v1/me': () => ({ status: 200, body: plannerUser }),
+      [`GET ${UNSCHEDULED_LOTS_PATH}`]: () => ({ status: 200, body: [] }),
+      [`GET ${CONFLICTS_PATH}`]: () => ({
+        status: 200,
+        body: [{ ...brokenDownPlacement, actions: { canChangePlacement: false, canRecordProgress: true } }, outsideShiftPlacement],
+      }),
+    });
+    renderApp('/schedule');
+
+    const conflicts = await screen.findByRole('table', { name: 'Conflicted placements (2)' });
+    expect(within(within(conflicts).getByRole('row', { name: /SO-1042/ })).queryByRole('button', { name: 'Move...' })).not.toBeInTheDocument();
     expect(within(within(conflicts).getByRole('row', { name: /SO-1047/ })).getByRole('button', { name: 'Move...' })).toBeInTheDocument();
   });
 
@@ -202,6 +219,118 @@ describe('schedule page', () => {
     expect(sentBody(requests, 'PUT', `/api/v1/versions/live/lots/${String(curingLot.id)}/placement`)).toEqual({ resourceId: press2.id, plannedStart: '2026-11-16T07:00:00.000Z' });
   });
 
+  it('AC_230 saving a placement with the start untouched sends the stored start, also in the second occurrence of the repeated autumn hour', async () => {
+    const autumnPlacement = { ...brokenDownPlacement, plannedStart: '2026-10-25T01:30:00Z', plannedEnd: '2026-10-25T05:30:00Z' };
+    const requests = stubApi({
+      'GET /api/v1/me': () => ({ status: 200, body: plannerUser }),
+      [`GET ${UNSCHEDULED_LOTS_PATH}`]: () => ({ status: 200, body: [] }),
+      [`GET ${CONFLICTS_PATH}`]: () => ({ status: 200, body: [autumnPlacement] }),
+      'GET /api/v1/resources': () => ({ status: 200, body: [press1, press2] }),
+      [`PUT /api/v1/versions/live/lots/${String(autumnPlacement.lotId)}/placement`]: () => ({ status: 500 }),
+    });
+    const user = userEvent.setup();
+    renderApp('/schedule');
+
+    await user.click(within(await screen.findByRole('table', { name: 'Conflicted placements (1)' })).getByRole('button', { name: 'Move...' }));
+    const form = await screen.findByRole('form', { name: /^Move lot/ });
+    await user.selectOptions(await within(form).findByLabelText('Machine'), 'Press 2');
+    expect(within(form).getByLabelText('Start')).toHaveValue('2026-10-25T02:30');
+    await user.click(within(form).getByRole('button', { name: 'Save placement' }));
+
+    await waitFor(() => { expect(sentBody(requests, 'PUT', `/api/v1/versions/live/lots/${String(autumnPlacement.lotId)}/placement`)).toEqual({ resourceId: press2.id, plannedStart: '2026-10-25T01:30:00.000Z' }); });
+  });
+
+  it('AC_230 saving a suggested slot that starts in the second occurrence of the repeated autumn hour sends that instant', async () => {
+    const requests = stubPlannerApi(
+      () => [curingLot],
+      () => ({ status: 500 }),
+      () => ({
+        status: 200,
+        body: { lotId: curingLot.id, resource: { id: press2.id, name: press2.name }, plannedStart: '2026-10-25T01:30:00Z', plannedEnd: '2026-10-25T21:00:00Z' },
+      }),
+    );
+    const user = userEvent.setup();
+    renderApp('/schedule');
+
+    await user.click(await screen.findByRole('button', { name: 'Place...' }));
+    const form = await screen.findByRole('form', { name: /^Place lot/ });
+    const finder = await within(form).findByRole('group', { name: 'Find earliest slot' });
+    await user.click(within(finder).getByRole('button', { name: 'Find earliest slot' }));
+    await user.click(await within(finder).findByRole('button', { name: 'Use suggestion' }));
+    expect(within(form).getByLabelText('Start')).toHaveValue('2026-10-25T02:30');
+    await user.click(within(form).getByRole('button', { name: 'Save placement' }));
+
+    await waitFor(() => { expect(sentBody(requests, 'PUT', `/api/v1/versions/live/lots/${String(curingLot.id)}/placement`)).toEqual({ resourceId: press2.id, plannedStart: '2026-10-25T01:30:00.000Z' }); });
+  });
+
+  it('AC_228 a placement start the page cannot read is a field error, nothing is sent and the entered values stay', async () => {
+    const requests = stubPlannerApi(
+      () => [curingLot],
+      () => ({ status: 500 }),
+    );
+    const user = userEvent.setup();
+    renderApp('/schedule');
+
+    await user.click(await screen.findByRole('button', { name: 'Place...' }));
+    const form = await screen.findByRole('form', { name: /^Place lot/ });
+    await user.selectOptions(await within(form).findByLabelText('Machine'), 'Press 2');
+    await user.type(within(form).getByLabelText('Start'), '20266-11-16T08:00');
+    await user.click(within(form).getByRole('button', { name: 'Save placement' }));
+
+    expect(within(form).getByLabelText('Start')).toHaveAccessibleDescription('Enter a date and time the page can read, with a four-digit year.');
+    expect(within(form).getByLabelText('Start')).toHaveValue('20266-11-16T08:00');
+    expect(within(form).getByLabelText('Machine')).toHaveValue(String(press2.id));
+    expect(requests.filter((request) => request.method === 'PUT')).toEqual([]);
+  });
+
+  it('AC_228 an earliest-slot search from a time the page cannot read shows a field error and asks nothing, and a readable time searches again', async () => {
+    const requests = stubPlannerApi(
+      () => [curingLot],
+      () => ({ status: 500 }),
+      () => ({
+        status: 200,
+        body: {
+          lotId: curingLot.id,
+          resource: { id: press2.id, name: press2.name },
+          plannedStart: '2026-11-17T07:00:00Z',
+          plannedEnd: '2026-11-18T03:30:00Z',
+        },
+      }),
+    );
+    const user = userEvent.setup();
+    renderApp('/schedule');
+
+    await user.click(await screen.findByRole('button', { name: 'Place...' }));
+    const form = await screen.findByRole('form', { name: /^Place lot/ });
+    const finder = await within(form).findByRole('group', { name: 'Find earliest slot' });
+    // Typing alone must not throw while the page draws.
+    await user.type(within(finder).getByLabelText('Not before'), '20266-11-17T08:00');
+    expect(screen.getByRole('form', { name: /^Place lot/ })).toBeInTheDocument();
+    await user.click(within(finder).getByRole('button', { name: 'Find earliest slot' }));
+
+    expect(within(finder).getByLabelText('Not before')).toHaveAccessibleDescription('Enter a date and time the page can read, with a four-digit year.');
+    expect(requests.filter((request) => request.path === EARLIEST_SLOT_PATH)).toEqual([]);
+
+    await user.clear(within(finder).getByLabelText('Not before'));
+    await user.type(within(finder).getByLabelText('Not before'), '2026-11-17T08:00');
+    await user.click(within(finder).getByRole('button', { name: 'Find earliest slot' }));
+    expect(await within(finder).findByText(/^Suggested: Press 2/)).toBeInTheDocument();
+    expect(within(finder).getByLabelText('Not before')).not.toBeInvalid();
+    expect(requests.filter((request) => request.path === EARLIEST_SLOT_PATH).map((request) => request.query.get('notBefore'))).toEqual(['2026-11-17T07:00:00.000Z']);
+  });
+
+  it('AC_233 the placement start and the earliest-slot not-before time step in 15 minutes', async () => {
+    stubPlannerApi(() => [curingLot], () => ({ status: 500 }), () => ({ status: 500 }));
+    const user = userEvent.setup();
+    renderApp('/schedule');
+
+    await user.click(await screen.findByRole('button', { name: 'Place...' }));
+    const form = await screen.findByRole('form', { name: /^Place lot/ });
+    const finder = await within(form).findByRole('group', { name: 'Find earliest slot' });
+    expect(within(form).getByLabelText('Start')).toHaveAttribute('step', '900');
+    expect(within(finder).getByLabelText('Not before')).toHaveAttribute('step', '900');
+  });
+
   it('AC_196 AC_197 a Planner finds the earliest slot on any machine or a chosen one and uses it without saving', async () => {
     const requests = stubPlannerApi(
       () => [curingLot],
@@ -237,6 +366,38 @@ describe('schedule page', () => {
     expect(within(form).getByLabelText('Machine')).toHaveValue(String(press2.id));
     expect(within(form).getByLabelText('Start')).toHaveValue('2026-11-17T08:00');
     expect(requests.filter((request) => request.method !== 'GET')).toEqual([]);
+  });
+
+  it('AC_196 editing the machine or the not-before time after a search hides the suggestion until the next press', async () => {
+    stubPlannerApi(
+      () => [curingLot],
+      () => ({ status: 500 }),
+      () => ({
+        status: 200,
+        body: {
+          lotId: curingLot.id,
+          resource: { id: press2.id, name: press2.name },
+          plannedStart: '2026-11-17T07:00:00Z',
+          plannedEnd: '2026-11-18T03:30:00Z',
+        },
+      }),
+    );
+    const user = userEvent.setup();
+    renderApp('/schedule');
+
+    await user.click(await screen.findByRole('button', { name: 'Place...' }));
+    const form = await screen.findByRole('form', { name: /^Place lot/ });
+    const finder = await within(form).findByRole('group', { name: 'Find earliest slot' });
+    await user.click(within(finder).getByRole('button', { name: 'Find earliest slot' }));
+    expect(await within(finder).findByText(/^Suggested: Press 2/)).toBeInTheDocument();
+
+    await user.type(within(finder).getByLabelText('Not before'), '2026-11-17T08:00');
+    expect(within(finder).queryByText(/^Suggested:/)).not.toBeInTheDocument();
+    await user.click(within(finder).getByRole('button', { name: 'Find earliest slot' }));
+    expect(await within(finder).findByText(/^Suggested: Press 2/)).toBeInTheDocument();
+
+    await user.selectOptions(within(finder).getByLabelText('Search on'), 'Press 2');
+    expect(within(finder).queryByText(/^Suggested:/)).not.toBeInTheDocument();
   });
 
   it('AC_198 a rejected search shows the problem and every broken rule, and the placement fields keep their values', async () => {

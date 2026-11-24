@@ -1,7 +1,7 @@
 namespace TireScheduler.PlantLoader;
 
 // A failure the loader reports to the user and stops on, with a non-zero exit code.
-public class LoaderException(string message) : Exception(message);
+public class LoaderException(string message, Exception? inner = null) : Exception(message, inner);
 
 public sealed class LoaderUsageException(string message) : LoaderException(message);
 

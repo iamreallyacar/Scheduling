@@ -8,6 +8,7 @@ public static class LoaderCommandLine
 {
     public const string EmailVariable = "PlantLoader__Email";
     public const string PasswordVariable = "PlantLoader__Password";
+    public const string RequestTimeoutVariable = "PlantLoader__RequestTimeoutSeconds";
 
     public const string Usage =
         "Usage: TireScheduler.PlantLoader --preset <small|plant|stress> [--seed <number>] [--start <yyyy-MM-dd>] [--api <url>] [--schedule]\n" +
@@ -39,8 +40,16 @@ public static class LoaderCommandLine
             values.TryGetValue("--api", out string? apiText) ? ParseApiUrl(apiText) : DefaultApiUrl,
             RequiredVariable(readEnvironmentVariable, EmailVariable),
             RequiredVariable(readEnvironmentVariable, PasswordVariable),
-            placeSchedule);
+            placeSchedule,
+            ParseRequestTimeoutSeconds(readEnvironmentVariable(RequestTimeoutVariable)));
     }
+
+    private static int ParseRequestTimeoutSeconds(string? text) =>
+        string.IsNullOrEmpty(text)
+            ? LoaderSettings.DefaultRequestTimeoutSeconds
+            : int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out int seconds) && seconds is > 0 and <= LoaderSettings.MaxRequestTimeoutSeconds
+                ? seconds
+                : throw new LoaderUsageException($"The environment variable {RequestTimeoutVariable} must be a whole number of seconds from 1 to {LoaderSettings.MaxRequestTimeoutSeconds}, not '{text}'.");
 
     private static (Dictionary<string, string> Values, bool PlaceSchedule) ReadOptions(IReadOnlyList<string> arguments)
     {

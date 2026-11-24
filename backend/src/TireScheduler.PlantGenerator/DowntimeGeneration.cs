@@ -52,6 +52,8 @@ internal static class DowntimeGeneration
 
         DateOnly day = random.Pick(daysOfWeek);
         int startMinute = FirstStartMinute + (GridMinutes * random.Next(GridStepsToLastStart + 1));
+        // Drawn even when the downtime turns out open-ended: the draw order is part of what a seed
+        // means (AC-151), so skipping an unused draw would change every seeded plant.
         int duration = random.Draw(downtime.DurationMinutes);
         int? durationMinutes = random.Chance(openEndedShare) ? null : duration;
         string reason = kind == UnavailabilityKind.Planned ? "Planned maintenance" : "Breakdown";

@@ -9,6 +9,18 @@ public static class PlantSnapshot
 {
     private const int PlantCalendarId = 1;
 
+    public static SnapshotCalendar CalendarOf(GeneratedPlant plant)
+    {
+        ArgumentNullException.ThrowIfNull(plant);
+        return new SnapshotCalendar(PlantCalendarId, [.. plant.Shifts.Select(shift => new SnapshotShift(shift.Weekday, shift.StartMinute, shift.EndMinute))]);
+    }
+
+    public static HashSet<DateOnly> HolidaysOf(GeneratedPlant plant)
+    {
+        ArgumentNullException.ThrowIfNull(plant);
+        return plant.Holidays.Select(holiday => holiday.Date).ToHashSet();
+    }
+
     public static ScheduleSnapshot From(GeneratedPlant plant, string timeZoneId)
     {
         ArgumentNullException.ThrowIfNull(plant);
@@ -51,8 +63,8 @@ public static class PlantSnapshot
 
         return new ScheduleSnapshot(
             timeZoneId,
-            [new SnapshotCalendar(PlantCalendarId, [.. plant.Shifts.Select(shift => new SnapshotShift(shift.Weekday, shift.StartMinute, shift.EndMinute))])],
-            plant.Holidays.Select(holiday => holiday.Date).ToHashSet(),
+            [CalendarOf(plant)],
+            HolidaysOf(plant),
             resources,
             [.. plant.Unavailabilities.Select((unavailability, index) => new SnapshotUnavailability(
                 index + 1,
