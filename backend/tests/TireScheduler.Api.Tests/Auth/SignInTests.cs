@@ -163,7 +163,7 @@ public sealed class SignInTests(SchedulerApiFixture api, PostgresFixture postgre
         HttpResponseMessage response = await session.PostAsync("/api/v1/auth/sign-in", new { });
 
         JsonElement problem = await ProblemAssert.HasProblemAsync(response, HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
-        Assert.Equal(["email", "password"], problem.GetProperty("errors").EnumerateObject().Select(field => field.Name).Order());
+        Assert.Equal(["email", "password"], ProblemAssert.ErrorFields(problem));
     }
 
     private static string WithoutTraceId(JsonElement problem) =>

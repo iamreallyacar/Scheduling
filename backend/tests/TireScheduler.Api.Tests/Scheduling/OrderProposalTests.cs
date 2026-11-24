@@ -206,11 +206,11 @@ public sealed class OrderProposalTests : IAsyncDisposable
         using ApiSession viewer = await api.Factory.SignInAsRoleAsync(UserRole.Viewer);
         HttpResponseMessage viewerResponse = await viewer.PostAsync(AsapCommitPath(LiveVersion, orderId), Body(Sent(lots[0]), Sent(lots[1])));
 
-        Assert.Equal(["placements[1].lotId"], FieldsOf(otherOrderLot));
-        Assert.Equal(["placements[1].lotId"], FieldsOf(lotTwice));
-        Assert.Equal(["notBefore", "placements[0].plannedStart", "placements[0].resourceId"], FieldsOf(missing));
-        Assert.Equal(["placements"], FieldsOf(noPlacements));
-        Assert.Equal(["placements[0].plannedStart"], FieldsOf(notWholeMinute));
+        Assert.Equal(["placements[1].lotId"], ProblemAssert.ErrorFields(otherOrderLot));
+        Assert.Equal(["placements[1].lotId"], ProblemAssert.ErrorFields(lotTwice));
+        Assert.Equal(["notBefore", "placements[0].plannedStart", "placements[0].resourceId"], ProblemAssert.ErrorFields(missing));
+        Assert.Equal(["placements"], ProblemAssert.ErrorFields(noPlacements));
+        Assert.Equal(["placements[0].plannedStart"], ProblemAssert.ErrorFields(notWholeMinute));
         await ProblemAssert.HasProblemAsync(viewerResponse, HttpStatusCode.Forbidden, ProblemCodes.AuthForbidden);
         int[] everyLot = [.. LotIds(order), .. LotIds(other)];
         Assert.Equal(everyLot, QueuedLotIds(await planner.GetJsonAsync(UnscheduledLotsPath(LiveVersion))));
@@ -225,8 +225,6 @@ public sealed class OrderProposalTests : IAsyncDisposable
 
     private static async Task<JsonElement> CommitProblemAsync(ApiSession planner, int orderId, object body) =>
         await ProblemAssert.HasProblemAsync(await planner.PostAsync(AsapCommitPath(LiveVersion, orderId), body), HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
-
-    private static string[] FieldsOf(JsonElement problem) => [.. problem.GetProperty("errors").EnumerateObject().Select(field => field.Name).Order(StringComparer.Ordinal)];
 
     private static ProposalLot[] LotsOf(JsonElement proposal) =>
         [.. proposal.GetProperty("lots").EnumerateArray().Select(lot => new ProposalLot(

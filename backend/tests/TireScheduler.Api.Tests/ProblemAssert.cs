@@ -19,4 +19,8 @@ internal static class ProblemAssert
         Assert.NotEmpty(problem.GetProperty("detail").GetString()!);
         return problem;
     }
+
+    // The field names of a validation answer, ordered ordinally so the expected list does not depend on the test machine's culture.
+    public static string[] ErrorFields(JsonElement problem) =>
+        [.. problem.GetProperty("errors").EnumerateObject().Select(field => field.Name).Order(StringComparer.Ordinal)];
 }

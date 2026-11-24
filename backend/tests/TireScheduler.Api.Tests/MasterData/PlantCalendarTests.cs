@@ -90,7 +90,7 @@ public sealed class PlantCalendarTests(SchedulerApiFixture api) : IClassFixture<
         });
 
         JsonElement problem = await ProblemAssert.HasProblemAsync(response, HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
-        Assert.Equal([expectedField], problem.GetProperty("errors").EnumerateObject().Select(field => field.Name));
+        Assert.Equal([expectedField], ProblemAssert.ErrorFields(problem));
         Assert.Equal([("Friday", "00:00", "08:00")], (await ReadCalendarAsync(admin)).GetProperty("shifts").EnumerateArray().Select(ShiftValues));
     }
 
@@ -104,11 +104,11 @@ public sealed class PlantCalendarTests(SchedulerApiFixture api) : IClassFixture<
         HttpResponseMessage withEmptyShift = await admin.PutAsync(ShiftsPath(calendarId), new { shifts = new[] { new { } } });
 
         JsonElement listProblem = await ProblemAssert.HasProblemAsync(withoutList, HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
-        Assert.Equal(["shifts"], listProblem.GetProperty("errors").EnumerateObject().Select(field => field.Name));
+        Assert.Equal(["shifts"], ProblemAssert.ErrorFields(listProblem));
         JsonElement shiftProblem = await ProblemAssert.HasProblemAsync(withEmptyShift, HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
         Assert.Equal(
             ["shifts[0].end", "shifts[0].start", "shifts[0].weekday"],
-            shiftProblem.GetProperty("errors").EnumerateObject().Select(field => field.Name).Order(StringComparer.Ordinal));
+            ProblemAssert.ErrorFields(shiftProblem));
     }
 
     [Fact]
@@ -152,7 +152,7 @@ public sealed class PlantCalendarTests(SchedulerApiFixture api) : IClassFixture<
         HttpResponseMessage response = await admin.PostAsync(HolidaysPath, new { name = " " });
 
         JsonElement problem = await ProblemAssert.HasProblemAsync(response, HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
-        Assert.Equal(["date", "name"], problem.GetProperty("errors").EnumerateObject().Select(field => field.Name).Order(StringComparer.Ordinal));
+        Assert.Equal(["date", "name"], ProblemAssert.ErrorFields(problem));
     }
 
     [Fact]

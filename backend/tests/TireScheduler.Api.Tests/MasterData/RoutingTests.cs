@@ -149,7 +149,7 @@ public sealed class RoutingTests(SchedulerApiFixture api) : IClassFixture<Schedu
         });
 
         JsonElement problem = await ProblemAssert.HasProblemAsync(response, HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
-        Assert.Equal(["stages[1].resourceTypeId"], problem.GetProperty("errors").EnumerateObject().Select(field => field.Name));
+        Assert.Equal(["stages[1].resourceTypeId"], ProblemAssert.ErrorFields(problem));
         Assert.Equal(0, (await admin.GetJsonAsync(RoutingPath(productId))).GetProperty("stages").GetArrayLength());
     }
 
@@ -180,7 +180,7 @@ public sealed class RoutingTests(SchedulerApiFixture api) : IClassFixture<Schedu
                 "stages[1].cycleMinutes",
                 "stages[1].resourceTypeId",
             ],
-            problem.GetProperty("errors").EnumerateObject().Select(field => field.Name).Order(StringComparer.Ordinal));
+            ProblemAssert.ErrorFields(problem));
     }
 
     [Fact]
@@ -192,7 +192,7 @@ public sealed class RoutingTests(SchedulerApiFixture api) : IClassFixture<Schedu
         HttpResponseMessage response = await admin.PutAsync(RoutingPath(productId), new { });
 
         JsonElement problem = await ProblemAssert.HasProblemAsync(response, HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
-        Assert.Equal(["dependencies", "stages"], problem.GetProperty("errors").EnumerateObject().Select(field => field.Name).Order());
+        Assert.Equal(["dependencies", "stages"], ProblemAssert.ErrorFields(problem));
     }
 
     [Fact]

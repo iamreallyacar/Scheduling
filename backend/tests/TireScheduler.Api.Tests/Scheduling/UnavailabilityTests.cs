@@ -167,7 +167,7 @@ public sealed class UnavailabilityTests(SchedulerApiFixture api) : IClassFixture
     private static async Task<string[]> FieldsAsync(HttpResponseMessage response)
     {
         JsonElement problem = await ProblemAssert.HasProblemAsync(response, HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
-        return [.. problem.GetProperty("errors").EnumerateObject().Select(field => field.Name).Order()];
+        return ProblemAssert.ErrorFields(problem);
     }
 
     private static void AssertUtc(DateTimeOffset expected, JsonElement actual)

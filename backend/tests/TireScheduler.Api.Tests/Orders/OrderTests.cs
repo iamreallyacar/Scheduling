@@ -76,9 +76,9 @@ public sealed class OrderTests(SchedulerApiFixture api) : IClassFixture<Schedule
         JsonElement emptyProblem = await ProblemAssert.HasProblemAsync(empty, HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
         Assert.Equal(
             ["customerName", "dueDate", "orderNo", "productId", "quantity"],
-            emptyProblem.GetProperty("errors").EnumerateObject().Select(field => field.Name).Order(StringComparer.Ordinal));
+            ProblemAssert.ErrorFields(emptyProblem));
         JsonElement quantityProblem = await ProblemAssert.HasProblemAsync(zeroQuantity, HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
-        Assert.Equal(["quantity"], quantityProblem.GetProperty("errors").EnumerateObject().Select(field => field.Name));
+        Assert.Equal(["quantity"], ProblemAssert.ErrorFields(quantityProblem));
     }
 
     [Fact]
@@ -105,7 +105,7 @@ public sealed class OrderTests(SchedulerApiFixture api) : IClassFixture<Schedule
         foreach (HttpResponseMessage response in new[] { withoutRouting, unknownProduct })
         {
             JsonElement problem = await ProblemAssert.HasProblemAsync(response, HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
-            Assert.Equal(["productId"], problem.GetProperty("errors").EnumerateObject().Select(field => field.Name));
+            Assert.Equal(["productId"], ProblemAssert.ErrorFields(problem));
         }
     }
 

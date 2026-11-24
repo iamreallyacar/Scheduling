@@ -63,9 +63,8 @@ public sealed class ErrorHandlingTests : IAsyncLifetime
         HttpResponseMessage response = await Client.PostAsJsonAsync("/machines", new { capacity = 0 }, TestContext.Current.CancellationToken);
 
         JsonElement problem = await ProblemAssert.HasProblemAsync(response, HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
-        JsonElement errors = problem.GetProperty("errors");
-        Assert.Equal(["capacity", "name"], errors.EnumerateObject().Select(field => field.Name).Order());
-        Assert.NotEmpty(errors.GetProperty("name")[0].GetString()!);
+        Assert.Equal(["capacity", "name"], ProblemAssert.ErrorFields(problem));
+        Assert.NotEmpty(problem.GetProperty("errors").GetProperty("name")[0].GetString()!);
     }
 
     [Fact]
@@ -82,7 +81,7 @@ public sealed class ErrorHandlingTests : IAsyncLifetime
         JsonElement problem = await ProblemAssert.HasProblemAsync(response, HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
         Assert.Equal(
             ["lead.name", "machines[1]", "machines[2].capacity", "name"],
-            problem.GetProperty("errors").EnumerateObject().Select(field => field.Name).Order(StringComparer.Ordinal));
+            ProblemAssert.ErrorFields(problem));
     }
 
     [Fact]
@@ -99,7 +98,7 @@ public sealed class ErrorHandlingTests : IAsyncLifetime
         HttpResponseMessage response = await Client.PutAsJsonAsync("/machines/7", new { capacity = 0 }, TestContext.Current.CancellationToken);
 
         JsonElement problem = await ProblemAssert.HasProblemAsync(response, HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
-        Assert.Equal(["capacity", "name"], problem.GetProperty("errors").EnumerateObject().Select(field => field.Name).Order());
+        Assert.Equal(["capacity", "name"], ProblemAssert.ErrorFields(problem));
     }
 
     [Fact]

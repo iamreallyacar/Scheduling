@@ -82,7 +82,7 @@ public sealed class ProductRegisterTests(SchedulerApiFixture api) : IClassFixtur
         HttpResponseMessage response = await admin.PostAsync(ProductsPath, new { code = "   ", spec = new string('x', 501) });
 
         JsonElement problem = await ProblemAssert.HasProblemAsync(response, HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
-        Assert.Equal(["code", "name", "spec"], problem.GetProperty("errors").EnumerateObject().Select(field => field.Name).Order());
+        Assert.Equal(["code", "name", "spec"], ProblemAssert.ErrorFields(problem));
     }
 
     [Fact]

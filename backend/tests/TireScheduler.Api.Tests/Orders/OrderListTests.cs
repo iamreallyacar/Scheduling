@@ -43,7 +43,7 @@ public sealed class OrderListTests(PostgresFixture postgres)
         HttpResponseMessage response = await viewer.GetAsync($"{OrdersPath}?{query}");
 
         JsonElement problem = await ProblemAssert.HasProblemAsync(response, HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
-        Assert.Equal([expectedField], problem.GetProperty("errors").EnumerateObject().Select(field => field.Name));
+        Assert.Equal([expectedField], ProblemAssert.ErrorFields(problem));
     }
 
     [Fact]
@@ -212,7 +212,7 @@ public sealed class OrderListTests(PostgresFixture postgres)
         HttpResponseMessage response = await viewer.GetAsync($"{OrdersPath}?{query}");
 
         JsonElement problem = await ProblemAssert.HasProblemAsync(response, HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
-        Assert.Equal(["sort"], problem.GetProperty("errors").EnumerateObject().Select(field => field.Name));
+        Assert.Equal(["sort"], ProblemAssert.ErrorFields(problem));
     }
 
     [Theory]
@@ -229,7 +229,7 @@ public sealed class OrderListTests(PostgresFixture postgres)
         HttpResponseMessage response = await viewer.GetAsync($"{OrdersPath}?{query}");
 
         JsonElement problem = await ProblemAssert.HasProblemAsync(response, HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
-        Assert.Equal([expectedField], problem.GetProperty("errors").EnumerateObject().Select(field => field.Name));
+        Assert.Equal([expectedField], ProblemAssert.ErrorFields(problem));
     }
 
     [Theory]

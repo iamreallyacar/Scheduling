@@ -166,7 +166,7 @@ public sealed class MachineRegisterTests(SchedulerApiFixture api) : IClassFixtur
         HttpResponseMessage unknownType = await admin.PostAsync(ResourcesPath, new { name = "AC-21 machine", resourceTypeId = 987654 });
 
         JsonElement emptyProblem = await ProblemAssert.HasProblemAsync(emptyRequest, HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
-        Assert.Equal(["name", "resourceTypeId"], emptyProblem.GetProperty("errors").EnumerateObject().Select(field => field.Name).Order());
+        Assert.Equal(["name", "resourceTypeId"], ProblemAssert.ErrorFields(emptyProblem));
         JsonElement unknownTypeProblem = await ProblemAssert.HasProblemAsync(unknownType, HttpStatusCode.BadRequest, ProblemCodes.ValidationFailed);
         Assert.True(unknownTypeProblem.GetProperty("errors").TryGetProperty("resourceTypeId", out _));
     }
