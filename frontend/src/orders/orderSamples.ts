@@ -16,7 +16,7 @@ export const order: OrderResponse = {
   cancelledAt: null,
   status: 'Pending',
   isLate: false,
-  progress: { completedQuantity: 0, totalQuantity: 202 },
+  progress: { completedQuantity: 0, totalQuantity: 202, percentComplete: 0 },
   operations: [
     {
       id: 11,

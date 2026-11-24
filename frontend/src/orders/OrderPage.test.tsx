@@ -32,7 +32,7 @@ describe('order page', () => {
     expect(screen.getByText('Tire Shop North')).toBeInTheDocument();
     expect(screen.getByText('PS-205 Passenger 205/55 R16')).toBeInTheDocument();
     expect(await screen.findByText('18 Nov 2026, 10:30')).toBeInTheDocument();
-    expect(screen.getByText('0 of 202 tires completed')).toBeInTheDocument();
+    expect(progressOnPage()).toBe('0% completed');
     const operationRow = rowOf(within(screen.getByRole('table', { name: 'Operations' })).getByRole('rowheader', { name: '2' }));
     expect(operationRow.textContent).toBe('2Curing press10130122');
     const lotRow = rowOf(within(screen.getByRole('table', { name: 'Lots' })).getByRole('rowheader', { name: '2' }));
@@ -309,6 +309,15 @@ describe('order page', () => {
     expect(screen.queryByRole('button', { name: /Progress/ })).not.toBeInTheDocument();
   });
 
+  it('AC_217 AC_72 shows the progress percentage the API returns, not the quantities summed over the stages', async () => {
+    // 66, not the 67 that rounding 20 of 30 would give, so the page cannot be working it out itself.
+    stubOrderApi(viewerUser, {}, () => ({ ...completedOrder, progress: { completedQuantity: 20, totalQuantity: 30, percentComplete: 66 } }));
+    renderApp('/orders/5');
+
+    expect(await screen.findByRole('heading', { name: 'Order SO-5' })).toBeInTheDocument();
+    expect(progressOnPage()).toBe('66% completed');
+  });
+
   it('AC_23 an unknown order shows the problem', async () => {
     stubApi({
       'GET /api/v1/me': () => ({ status: 200, body: plannerUser }),
@@ -350,6 +359,10 @@ function withCuringLot(baseOrder: OrderResponse, changes: Partial<LotResponse>):
       operation.sequenceNo === 2 ? { ...operation, lots: operation.lots.map((lot) => ({ ...lot, ...changes })) } : operation,
     ),
   };
+}
+
+function progressOnPage(): string | null {
+  return screen.getByText('Progress', { selector: 'dt' }).nextElementSibling?.textContent ?? null;
 }
 
 function statusOnPage(): string | null {

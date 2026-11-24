@@ -174,6 +174,7 @@ export type OrderPriority = 'Low' | 'Normal' | 'High';
 export type OrderProgressResponse = {
     completedQuantity: number;
     totalQuantity: number;
+    percentComplete: number;
 };
 
 export type OrderProposalCommitRequest = {

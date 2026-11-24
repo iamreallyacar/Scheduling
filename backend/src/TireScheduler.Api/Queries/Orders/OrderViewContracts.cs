@@ -41,6 +41,9 @@ public sealed record OrderProgressResponse
     public required int CompletedQuantity { get; init; }
 
     public required int TotalQuantity { get; init; }
+
+    // Whole percent, rounded down (DEC-64).
+    public required int PercentComplete { get; init; }
 }
 
 public sealed record OperationResponse

@@ -2196,7 +2196,8 @@
       "OrderProgressResponse": {
         "required": [
           "completedQuantity",
-          "totalQuantity"
+          "totalQuantity",
+          "percentComplete"
         ],
         "type": "object",
         "properties": {
@@ -2205,6 +2206,10 @@
             "format": "int32"
           },
           "totalQuantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "percentComplete": {
             "type": "integer",
             "format": "int32"
           }

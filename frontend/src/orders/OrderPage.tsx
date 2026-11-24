@@ -65,7 +65,7 @@ function LoadedOrder({ order }: { order: OrderResponse }) {
         </dd>
         <dt>Progress</dt>
         <dd>
-          {order.progress.completedQuantity} of {order.progress.totalQuantity} tires completed
+          {order.progress.percentComplete}% completed
         </dd>
         <dt>Customer</dt>
         <dd>{order.customerName}</dd>
