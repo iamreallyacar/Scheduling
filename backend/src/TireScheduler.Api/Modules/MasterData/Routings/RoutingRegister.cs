@@ -108,7 +108,7 @@ internal sealed class RoutingRegister(MasterDataDbContext context, RequestTransa
 
     // Each type is held until the transaction ends, so it cannot be deleted before the stages are
     // saved (DEC-66). Taken in ascending id order, so two saves with common types never wait on
-    // each other; a type not found does not exist.
+    // each other. A type with no row to lock is reported as one that does not exist.
     private async Task LockTypesRejectingInvalidStagesAsync(IReadOnlyList<RoutingStageRequest> stages, CancellationToken cancellationToken)
     {
         Dictionary<string, IReadOnlyList<string>> fieldErrors = [];
