@@ -108,6 +108,34 @@ public sealed class ConflictTests : IAsyncDisposable
         SaveShifts,
     }
 
+    // Removing a placement or cancelling its order locks only the order, so a working time change
+    // can read a placement that such a command deletes before the change updates its end. The held
+    // placement row stands for that command: its delete is open when the holiday save reads, and
+    // commits while the save waits to update the row.
+    [Fact]
+    public async Task AC_182_AC_25_a_holiday_save_succeeds_when_a_placement_it_recomputes_is_deleted_meanwhile()
+    {
+        TestPlant plant = await CreatePlantAsync("AC182D");
+        using ApiSession planner = await api.Factory.SignInAsRoleAsync(UserRole.Planner);
+        JsonElement order = await CreateOrderAsync(planner, NewOrder("SO-182-D", plant.ProductId, quantity: LotQuantity));
+        int lotId = LotIds(order)[1];
+        // From Fri 22:00 the curing lot ends Mon 02:00, so a Monday holiday moves its end.
+        await PlaceLotAsync(planner, lotId, plant.Press1, Berlin(20, 22));
+        int placementId = (await StoredPlacementAsync(await LiveVersionIdAsync(), lotId)).Id;
+        using ApiSession admin = await api.Factory.SignInAsRoleAsync(UserRole.Admin);
+
+        await using HeldRowLock heldPlacement = await HeldRowLock.TakeAsync<SchedulingDbContext, Placement>(api.Factory, placementId);
+        await heldPlacement.ChangeWhileHeldAsync<SchedulingDbContext>((context, cancellationToken) =>
+            context.Placements.Where(placement => placement.Id == placementId).ExecuteDeleteAsync(cancellationToken));
+        Task<HttpResponseMessage> write = admin.PostAsync(HolidaysPath, new { date = "2026-11-23", name = "AC182D holiday" });
+        await heldPlacement.ReleaseOnceItWaitsAsync(write);
+        HttpResponseMessage response = await write;
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Contains("AC182D holiday", (await admin.GetJsonAsync(HolidaysPath)).EnumerateArray().Select(holiday => holiday.GetProperty("name").GetString()));
+        Assert.Equal(JsonValueKind.Null, Lot(await planner.GetJsonAsync(OrderPath(order.GetProperty("id").GetInt32())), lotId).GetProperty("placement").ValueKind);
+    }
+
     [Fact]
     public async Task AC_182_AC_108_new_shifts_move_a_planned_end_and_a_start_outside_them_keeps_its_end_and_is_listed_under_r6()
     {

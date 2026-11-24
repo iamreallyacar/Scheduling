@@ -38,6 +38,7 @@ Each completed finding was fixed by a task; the decision it names gives the reas
 | 32 | API tests read the field names of a 400 answer with a copied expression | Task M5-5 |
 | 35 | Deleting a product or machine type could race an order create, a routing save or a machine write | Task M5-7, DEC-66 |
 | 36 | Only the R2 race had a lock test | Task M5-6 |
+| 40 | A holiday or shift save, and a second unavailability write, could answer 500 when a delete ran at the same moment | Task M5-8 |
 
 ## Second audit
 
@@ -130,14 +131,6 @@ The rules of the first two audits still hold: no system clock reads, no hand-wri
 - Why it matters: the first answers 500 instead of a 422 rejection (R7) and holds a request thread for long; the second ends the API process, which no handler can catch (an Admin request).
 - What to do: add criteria for the largest lot duration and the largest number of stages, then reject larger ones with 400 and document them in API.md.
 - Task: M5-10, after WQ5.
-
-#### 40. Two writes at the same moment can answer 500
-
-- Where: `backend/src/TireScheduler.Api/Modules/Scheduling/PlannedEndRecompute.cs` lines 21 to 36 against `PlacementRegister.RemoveAsync` (lines 171 to 190) and an order cancel; `Modules/Scheduling/UnavailabilityRegister.cs` lines 51 to 72.
-- Problem: the recompute holds the resource rows and a remove holds only the order row, so a placement read by the recompute can be removed before its update; the update then matches no row and EF throws `DbUpdateConcurrencyException`. Unavailability update and delete have no transaction, so two deletes of one row, or an update and a delete, end the same way. Nothing handles the exception.
-- Why it matters: the Admin's holiday or shift save fails with 500 and is rolled back (AC-182, AC-25), and the second unavailability write answers 500 instead of 404 (AC-169). No data is wrong.
-- What to do: in the recompute, skip placements that are gone by updating only the rows that still exist, or retry once with a log line; in the unavailability register, answer the 404 of AC-169 for a row that is gone.
-- Task: M5-8.
 
 #### 41. An order list page past the last one says there are no orders
 

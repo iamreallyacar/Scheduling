@@ -6,7 +6,8 @@ using TireScheduler.Api.Modules.MasterData;
 namespace TireScheduler.Api.Modules.Scheduling;
 
 // F-MNT-1: record, change and delete the unavailabilities of a resource. Recording one locks the
-// resource row, so the resource cannot be deleted at the same moment (DEC-33, AC-20). A new or
+// resource row, so the resource cannot be deleted at the same moment (DEC-33, AC-20); changing or
+// deleting one locks its own row. A new or
 // changed unavailability is always saved, also over placed lots (DEC-18).
 internal sealed class UnavailabilityRegister(
     SchedulingDbContext context,
@@ -51,25 +52,34 @@ internal sealed class UnavailabilityRegister(
     public async Task<UnavailabilityResponse> UpdateAsync(int resourceId, int unavailabilityId, UnavailabilityRequest request, CancellationToken cancellationToken)
     {
         CheckedValues values = Check(request);
-        Unavailability unavailability = await FindAsync(resourceId, unavailabilityId, cancellationToken);
+        await using OpenTransaction transaction = await requestTransaction.BeginAsync(context, cancellationToken);
+        Unavailability unavailability = await LockAsync(resourceId, unavailabilityId, cancellationToken);
         values.ApplyTo(unavailability);
         await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return UnavailabilityResponses.ToResponse(unavailability);
     }
 
     public async Task DeleteAsync(int resourceId, int unavailabilityId, CancellationToken cancellationToken)
     {
-        Unavailability unavailability = await FindAsync(resourceId, unavailabilityId, cancellationToken);
+        await using OpenTransaction transaction = await requestTransaction.BeginAsync(context, cancellationToken);
+        Unavailability unavailability = await LockAsync(resourceId, unavailabilityId, cancellationToken);
         context.Unavailabilities.Remove(unavailability);
         await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
-    // An unavailability is found only under the resource it belongs to (AC-169).
-    private async Task<Unavailability> FindAsync(int resourceId, int unavailabilityId, CancellationToken cancellationToken) =>
-        await context.Unavailabilities.FirstOrDefaultAsync(
-            unavailability => unavailability.Id == unavailabilityId && unavailability.ResourceId == resourceId,
-            cancellationToken)
-        ?? throw ApiProblemException.NotFound("This unavailability");
+    // Locked before it is read, so a write that meets a delete of the same row at the same moment
+    // waits for it and then finds nothing, answering 404 (AC-169, AC-170) instead of failing at its
+    // own update or delete. An unavailability is found only under the resource it belongs to.
+    private async Task<Unavailability> LockAsync(int resourceId, int unavailabilityId, CancellationToken cancellationToken) =>
+        await context.LockRowAsync<Unavailability>(unavailabilityId, cancellationToken)
+            ? await context.Unavailabilities.FirstOrDefaultAsync(
+                unavailability => unavailability.Id == unavailabilityId && unavailability.ResourceId == resourceId,
+                cancellationToken) ?? throw UnavailabilityNotFound()
+            : throw UnavailabilityNotFound();
+
+    private static ApiProblemException UnavailabilityNotFound() => ApiProblemException.NotFound("This unavailability");
 
     // AC-167: the checks that span fields or that the data annotations cannot express.
     private static CheckedValues Check(UnavailabilityRequest request)

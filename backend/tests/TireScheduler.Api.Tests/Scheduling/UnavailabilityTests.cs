@@ -1,6 +1,8 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using TireScheduler.Api.Errors;
+using TireScheduler.Api.Modules.Scheduling;
 using TireScheduler.Api.Security;
 using static TireScheduler.Api.Tests.TestData.MasterDataTestData;
 using static TireScheduler.Api.Tests.TestData.PlantTime;
@@ -127,6 +129,41 @@ public sealed class UnavailabilityTests(SchedulerApiFixture api) : IClassFixture
             await planner.PutAsync(UnavailabilityPath(resourceId, unavailabilityId), Unavailability("Breakdown", TuesdaySix, end: null)),
             HttpStatusCode.NotFound,
             ProblemCodes.NotFound);
+    }
+
+    // Changing or deleting an unavailability locks nothing, so a second Planner's delete can remove
+    // the row between this write's read and its own update or delete. The held row stands for that
+    // delete: it is open when this write reads, and commits while this write waits for the row.
+    [Theory]
+    [InlineData(UnavailabilityWrite.Update)]
+    [InlineData(UnavailabilityWrite.Delete)]
+    public async Task AC_169_AC_170_a_change_or_delete_of_an_unavailability_deleted_meanwhile_is_not_found(UnavailabilityWrite unavailabilityWrite)
+    {
+        using ApiSession admin = await api.Factory.SignInAsRoleAsync(UserRole.Admin);
+        int resourceId = await CreateMachineAsync(admin, $"AC-170 {unavailabilityWrite} race press");
+        using ApiSession planner = await api.Factory.SignInAsRoleAsync(UserRole.Planner);
+        int unavailabilityId = await CreateUnavailabilityAsync(planner, resourceId, Unavailability("Breakdown", TuesdaySix, end: null));
+
+        await using HeldRowLock heldUnavailability = await HeldRowLock.TakeAsync<SchedulingDbContext, Unavailability>(api.Factory, unavailabilityId);
+        await heldUnavailability.ChangeWhileHeldAsync<SchedulingDbContext>((context, cancellationToken) =>
+            context.Unavailabilities.Where(unavailability => unavailability.Id == unavailabilityId).ExecuteDeleteAsync(cancellationToken));
+        string path = UnavailabilityPath(resourceId, unavailabilityId);
+        Task<HttpResponseMessage> write = unavailabilityWrite switch
+        {
+            UnavailabilityWrite.Update => planner.PutAsync(path, Unavailability("Breakdown", TuesdaySix, TuesdaySix.AddHours(2))),
+            UnavailabilityWrite.Delete => planner.DeleteAsync(path),
+            _ => throw new ArgumentOutOfRangeException(nameof(unavailabilityWrite), unavailabilityWrite, "No request for this write."),
+        };
+        await heldUnavailability.ReleaseOnceItWaitsAsync(write);
+
+        await ProblemAssert.HasProblemAsync(await write, HttpStatusCode.NotFound, ProblemCodes.NotFound);
+        Assert.Equal(0, (await planner.GetJsonAsync(UnavailabilitiesPath(resourceId))).GetArrayLength());
+    }
+
+    public enum UnavailabilityWrite
+    {
+        Update,
+        Delete,
     }
 
     [Fact]
