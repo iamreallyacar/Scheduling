@@ -29,7 +29,8 @@ internal sealed class MachineRegister(
     public async Task<ResourceResponse> CreateAsync(CreateResourceRequest request, CancellationToken cancellationToken)
     {
         int resourceTypeId = request.ResourceTypeId.Validated();
-        await RequireResourceTypeAsync(resourceTypeId, cancellationToken);
+        await using OpenTransaction transaction = await requestTransaction.BeginAsync(context, cancellationToken);
+        await LockResourceTypeAsync(resourceTypeId, cancellationToken);
         // v1 has one calendar, so every machine follows the plant default (A3).
         int plantDefaultCalendarId = await context.Calendars
             .Where(calendar => calendar.IsPlantDefault)
@@ -39,6 +40,7 @@ internal sealed class MachineRegister(
         Resource resource = new() { Name = request.Name.Trim(), ResourceTypeId = resourceTypeId, CalendarId = plantDefaultCalendarId };
         context.Resources.Add(resource);
         await context.SaveChangesRejectingDuplicatesAsync(FieldByUniqueIndex, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return await GetAsync(resource.Id, cancellationToken);
     }
 
@@ -55,7 +57,7 @@ internal sealed class MachineRegister(
             }
 
             Resource resource = await FindAsync(id, cancellationToken);
-            await RequireResourceTypeAsync(resourceTypeId, cancellationToken);
+            await LockResourceTypeAsync(resourceTypeId, cancellationToken);
             if (resourceTypeId != resource.ResourceTypeId
                 && await placementReferences.FindPlacementOnResourceAsync(id, cancellationToken) is { } placement)
             {
@@ -102,9 +104,10 @@ internal sealed class MachineRegister(
         await context.Resources.FirstOrDefaultAsync(resource => resource.Id == id, cancellationToken)
         ?? throw NotFound();
 
-    private async Task RequireResourceTypeAsync(int resourceTypeId, CancellationToken cancellationToken)
+    // Held until the transaction ends, so the type cannot be deleted before the machine is saved (DEC-66).
+    private async Task LockResourceTypeAsync(int resourceTypeId, CancellationToken cancellationToken)
     {
-        if (!await context.ResourceTypes.AnyAsync(type => type.Id == resourceTypeId, cancellationToken))
+        if (!await context.LockRowAsync<ResourceType>(resourceTypeId, cancellationToken))
         {
             throw ApiProblemException.ValidationFailed("resourceTypeId", "This machine type does not exist.");
         }

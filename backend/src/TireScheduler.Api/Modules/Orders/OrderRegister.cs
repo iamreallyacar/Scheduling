@@ -11,6 +11,7 @@ namespace TireScheduler.Api.Modules.Orders;
 internal sealed class OrderRegister(
     OrdersDbContext context,
     IMasterDataReader masterData,
+    IMasterDataLocks masterDataLocks,
     ILotPlacements lotPlacements,
     ILotProgress lotProgress,
     RequestTransaction requestTransaction,
@@ -22,6 +23,8 @@ internal sealed class OrderRegister(
     {
         int productId = request.ProductId.Validated();
         int quantity = request.Quantity.Validated();
+
+        await using OpenTransaction transaction = await requestTransaction.BeginAsync(context, cancellationToken);
         GeneratedOperations generated = await GenerateAsync(productId, quantity, cancellationToken);
 
         Order order = new()
@@ -37,8 +40,9 @@ internal sealed class OrderRegister(
         order.Operations.AddRange(generated.Operations);
         order.Dependencies.AddRange(generated.Dependencies);
         context.Orders.Add(order);
-        // One SaveChanges is one transaction: the order is saved with all its rows or not at all (AC-17).
+        // The order is saved with all its rows or not at all (AC-17).
         await context.SaveChangesRejectingDuplicatesAsync(FieldByUniqueIndex, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return order.Id;
     }
 
@@ -124,10 +128,17 @@ internal sealed class OrderRegister(
         await transaction.CommitAsync(cancellationToken);
     }
 
+    // Holds the product row until the order is saved, so the product cannot be deleted and its
+    // routing cannot be replaced while the operations are generated from it (DEC-66).
     private async Task<GeneratedOperations> GenerateAsync(int productId, int quantity, CancellationToken cancellationToken)
     {
+        if (!await masterDataLocks.LockProductAsync(productId, cancellationToken))
+        {
+            throw ApiProblemException.ValidationFailed("productId", "This product does not exist.");
+        }
+
         ProductRouting routing = await masterData.FindProductRoutingAsync(productId, cancellationToken)
-            ?? throw ApiProblemException.ValidationFailed("productId", "This product does not exist.");
+            ?? throw new InvalidOperationException($"Product {productId} is locked but its routing read found no product.");
         if (routing.Stages.Count == 0)
         {
             // AC-46: without stages there is nothing to schedule.

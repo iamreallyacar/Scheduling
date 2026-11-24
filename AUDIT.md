@@ -36,6 +36,7 @@ Each completed finding was fixed by a task; the decision it names gives the reas
 | 26 | `check_docs.py` required a criteria section only for the M1 and M2 features | Task M3-16 |
 | 27 | The architecture test took its module list as typed in, so a new module folder escaped every dependency rule | Task M5-4 |
 | 32 | API tests read the field names of a 400 answer with a copied expression | Task M5-5 |
+| 35 | Deleting a product or machine type could race an order create, a routing save or a machine write | Task M5-7, DEC-66 |
 | 36 | Only the R2 race had a lock test | Task M5-6 |
 
 ## Second audit
@@ -105,14 +106,6 @@ The rules of the first two audits still hold: no system clock reads, no hand-wri
 - Why it matters: a tidy-up that skips the unused draw changes every seeded plant and every test that names a seed; the calendar mapping exists only inside the whole snapshot.
 - What to do: a comment at the draw; `PlantSnapshot.CalendarOf` and `HolidaysOf` used by both.
 - Task: M5-12.
-
-#### 35. Deleting a product or machine type can race order creation
-
-- Where: `backend/src/TireScheduler.Api/Modules/MasterData/Products/ProductRegister.cs` lines 39 to 52 and `Machines/ResourceTypeRegister.cs` lines 34 to 67 (no transaction or lock); `Modules/Orders/OrderRegister.cs` lines 21 to 43 and 127 to 138 (the routing read takes no lock); `Modules/MasterData/MasterDataReader.cs` lines 15 to 46 (three separate queries).
-- Problem: a product delete checks that no order uses the product and then deletes it, while an order create reads the routing and saves, both without a lock. Under READ COMMITTED both can commit. The routing read can also see the old stages and the new dependencies of a routing saved in between. A machine type delete has the same gap against routing saves and machine writes.
-- Why it matters: an order then names a product that no longer exists, which breaks AC-20, and every order list, dashboard and order read that includes it fails with 500 (`MissingProduct`). A mixed routing breaks A1 or fails with `KeyNotFoundException`. A machine create against a type delete answers 500 instead of 409.
-- What to do: add product and resource type locks to `IMasterDataLocks`. Order create and update begin a transaction and lock the product before reading the routing; product and type deletes lock their row before the reference checks; routing saves and machine writes lock the type. Add a lock test in the style of AC-211.
-- Task: M5-7.
 
 #### 37. Parallel wrong passwords are counted once and answer 500
 

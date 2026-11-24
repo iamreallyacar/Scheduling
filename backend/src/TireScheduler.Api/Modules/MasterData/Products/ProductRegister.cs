@@ -5,7 +5,10 @@ using TireScheduler.Api.Errors;
 namespace TireScheduler.Api.Modules.MasterData.Products;
 
 // F-MD-2.
-internal sealed class ProductRegister(MasterDataDbContext context, IEnumerable<IProductReferences> productReferences)
+internal sealed class ProductRegister(
+    MasterDataDbContext context,
+    IEnumerable<IProductReferences> productReferences,
+    RequestTransaction requestTransaction)
 {
     private static readonly Dictionary<string, string> FieldByUniqueIndex = new() { [MasterDataDbContext.ProductCodeIndex] = "code" };
 
@@ -36,8 +39,16 @@ internal sealed class ProductRegister(MasterDataDbContext context, IEnumerable<I
         return ToResponse(product);
     }
 
+    // Locks the row first, so an order cannot be created for the product while it is checked and
+    // deleted (DEC-66).
     public async Task DeleteAsync(int id, CancellationToken cancellationToken)
     {
+        await using OpenTransaction transaction = await requestTransaction.BeginAsync(context, cancellationToken);
+        if (!await context.LockRowAsync<Product>(id, cancellationToken))
+        {
+            throw ApiProblemException.NotFound("This product");
+        }
+
         Product product = await FindAsync(id, cancellationToken);
         foreach (IProductReferences references in productReferences)
         {
@@ -49,6 +60,7 @@ internal sealed class ProductRegister(MasterDataDbContext context, IEnumerable<I
 
         context.Products.Remove(product);
         await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     private async Task<Product> FindAsync(int id, CancellationToken cancellationToken) =>

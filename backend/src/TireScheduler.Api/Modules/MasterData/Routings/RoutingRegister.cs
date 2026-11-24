@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TireScheduler.Api.Database;
 using TireScheduler.Api.Errors;
+using TireScheduler.Api.Modules.MasterData.Machines;
 using TireScheduler.Api.Modules.MasterData.Products;
 
 namespace TireScheduler.Api.Modules.MasterData.Routings;
@@ -30,7 +31,7 @@ internal sealed class RoutingRegister(MasterDataDbContext context, RequestTransa
         await using (OpenTransaction transaction = await requestTransaction.BeginAsync(context, cancellationToken))
         {
             await LockProductAsync(productId, cancellationToken);
-            await RejectInvalidStagesAsync(stages, cancellationToken);
+            await LockTypesRejectingInvalidStagesAsync(stages, cancellationToken);
             StageLink[] links = dependencies
                 .Select(dependency => new StageLink(
                     dependency.PredecessorSequenceNo.Validated(),
@@ -105,7 +106,10 @@ internal sealed class RoutingRegister(MasterDataDbContext context, RequestTransa
         }
     }
 
-    private async Task RejectInvalidStagesAsync(IReadOnlyList<RoutingStageRequest> stages, CancellationToken cancellationToken)
+    // Each type is held until the transaction ends, so it cannot be deleted before the stages are
+    // saved (DEC-66). Taken in ascending id order, so two saves with common types never wait on
+    // each other; a type not found does not exist.
+    private async Task LockTypesRejectingInvalidStagesAsync(IReadOnlyList<RoutingStageRequest> stages, CancellationToken cancellationToken)
     {
         Dictionary<string, IReadOnlyList<string>> fieldErrors = [];
         if (!RoutingRules.AreNumberedFromOneWithoutGaps(stages.Select(stage => stage.SequenceNo.Validated())))
@@ -113,11 +117,15 @@ internal sealed class RoutingRegister(MasterDataDbContext context, RequestTransa
             fieldErrors["stages"] = ["The stage sequence numbers must be 1, 2, 3 and so on, without gaps or repeats."];
         }
 
-        int[] requestedTypeIds = stages.Select(stage => stage.ResourceTypeId.Validated()).Distinct().ToArray();
-        List<int> existingTypeIds = await context.ResourceTypes
-            .Where(type => requestedTypeIds.Contains(type.Id))
-            .Select(type => type.Id)
-            .ToListAsync(cancellationToken);
+        List<int> existingTypeIds = [];
+        foreach (int typeId in stages.Select(stage => stage.ResourceTypeId.Validated()).Distinct().Order())
+        {
+            if (await context.LockRowAsync<ResourceType>(typeId, cancellationToken))
+            {
+                existingTypeIds.Add(typeId);
+            }
+        }
+
         for (int position = 0; position < stages.Count; position++)
         {
             if (!existingTypeIds.Contains(stages[position].ResourceTypeId.Validated()))

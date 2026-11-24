@@ -55,6 +55,20 @@ internal sealed class HeldRowLock : IAsyncDisposable
         }
     }
 
+    // Changes rows in the holding transaction, as the holding command would before it commits: for
+    // example deleting the held row, or adding a row that refers to it. A write sent after this sees
+    // the change only if it reads after taking the lock, so a test can tell a lock taken before the
+    // checks from a wait at the write's own delete or foreign key, which comes after them.
+    public async Task ChangeWhileHeldAsync<TContext>(Func<TContext, CancellationToken, Task> change)
+        where TContext : DbContext
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        TContext context = scope.ServiceProvider.GetRequiredService<TContext>();
+        scope.ServiceProvider.GetRequiredService<RequestTransaction>().Join(context);
+        await change(context, cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
     // Fails when the write answers while the row is held; otherwise does whileHeld, as the holding
     // command would, and releases the row.
     public async Task ReleaseOnceItWaitsAsync(Task write, Action? whileHeld = null)

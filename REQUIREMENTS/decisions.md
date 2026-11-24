@@ -73,6 +73,7 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 | DEC-63 | A started lot offers no place or move action and says why, instead of a read-only placement form | Accepted | 2026-11-24 (M5-1) | wireframes.md section 3, AC-213 |
 | DEC-64 | Order progress answers a percentage rounded down, shown on the order page only | Accepted | 2026-11-24 (M5-2) | domain-model §6, AC-215 to AC-217 |
 | DEC-65 | The dashboard is one read from Queries that selects the orders, counts the queue and conflicts and lists the machines down; the page shows no progress | Accepted | 2026-11-24 (M5-3) | API.md section "Routes", wireframes.md section 6, AC-218 to AC-221, A49, A50 |
+| DEC-66 | Writes that refer to a product or machine type lock its row, and its delete locks it before the reference checks | Proposed | 2026-11-24 (M5-7) | ARCHITECTURE.md section "Persistence rules", AC-20, AC-222 |
 
 ## Accepted
 
@@ -521,7 +522,14 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 
 ## Proposed
 
-None at present. An entry made while building and already followed by the code waits here for review; on approval its status becomes Accepted and it moves up.
+An entry made while building and already followed by the code waits here for review; on approval its status becomes Accepted and it moves up.
+
+### DEC-66 Product and machine type rows locked by the writes that refer to them
+
+- Decision: deleting a product or a machine type locks its row (DEC-33) before the reference checks of AC-20. An order create, and an order update that changes the product or quantity, lock the product through `IMasterDataLocks.LockProductAsync` before they read the routing, after the order row when there is one; a product not found there is rejected as one that does not exist. A routing save locks the product as before and then each machine type of its stages in ascending id order; a machine create locks its type, and a machine update its new type after the machine row. A type not found there is rejected as one that does not exist (AC-222).
+- Reason: the reference checks read committed rows without a lock, so under READ COMMITTED a delete and a write that adds a reference could both pass their checks and commit. Orders keeps the product id without a foreign key, so an order then named a missing product and every read that includes it failed with 500; the foreign keys inside MasterData turned the same race into a 500 instead of a 409. The product lock also keeps the routing an order reads from being replaced halfway, since a routing save holds the same lock (A1).
+- Alternatives: serializable transactions for these writes, rejected because every command would need a retry for serialization failures; a share lock (`FOR SHARE`) for the writes that only refer to a row, so that two routing saves with a common type do not wait on each other, rejected as a second lock kind that plant-size traffic does not need; a machine type lock in `IMasterDataLocks`, left out because no module outside MasterData writes a type id that a routing does not already hold: an order copies the types of the routing it reads under the product lock, and a type in a routing cannot be deleted.
+- Consequences: writes that refer to the same product or type run one after the other, for example two routing saves with a common machine type, or an order create and a routing save of its product. The locks are taken order, then product, then machine types, and machine, then type; no command takes them the other way round, so no two commands wait on each other.
 
 ## Open
 

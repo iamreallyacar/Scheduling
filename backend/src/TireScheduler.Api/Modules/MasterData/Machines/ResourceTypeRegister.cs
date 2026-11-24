@@ -4,7 +4,10 @@ using TireScheduler.Api.Errors;
 
 namespace TireScheduler.Api.Modules.MasterData.Machines;
 
-internal sealed class ResourceTypeRegister(MasterDataDbContext context, IEnumerable<IResourceTypeReferences> resourceTypeReferences)
+internal sealed class ResourceTypeRegister(
+    MasterDataDbContext context,
+    IEnumerable<IResourceTypeReferences> resourceTypeReferences,
+    RequestTransaction requestTransaction)
 {
     private static readonly Dictionary<string, string> FieldByUniqueIndex = new() { [MasterDataDbContext.ResourceTypeNameIndex] = "name" };
 
@@ -31,8 +34,16 @@ internal sealed class ResourceTypeRegister(MasterDataDbContext context, IEnumera
         return ToResponse(resourceType);
     }
 
+    // Locks the row first, so a machine or routing stage cannot be given the type while it is
+    // checked and deleted (DEC-66).
     public async Task DeleteAsync(int id, CancellationToken cancellationToken)
     {
+        await using OpenTransaction transaction = await requestTransaction.BeginAsync(context, cancellationToken);
+        if (!await context.LockRowAsync<ResourceType>(id, cancellationToken))
+        {
+            throw ApiProblemException.NotFound("This machine type");
+        }
+
         ResourceType resourceType = await FindAsync(id, cancellationToken);
         string? machineOfThisType = await context.Resources
             .Where(resource => resource.ResourceTypeId == id)
@@ -64,6 +75,7 @@ internal sealed class ResourceTypeRegister(MasterDataDbContext context, IEnumera
 
         context.ResourceTypes.Remove(resourceType);
         await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     private async Task<ResourceType> FindAsync(int id, CancellationToken cancellationToken) =>
