@@ -415,7 +415,13 @@ Progress belongs to no schedule version (`domain-model.md` section 2). Times are
 
 ### F-PRG-2 Order progress
 
-Written in task M5-2, before it is built. The order detail already answers `progress` from the lot statuses (AC-72).
+Order progress is defined in `domain-model.md` section 6 and shown as in DEC-64.
+
+| ID | Given | When | Then | Level |
+|---|---|---|---|---|
+| AC-215 | An order of 10 tires with three stages, its lots placed in the live version | Its detail is read before any lot has started, then after each lot is completed in turn, with the next lot In Progress | `progress` answers `completedQuantity` and `totalQuantity` summed over the lots of all operations, 0, 10, 20 and 30 of 30, and `percentComplete` as a whole percentage rounded down, 0, 33, 66 and 100, so it reads 100 only once every lot is completed. A lot In Progress counts as not completed | API |
+| AC-216 | An order of two stages whose first lot was completed before the order was cancelled | Its detail is read | `progress` keeps the completed lot: 10 of 20, 50 percent. The cancelled lot counts as not completed | API |
+| AC-217 | The order page (`/orders/{id}`) | Anyone opens it | Shows the order's progress as the `percentComplete` the API returns ("66% completed"), never the summed quantities, which count each tire once per stage (AC-72, DEC-64) | UI |
 
 ### F-RPT-1 Planner dashboard
 

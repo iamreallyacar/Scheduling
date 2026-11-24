@@ -71,6 +71,7 @@ To change a decision, add a new entry that supersedes the old one and mark the o
 | DEC-61 | The plant loader places a generated schedule through the proposal and commit endpoints, earliest due order first, from the start of the horizon | Proposed | 2026-11-22 (M4-5) | GUIDE.md section "Load a generated plant", AC-203 to AC-205 |
 | DEC-62 | Lot progress is saved whole and removed on `/lots/{id}/progress` under the order's row lock; Queries reads it through a Progress reader, and the engine gives the completion time | Proposed | 2026-11-24 (M5-1) | API.md section "Routes", ARCHITECTURE.md section "Persistence rules", AC-206 to AC-211, A47 |
 | DEC-63 | A started lot offers no place or move action and says why, instead of a read-only placement form | Proposed | 2026-11-24 (M5-1) | wireframes.md section 3, AC-213 |
+| DEC-64 | Order progress answers a percentage rounded down, shown on the order page only | Proposed | 2026-11-24 (M5-2) | domain-model §6, AC-215 to AC-217 |
 
 ## Accepted
 
@@ -506,6 +507,13 @@ Made while building M1 (2026-11-10) and M2 (2026-11-18) and already followed by 
 - Decision: on the order page, in the timeline popover and in the conflict list, an In Progress or Completed lot offers no [Place...] or [Move...] and says that it has started and stays on its machine (R8). The conflicted placements answer carries the lot's derived `status` so the list can tell.
 - Reason: `wireframes.md` section 3 planned a read-only placement form with the reason, which would show only what the row already shows (machine and planned times) and a sentence. The sentence alone gives the planner the same answer with less code, and the page shows the status the API returns, as it already does to hide the buttons for a cancelled order.
 - Alternatives: the read-only form, rejected for the reason above; keeping [Move...] and letting the server answer 422 `rule.R8.started`, rejected because it offers an action that always fails.
+
+### DEC-64 Order progress as a percentage
+
+- Decision: the `progress` of the order detail also answers `percentComplete`, the completed quantity over the total quantity as a whole percentage rounded down, computed in Queries with the two quantities. The order page shows the percentage instead of the quantities. The order list carries no progress.
+- Reason: the quantities count each tire once per stage, so the order page read "0 of 22 tires completed" for an order of 11 tires with two stages. A percentage needs no unit. Rounding down keeps 100 for an order whose lots are all completed, and the server computes it so the page repeats no rule. The list is for finding orders, and its status and late flag already show which need attention; progress there needs the lot quantities that the list does not read.
+- Alternatives: the page divides the two quantities itself, rejected because the rounding would be a rule in the frontend; completed stages over all stages, rejected because it ignores lot sizes once an operation has several lots (F-ORD-7); a progress column in the order list, rejected for the reason above and still possible as a field of the order summary.
+- Consequences: the API keeps `completedQuantity` and `totalQuantity`. Task M5-3 decides whether the dashboard shows progress.
 
 ## Open
 

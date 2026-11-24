@@ -176,7 +176,7 @@ Late is a flag, not a state (decided). An order can be Scheduled and late, or In
 
 The dashboard (F-RPT-1) counts it without a state clash. The order list needs a separate "late" filter. F-SCH-10, F-RPT-3 (P1) and the scenario comparison (F-SCH-12, P2) reuse it.
 
-Order progress (F-PRG-2) = completed quantity / total quantity over the lots of all operations, so lots of different sizes count fairly. With one lot per operation it equals completed operations / total operations.
+Order progress (F-PRG-2) = completed quantity / total quantity over the lots of all operations, so lots of different sizes count fairly. With one lot per operation it equals completed operations / total operations. It is shown as a whole percentage rounded down, so it reads 100 only once every lot is completed (DEC-64).
 
 ## 7. Assumptions
 

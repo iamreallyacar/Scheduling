@@ -151,5 +151,5 @@ M3-3 tested AC-174 with the placed lots given through a stand-in; M3-4 tests it 
 | ID | Task | Features | Criteria | Depends on | Status |
 |---|---|---|---|---|---|
 | M5-1 | Record lot actual start and end; adds In Progress, Completed and Running statuses | F-PRG-1, F-MNT-2 | AC-11, AC-19, AC-49, AC-50, AC-51, AC-59, AC-60, AC-72 (actuals), AC-112, AC-113, AC-182, AC-183, AC-206 to AC-214 | M3-4 | Done |
-| M5-2 | Order progress from lot completion | F-PRG-2 | AC-72 (progress); write first for F-PRG-2 | M5-1 | Todo |
+| M5-2 | Order progress from lot completion | F-PRG-2 | AC-72 (progress), AC-215 to AC-217 | M5-1 | Doing |
 | M5-3 | Planner dashboard: due soon, overdue, unscheduled lots, conflicted placements, machines down | F-RPT-1 | Write first | M5-2, M3-5, M3-3, M3-10 | Todo |
