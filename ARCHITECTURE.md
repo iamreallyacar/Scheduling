@@ -250,7 +250,7 @@ flowchart LR
 
 | Adding | Goes in |
 |---|---|
-| A module | Folder `backend/src/TireScheduler.Api/Modules/<Name>` with its `<Name>Module.cs` (service registration and endpoint mapping), called from `Program.cs`; its own DbContext, schema and `Migrations`; a row in the Structure parts table; `AllModules` and `AllowedDependencies` in `ModuleDependencyTests`; a route area in [API.md](API.md) |
+| A module | Folder `backend/src/TireScheduler.Api/Modules/<Name>` with its `<Name>Module.cs` (service registration and endpoint mapping), called from `Program.cs`; its own DbContext, schema and `Migrations`; a row in the Structure parts table; a row in `AllowedDependencies` in `ModuleDependencyTests`, which finds the module folder itself; a route area in [API.md](API.md) |
 | An endpoint | The module's endpoints and contracts files, mapped inside the `/api/v1` group the module is given (DEC-35); a role from `Security/AccessPolicies.cs`; acceptance criteria and API tests; then regenerate the OpenAPI document and the frontend types and endpoint functions (CLAUDE.md VERIFICATION TOOLS) |
 | A database table or column | The module's entity and DbContext, then a migration under `Modules/<Module>/Migrations` (GUIDE.md Developer setup); constraints in the same migration |
 | A scheduling rule or engine operation | `backend/src/TireScheduler.Engine` and its README; the rule in [domain-model.md](REQUIREMENTS/domain-model.md); acceptance criteria in the rules or engine search parts of [acceptance-criteria.md](REQUIREMENTS/acceptance-criteria.md); Engine tests |

@@ -34,6 +34,7 @@ Each completed finding was fixed by a task; the decision it names gives the reas
 | 24 | Frontend tests found table rows and sent bodies through casts | Task M3-15 |
 | 25 | The unchecked cast of `response.json()` in `request.ts` had to say why; the comment was already in place when M3-15 started | Task M3-15 |
 | 26 | `check_docs.py` required a criteria section only for the M1 and M2 features | Task M3-16 |
+| 27 | The architecture test took its module list as typed in, so a new module folder escaped every dependency rule | Task M5-4 |
 
 ## Second audit
 
@@ -54,14 +55,6 @@ Eight reviewers looked at the code after M5, four for maintainability and four f
 The rules of the first two audits still hold: no system clock reads, no hand-written locks, no stored statuses, named required records, and modules talk through ports. The engine rules R1 to R8, the earliest-slot search, the derived statuses and the late flag held up under the correctness review. The open correctness findings are about two writes that meet at the same time, inputs with no upper bound, and a few edge cases in the frontend's time fields.
 
 ### Open
-
-#### 27. The architecture test does not find a new module
-
-- Where: `backend/tests/TireScheduler.Architecture.Tests/ModuleDependencyTests.cs` line 13 (`AllModules`) and lines 80 to 84 (`Every_module_has_a_dependency_entry`).
-- Problem: the module list is typed in by hand, and the test only compares it with the dependency table next to it. Nothing compares either list with the namespaces under `TireScheduler.Api.Modules`.
-- Why it matters: a new module folder that nobody adds to the list gets no dependency rule at all, and the CLAUDE.md rule that the table and the test change together is not checked.
-- What to do: read the module names from the API assembly (the namespace segment after `Modules.`) and assert that they equal `AllModules`.
-- Task: M5-4.
 
 #### 28. The frontend decides which lot actions to offer, against the rule that it repeats no business rule
 

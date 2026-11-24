@@ -10,8 +10,6 @@ public sealed class ModuleDependencyTests
 {
     private const string ModulesNamespace = "TireScheduler.Api.Modules";
 
-    private static readonly string[] AllModules = ["Auth", "MasterData", "Orders", "Scheduling", "Progress"];
-
     private static readonly Dictionary<string, string[]> AllowedDependencies = new()
     {
         ["Auth"] = [],
@@ -26,6 +24,16 @@ public sealed class ModuleDependencyTests
     private static readonly string[] ModulesUsingTheEngine = ["Orders", "Scheduling"];
 
     private static readonly Assembly ApiAssembly = typeof(Program).Assembly;
+
+    // Read from the code rather than typed in, so a new module folder without a row in the table
+    // fails Every_module_has_a_dependency_entry instead of escaping every rule.
+    private static readonly string[] AllModules = ApiAssembly.GetTypes()
+        .Select(type => type.Namespace)
+        .OfType<string>()
+        .Where(name => name.StartsWith($"{ModulesNamespace}.", StringComparison.Ordinal))
+        .Select(name => name[(ModulesNamespace.Length + 1)..].Split('.')[0])
+        .Distinct()
+        .ToArray();
 
     public static TheoryData<string> ModuleNames => new(AllModules);
 
